@@ -3,9 +3,28 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: "HConzbra's Personal Website",
   description: "A VitePress Site",
-  base: '/',   // 个人网站必须用根路径
+  base: '/',
   head: [
-    ['link', { rel: 'icon', href: '/favicon.ico' }]
+    ['link', { rel: 'icon', href: '/favicon.ico' }],
+    [
+      'style',
+      {},
+      `
+      .VPNav, .VPContent, .VPFooter {
+        animation: fadeInUp 0.8s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+      }
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(250px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      `
+    ]
   ],
   themeConfig: {
     nav: [
@@ -18,25 +37,14 @@ export default defineConfig({
         {
           text: '所有文章',
           items: [
-            { text: 'another', link: '/posts/another' },
             { text: 'Hello World', link: '/posts/hello' },
-            
+            { text: 'another', link: '/posts/another' },
           ]
         }
       ],
-      // 如果你想为其他页面（如首页）保留原来的侧边栏，取消下面的注释
-      // '/': [
-      //   {
-      //     text: 'Examples',
-      //     items: [
-      //       { text: 'Markdown Examples', link: '/markdown-examples' },
-      //       { text: 'Runtime API Examples', link: '/api-examples' }
-      //     ]
-      //   }
-      // ]
     },
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/HConzbra' }  // 改成了你的 GitHub
+      { icon: 'github', link: 'https://github.com/HConzbra' }
     ]
   }
 })
