@@ -15,11 +15,11 @@ hero:
       link: https://space.bilibili.com/3493291423172656
 
 features:
-  - title: Feature A
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
-  - title: Feature B
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
-  - title: Feature C
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
+  - title: 由Vitepress搭建
+    details: 是个人都会
+  - title: 是个人物
+    details: 烨然若神人
+  - title: 哈康大会@Official
+    details: Harold_Conzbra, HConzbra_, HC, 哈康, 哈康HC, 哈康国王～
 ---
 
