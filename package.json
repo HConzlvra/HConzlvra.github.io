@@ -16,5 +16,8 @@
   },
   "allowScripts": {
     "esbuild": true
+  },
+  "devDependencies": {
+    "vite": "^8.2.2"
   }
 }
