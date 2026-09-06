@@ -9,6 +9,7 @@ const links = [
   { href: '/about', label: 'About' },
   { href: '/characters', label: 'Characters' },
   { href: '/posts', label: 'Posts' },
+  { href: '/bruh', label: 'Bruh' },
 ];
 
 const isActive = (href: string) =>
@@ -381,24 +382,37 @@ const isActive = (href: string) =>
     transform: translateY(-6px) rotate(-45deg);
   }
 
-  /* 移动端下拉菜单（默认隐藏）：与滚动后导航栏一致的纯净液态玻璃 */
+  /* 移动端下拉菜单：常驻 DOM、用 visibility 隐藏，开合走淡入淡出 + 轻微下坠。
+     不用 display 切换——移动端 display:none→flex 后 backdrop-filter 常不重绘，
+     面板会"变透明"；且面板嵌在带模糊的导航栏里属嵌套 backdrop-filter，移动浏览器不稳，
+     所以背景用更高不透明度的玻璃底（--nav-panel-bg），模糊仅作增强 */
   .mobile-panel {
-    display: none;
     position: absolute;
     top: calc(100% + 0.6rem);
     left: 0;
     right: 0;
+    display: flex;
     flex-direction: column;
     padding: 0.5rem;
     border-radius: 16px;
     border: 1px solid var(--nav-border);
-    background: var(--nav-tint);
+    background: var(--nav-panel-bg);
     backdrop-filter: blur(20px) saturate(1.7);
     -webkit-backdrop-filter: blur(20px) saturate(1.7);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    /* 关闭态：淡出并轻微上收 */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition:
+      opacity 0.3s ease,
+      transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+      visibility 0.3s;
   }
   .nav-wrap.mobile-open .mobile-panel {
-    display: flex;
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
   }
   .mobile-panel a {
     padding: 0.8rem 1rem;
@@ -406,10 +420,24 @@ const isActive = (href: string) =>
     text-decoration: none;
     color: var(--accent-text);
     font-weight: 500;
+    /* 链接随面板逐条滑入 */
+    opacity: 0;
+    transform: translateY(-6px);
     transition:
+      opacity 0.25s ease,
+      transform 0.25s ease,
       background 0.2s ease,
       color 0.2s ease;
   }
+  .nav-wrap.mobile-open .mobile-panel a {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  /* 仅展开时逐条错开（收起时一起淡出，不带 delay） */
+  .nav-wrap.mobile-open .mobile-panel a:nth-child(2) { transition-delay: 0.04s; }
+  .nav-wrap.mobile-open .mobile-panel a:nth-child(3) { transition-delay: 0.08s; }
+  .nav-wrap.mobile-open .mobile-panel a:nth-child(4) { transition-delay: 0.12s; }
+  .nav-wrap.mobile-open .mobile-panel a:nth-child(5) { transition-delay: 0.16s; }
   .mobile-panel a:hover,
   .mobile-panel a.active {
     background: var(--surface);
