@@ -148,3 +148,52 @@ a {
   border-top: 1px solid var(--surface-border);
   margin: 2rem 0;
 }
+
+/* ============================================
+   页面入场动画（配合 .enter-left / .enter-up / .nav-enter）
+   - 位移幅度随屏幕变小而减小（移动端更克制）
+   - 采用 backwards 填充：动画结束后 transform 自动归零，避免长期 transform
+     干扰 backdrop-filter 玻璃面板与渐变文字渲染（防止“文字与轮廓脱离”）
+   ============================================ */
+:root {
+  --anim-x: -2rem;
+  --anim-y: 1.5rem;
+  --nav-drop: 3rem;
+}
+@media (max-width: 768px) {
+  :root {
+    --anim-x: -1rem;
+    --anim-y: 1rem;
+    --nav-drop: 2.5rem;
+  }
+}
+
+@keyframes enter-left {
+  from { opacity: 0; transform: translateX(var(--anim-x)); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes enter-up {
+  from { opacity: 0; transform: translateY(var(--anim-y)); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes nav-in {
+  0%   { opacity: 0; transform: translateY(var(--nav-drop)); }
+  60%  { opacity: 1; transform: translateY(-6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.enter-left { animation: enter-left 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.enter-up   { animation: enter-up   0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+/* 导航栏从下方弹上来（带轻微过冲），由 Navbar 脚本在首次加载时挂上 .nav-enter */
+.navbar.nav-enter {
+  animation: nav-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+/* 用户偏好减少动态：关闭所有入场动画 */
+@media (prefers-reduced-motion: reduce) {
+  .enter-left,
+  .enter-up,
+  .navbar.nav-enter {
+    animation: none !important;
+  }
+}

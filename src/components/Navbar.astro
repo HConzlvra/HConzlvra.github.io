@@ -80,6 +80,19 @@ const isActive = (href: string) =>
 </header>
 
 <script>
+  // 导航栏入场动画：仅首次加载播放（从下方弹上来），软导航切换页面时不重播
+  let navEntered = false;
+  const playNavEnter = () => {
+    if (navEntered) return;
+    const nav = document.querySelector('.navbar');
+    if (!nav) return;
+    navEntered = true;
+    nav.classList.add('nav-enter');
+    nav.addEventListener('animationend', () => nav.classList.remove('nav-enter'), { once: true });
+  };
+  document.addEventListener('astro:page-load', playNavEnter);
+  playNavEnter();
+
   // 滚动时收窄导航栏；实时查询 DOM，兼容 ClientRouter 视图切换
   const onScroll = () => {
     document.getElementById('nav-wrap')?.classList.toggle('compact', window.scrollY > 24);

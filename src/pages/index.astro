@@ -7,7 +7,7 @@ import DotGrid from '../components/DotGrid.astro';
   <DotGrid />
   <div class="container">
     <!-- Hero -->
-    <section class="hero">
+    <section class="hero enter-left">
       <h1>Hi ! Here's HConzlvra_</h1>
       <p class="subtitle">你好！这里是哈康HC</p>
       <p class="tagline">「我让自己登基，做疯的君王｜万物皆有裂痕，那是光照进来的地方」</p>
@@ -15,15 +15,15 @@ import DotGrid from '../components/DotGrid.astro';
 
     <!-- Features -->
     <section class="features">
-      <div class="card">
+      <div class="card enter-up">
         <h3>由 Astro 搭建</h3>
         <p>不知道</p>
       </div>
-      <div class="card">
+      <div class="card enter-up">
         <h3>是个人物</h3>
         <p>烨然若神人</p>
       </div>
-      <div class="card">
+      <div class="card enter-up">
         <h3>哈康大会@Official</h3>
         <p>Harold_Conzlvra, HConzlvra_, HC, 哈康, 哈康HC, 哈康国王～</p>
       </div>
@@ -94,6 +94,9 @@ import DotGrid from '../components/DotGrid.astro';
     border-color: var(--surface-border-hover);
     box-shadow: var(--card-shadow);
   }
+  /* 三张卡片从下往上依次淡入（轻微错开） */
+  .features .card:nth-child(2) { animation-delay: 0.08s; }
+  .features .card:nth-child(3) { animation-delay: 0.16s; }
   .features .card h3 {
     font-size: 1.5rem;
     font-weight: 600;
