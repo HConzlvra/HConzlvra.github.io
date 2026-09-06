@@ -200,10 +200,31 @@ const isActive = (href: string) =>
     const form = btn.closest('.search-form');
     if (!form) return;
     if (form.classList.contains('expanded')) {
-      form.submit();
+      submitSearch(form);
     } else {
       form.classList.add('expanded');
       form.querySelector('.search-input')?.focus();
+    }
+  });
+
+  // 统一的搜索提交：查询词存 sessionStorage 再跳转，
+  // 完全绕开 URL 中文编码在 Vite dev server 返回 400 的问题
+  const submitSearch = (form: Element) => {
+    const input = form.querySelector('.search-input') as HTMLInputElement | null;
+    const q = (input?.value ?? '').trim();
+    sessionStorage.setItem('search-query', q);
+    window.location.assign('/search');
+  };
+
+  // 回车提交
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    const input = event.target instanceof Element ? event.target.closest('.search-input') : null;
+    if (!input) return;
+    const form = input.closest('.search-form');
+    if (form) {
+      event.preventDefault();
+      submitSearch(form);
     }
   });
 

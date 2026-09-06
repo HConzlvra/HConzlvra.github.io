@@ -107,7 +107,10 @@ import Layout from '../layouts/Layout.astro';
     }
 
     const params = new URLSearchParams(window.location.search);
-    const query = (params.get('q') ?? '').trim().toLowerCase();
+    // 查询词优先从 sessionStorage 读取（表单提交时写入，避免中文 URL 编码问题），
+    // 无则回退到 URL ?q= 参数（兼容直接分享链接）
+    const query = (sessionStorage.getItem('search-query') ?? params.get('q') ?? '').trim();
+    sessionStorage.removeItem('search-query'); // 用完即清，避免刷新时残留
 
     if (!query) {
       metaEl.textContent = '输入关键词开始搜索（试试右上角的搜索框）。';
@@ -115,14 +118,18 @@ import Layout from '../layouts/Layout.astro';
       return;
     }
 
+    const queryLower = query.toLowerCase();
     const results = docs
       .map((doc: any) => {
-        const idx = doc.content.toLowerCase().indexOf(query);
+        // 必须先折叠空白再 indexOf：之前在原始 content 上找位置、
+        // 却在折叠后的文本上切片，索引错位导致高亮词常不在摘要里
+        const collapsed = doc.content.replace(/\s+/g, ' ').trim();
+        const idx = collapsed.toLowerCase().indexOf(queryLower);
         const score =
-          (doc.title.toLowerCase().includes(query) ? 100 : 0) +
-          (doc.description.toLowerCase().includes(query) ? 50 : 0) +
+          (doc.title.toLowerCase().includes(queryLower) ? 100 : 0) +
+          (doc.description.toLowerCase().includes(queryLower) ? 50 : 0) +
           (idx >= 0 ? 10 : 0);
-        return { doc, score, snippetStart: idx };
+        return { doc, score, idx, collapsed };
       })
       .filter((r: any) => r.score > 0)
       .sort((a: any, b: any) => b.score - a.score);
@@ -136,12 +143,17 @@ import Layout from '../layouts/Layout.astro';
     }
 
     listEl.innerHTML = results
-      .map(({ doc, snippetStart }: any) => {
-        const start = Math.max(0, snippetStart - 40);
-        const raw = doc.content.replace(/\s+/g, ' ').slice(start, start + 160);
-        const snippet = snippetStart >= 0 ? (start > 0 ? '…' : '') + raw + '…' : doc.description;
+      .map(({ doc, idx, collapsed }: any) => {
+        // 以匹配位置为中心截取 160 字，保证高亮词一定出现在摘要中间
+        const start = Math.max(0, idx - 60);
+        const raw = idx >= 0 ? collapsed.slice(start, start + 160) : doc.description;
+        const prefix = idx > 0 && start > 0 ? '…' : '';
+        const suffix = idx >= 0 && start + 160 < collapsed.length ? '…' : '';
+        const snippet = prefix + raw + suffix;
+        // 通过 hash 把搜索词带到目标页，Layout 会定位并高亮该匹配
+        const hash = idx >= 0 ? `#q=${encodeURIComponent(query)}` : '';
         return `<li>
-          <a class="result-item" href="${doc.url}">
+          <a class="result-item" href="${doc.url}${hash}">
             <span class="result-type">${doc.type === 'post' ? 'Post' : 'Page'}</span>
             <div class="result-title">${highlight(doc.title, query)}</div>
             <div class="result-snippet">${highlight(snippet, query)}</div>

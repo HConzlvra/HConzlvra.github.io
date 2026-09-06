@@ -51,6 +51,61 @@ const { title = 'HConzlvra_', description = 'HConzlvra_ 的个人主页' } = Ast
               : 'light';
         document.documentElement.setAttribute('data-theme', theme);
       });
+
+      // 搜索结果跳转定位：从搜索页点进某页面时，URL 带 #q=关键词，
+      // 在目标页找到第一处匹配，滚动到视口中部并临时高亮
+      const scrollToSearchHit = () => {
+        const hash = window.location.hash;
+        const m = hash.match(/^#q=(.+)$/);
+        if (!m) return;
+        const q = decodeURIComponent(m[1]).trim();
+        if (!q) return;
+
+        const main = document.querySelector('main');
+        if (!main) return;
+
+        // 用 TreeWalker 找到第一个包含关键词的文本节点
+        const walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT, {
+          acceptNode(node) {
+            const text = node.textContent ?? '';
+            return text.toLowerCase().includes(q.toLowerCase())
+              ? NodeFilter.FILTER_ACCEPT
+              : NodeFilter.FILTER_REJECT;
+          },
+        });
+        const textNode = walker.nextNode();
+        if (!textNode || !textNode.textContent) return;
+        const text = textNode.textContent;
+        const idx = text.toLowerCase().indexOf(q.toLowerCase());
+        if (idx < 0) return;
+
+        // 把匹配片段包进 <mark class="search-hit"> 以便定位和高亮
+        const range = document.createRange();
+        range.setStart(textNode, idx);
+        range.setEnd(textNode, idx + q.length);
+        const mark = document.createElement('mark');
+        mark.className = 'search-hit';
+        try {
+          range.surroundContents(mark);
+        } catch {
+          return; // 跨元素边界无法包围时跳过
+        }
+
+        requestAnimationFrame(() => {
+          mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+
+        // 8 秒后移除高亮（用户可能想继续看页面）
+        window.setTimeout(() => {
+          const parent = mark.parentNode;
+          if (parent) parent.replaceChild(document.createTextNode(mark.textContent ?? ''), mark);
+        }, 8000);
+
+        // 清掉 hash，避免刷新时重复定位（不触发页面滚动）
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      };
+
+      document.addEventListener('astro:page-load', scrollToSearchHit);
     </script>
   </head>
   <body>

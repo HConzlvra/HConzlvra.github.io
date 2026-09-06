@@ -95,6 +95,21 @@ a {
   text-shadow: none;
 }
 
+/* 搜索结果跳转定位的临时高亮：醒目黄底，8s 后自动移除 */
+mark.search-hit {
+  background: #ffd54a;
+  color: #1a1a1a;
+  border-radius: 3px;
+  padding: 0 2px;
+  -webkit-text-fill-color: #1a1a1a;
+  box-shadow: 0 0 0 3px rgba(255, 213, 74, 0.35);
+  animation: search-hit-pulse 1.2s ease-in-out 2;
+}
+@keyframes search-hit-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(255, 213, 74, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(255, 213, 74, 0.55); }
+}
+
 /* ============================================
    Markdown 正文排版（.prose）
    ============================================ */
