@@ -7,6 +7,12 @@ permissions:
   pages: write
   id-token: write
 
+# 串行化 Pages 部署（官方模板推荐写法）：连续快速 push 时排队执行而不是并发
+# 调 Pages 部署 API，避免瞬时冲突导致的 "id-token: write" 假错误
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
