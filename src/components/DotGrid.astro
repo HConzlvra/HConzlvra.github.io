@@ -1,5 +1,8 @@
 ---
-// 主页交互格点背景：canvas 绘制点阵，光标/手指靠近时格点被"挤压"推开并变粗
+// 主页交互格点背景：canvas 绘制点阵
+// - 海浪：一条对角线波峰从左上涌向右下，一波接一波循环不断；
+//   波峰扫过处格点变粗、并向波峰两侧微微推开（间隙张开）
+// - 光标/手指靠近时格点被"挤压"推开并变粗（与海浪效果叠加共存）
 // 仅在主页使用；模块脚本常驻事件监听，astro:page-load 时重新绑定画布
 ---
 
@@ -34,8 +37,36 @@
   let dpr = 1;
   let dotColor = 'rgba(128, 128, 128, 0.3)';
   let running = false;
+  let lastTime = 0; // 上一帧时间戳（rAF），用于计算 dt
   const mouse = { x: -1e4, y: -1e4, active: false };
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  // ---------- 海浪 ----------
+  // 波峰是一条垂直于对角线的整排线段，从左上角外向右下推进。
+  // 每个格点在"波峰在对角线方向上的投影"处受影响：
+  // 波没到的点被向前推、已越过的点被向后拉 → 波峰处间隙张开；
+  // 同时波峰处点半径增大（类似光标悬浮），离开波带后自然回弹。
+  interface Wave {
+    pos: number; // 波峰在对角线方向上的投影位置（px）
+  }
+  const SQRT1_2 = Math.SQRT1_2;
+  const WAVE_SPEED = 300; // 推进速度 px/s
+  const WAVE_BAND = 170; // 波影响带宽（波峰两侧各这么宽逐渐收敛）
+  const WAVE_PUSH = 10; // 波峰处最大位移（较小：主要靠间隙与变粗表达波浪）
+  const WAVE_GROW = 2.4; // 波峰处增粗量
+  const WAVE_MIN_GAP = 3.2; // 两波之间的最小间隔（秒），随机再加长一点更自然
+  let waves: Wave[] = [];
+  let waveTimer = 0.5; // 距下一波出生的倒计时：首波 0.5s 后涌来
+  const advanceWaves = (dt: number) => {
+    waveTimer -= dt;
+    if (waveTimer <= 0) {
+      waves.push({ pos: -WAVE_BAND }); // 从画面左上角外淡入，避免突兀
+      waveTimer += WAVE_MIN_GAP + Math.random() * 1.4;
+    }
+    const maxP = (window.innerWidth + window.innerHeight) * SQRT1_2; // 右下角投影
+    for (const w of waves) w.pos += WAVE_SPEED * dt;
+    waves = waves.filter((w) => w.pos < maxP + WAVE_BAND); // 完全驶出后回收
+  };
 
   // ---------- 尺寸与点阵 ----------
   const resize = () => {
@@ -70,60 +101,70 @@
   };
 
   // ---------- 绘制与物理 ----------
-  // 返回值：本帧是否仍有位移/形变（合并静止判断，省掉一次全量遍历）
-  const draw = (): boolean => {
-    if (!ctx || !canvas) return false;
+  // 目标位移/半径 = 海浪起伏 + 光标挤压 的叠加，再缓动逼近（保留拖尾感）
+  const draw = () => {
+    if (!ctx || !canvas) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
     ctx.fillStyle = dotColor;
 
-    const PUSH = 14; // 最大位移距离（轻微挤压）
-    const GROW = 2.6; // 最大增粗量
-    let busy = mouse.active;
+    const PUSH = 14; // 光标最大位移距离（轻微挤压）
+    const GROW = 2.6; // 光标最大增粗量
     for (const d of dots) {
       let tx = 0;
       let ty = 0;
       let tr = baseR;
+      // 海浪贡献：波没到的点顺波向前推、已越过的向后拉 → 波峰处间隙张开 + 变粗
+      for (const w of waves) {
+        const s = w.pos - (d.bx + d.by) * SQRT1_2; // <0 波未到；>0 波已越过
+        const a = 1 - Math.abs(s) / WAVE_BAND;
+        if (a <= 0) continue; // 不在波带内
+        const f = a * a * (3 - 2 * a); // smoothstep：波峰最强、边缘平滑收敛
+        const push = (s < 0 ? 1 : -1) * f * WAVE_PUSH * SQRT1_2;
+        tx += push;
+        ty += push;
+        tr += f * WAVE_GROW;
+      }
       if (mouse.active) {
         const ex = d.bx + d.dx - mouse.x;
         const ey = d.by + d.dy - mouse.y;
         const dist = Math.hypot(ex, ey);
         if (dist < influence) {
           const f = 1 - dist / influence; // 0~1 影响强度
-          tx = (dist > 0.001 ? (ex / dist) * f * f * PUSH : 0);
-          ty = (dist > 0.001 ? (ey / dist) * f * f * PUSH : 0);
-          tr = baseR + f * f * GROW;
+          tx += dist > 0.001 ? (ex / dist) * f * f * PUSH : 0;
+          ty += dist > 0.001 ? (ey / dist) * f * f * PUSH : 0;
+          tr += f * f * GROW;
         }
       }
-      // 缓动逼近目标（松手/移开后自然回弹）
+      // 缓动逼近目标（松手/波过后自然回弹）
       // 系数越大跟踪越紧、滞后越小；0.3 左右保留一丝拖尾感又不显迟钝
       d.dx += (tx - d.dx) * 0.32;
       d.dy += (ty - d.dy) * 0.32;
       d.r += (tr - d.r) * 0.38;
-      if (
-        Math.abs(d.dx) > 0.1 ||
-        Math.abs(d.dy) > 0.1 ||
-        Math.abs(d.r - baseR) > 0.05
-      ) {
-        busy = true;
-      }
       ctx.beginPath();
       ctx.arc(d.bx + d.dx, d.by + d.dy, d.r, 0, Math.PI * 2);
       ctx.fill();
     }
-    return busy;
   };
 
-  const loop = () => {
+  // 渲染循环：海浪持续发生 → 常驻 rAF（页面切走时 rAF 自动暂停，
+  // 画布随视图销毁时停止）。dt 上限 0.05s，后台切回不会让波浪瞬移。
+  const loop = (now: number) => {
     if (!canvas || !canvas.isConnected) {
       running = false;
       return;
     }
-    if (!reduced.matches && draw()) {
-      requestAnimationFrame(loop);
-    } else {
-      running = false; // 完全静止后停帧，零空转
+    if (reduced.matches) {
+      waves.length = 0; // 减少动态：不出海浪
+      draw();
+      running = false;
+      return;
     }
+    const dt = lastTime ? Math.min((now - lastTime) / 1000, 0.05) : 0.016;
+    lastTime = now;
+    advanceWaves(dt);
+    draw();
+    requestAnimationFrame(loop);
   };
 
   const kick = () => {
@@ -134,6 +175,7 @@
     }
     if (!running) {
       running = true;
+      lastTime = 0;
       requestAnimationFrame(loop);
     }
   };
@@ -147,6 +189,10 @@
     readColor();
     resize();
     draw();
+    // 每次（重新）进入主页重置海浪：0.5s 后第一波从左上角涌来
+    waves = [];
+    waveTimer = 0.5;
+    kick();
   };
 
   // 触摸结束后浏览器会派发合成的 mousemove，会把 mouse.active 重新置 true，
