@@ -14,7 +14,7 @@ html[data-theme='light'] {
   --surface-border-hover: rgba(42, 36, 64, 0.22);
   --nav-tint: rgba(255, 255, 255, 0.42);
   --nav-border: rgba(42, 36, 64, 0.08);
-  --heading-gradient: linear-gradient(135deg, #f093fb, #f5576c);
+  --heading-gradient: linear-gradient(135deg, #c74d86, #8b3fd1);
   --btn-primary-bg: #d64d8a;
   --btn-primary-bg-hover: #c73e6e;
   --btn-primary-text: #ffffff;
@@ -36,7 +36,7 @@ html[data-theme='dark'] {
   --surface-border-hover: rgba(255, 255, 255, 0.15);
   --nav-tint: rgba(15, 12, 41, 0.42);
   --nav-border: rgba(255, 255, 255, 0.08);
-  --heading-gradient: linear-gradient(135deg, #c74d86, #8b3fd1);
+  --heading-gradient: linear-gradient(135deg, #f093fb, #f5576c);
   --btn-primary-bg: #f093fb;
   --btn-primary-bg-hover: #f5576c;
   --btn-primary-text: #1a1a2e;
@@ -79,10 +79,18 @@ a {
   color: inherit;
 }
 
-/* 文字选中：哑光青色块（双主题通用，深色文字保证对比度） */
-::selection {
-  background: #7fb3b3;
+/* 文字选中：哑光青色块（双主题通用，深色文字保证对比度）
+   Safari 兼容：
+   - 渐变标题的 -webkit-text-fill-color: transparent 在 Safari 选中后仍生效，
+     选中文字会整块消失只剩色块（Chrome 会换回实色），这里在选中态显式覆盖
+   - Safari 选中时不清除文字阴影，重置为 none
+   - background-color 用 WebKit ::selection 明确支持的写法，*::selection 并写兜底 */
+::selection,
+*::selection {
+  background-color: #7fb3b3;
   color: #16232a;
+  -webkit-text-fill-color: #16232a;
+  text-shadow: none;
 }
 
 /* ============================================
