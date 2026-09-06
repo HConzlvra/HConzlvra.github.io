@@ -56,6 +56,8 @@
   const WAVE_PUSH = 6; // 波峰两侧最大位移（轻微形变即可）
   const WAVE_FLIP = 90; // 推开方向在波峰前后各这么宽内平滑翻转，避免跳变
   const WAVE_GROW = 1.4; // 波峰处增粗量
+  const WAVE_GROW_BAND = 150; // 增粗半带宽（远窄于 WAVE_BAND）：只有波峰核心变粗，
+  // 相邻波峰之间回到细点，避免满屏均匀变粗、失去细点层次
   // 波峰间距 = 带宽：一波刚过去下一波紧跟而来，固定间隔不随机
   const WAVE_INTERVAL = WAVE_BAND / WAVE_SPEED;
   let waves: Wave[] = [];
@@ -117,9 +119,11 @@
       let tx = 0;
       let ty = 0;
       let tr = baseR;
-      // 海浪贡献：波峰两侧的点向两边轻轻推开（间隙张开）+ 变粗。
+      // 海浪贡献：波峰两侧的点向两边轻轻推开（间隙张开）+ 波峰核心变粗。
       // 推开方向不用 sign(s) 硬翻转，而是在波峰前后 ±WAVE_FLIP 内线性过渡，
       // 波峰压过单个格点时位移目标连续变化，不会出现瞬间跳变。
+      // 变粗与推开解耦：推开用宽带（间隙轻柔开合，相邻波之间相互抵消），
+      // 变粗只用窄带 → 波峰核心粗、波峰之间细，保留点阵层次。
       for (const w of waves) {
         const s = w.pos - (d.bx + d.by) * SQRT1_2; // <0 波未到；>0 波已越过
         const a = 1 - Math.abs(s) / WAVE_BAND;
@@ -129,7 +133,11 @@
         const push = dir * env * WAVE_PUSH * SQRT1_2;
         tx += push;
         ty += push;
-        tr += env * WAVE_GROW;
+        const ar = 1 - Math.abs(s) / WAVE_GROW_BAND;
+        if (ar > 0) {
+          const er = ar * ar * (3 - 2 * ar);
+          tr += er * WAVE_GROW;
+        }
       }
       if (mouse.active) {
         const ex = d.bx + d.dx - mouse.x;
