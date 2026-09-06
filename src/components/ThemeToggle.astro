@@ -37,8 +37,10 @@
 </style>
 
 <script>
-  const btn = document.getElementById('theme-toggle');
-  btn?.addEventListener('click', () => {
+  // 事件委托：视图切换后按钮被替换也能正常工作
+  document.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target.closest('#theme-toggle') : null;
+    if (!target) return;
     const html = document.documentElement;
     const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
     html.setAttribute('data-theme', next);

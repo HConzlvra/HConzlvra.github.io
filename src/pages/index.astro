@@ -9,10 +9,6 @@ import Layout from '../layouts/Layout.astro';
       <h1>Hi ! Here's HConzlvra_</h1>
       <p class="subtitle">你好！这里是哈康HC</p>
       <p class="tagline">「我让自己登基，做疯的君王｜万物皆有裂痕，那是光照进来的地方」</p>
-      <div class="actions">
-        <a href="https://github.com/HConzlvra" class="btn-primary">HC's Github Page</a>
-        <a href="https://space.bilibili.com/3493291423172656" class="btn-secondary">HC's Bilibili Page</a>
-      </div>
     </section>
 
     <!-- Features -->
@@ -38,7 +34,7 @@ import Layout from '../layouts/Layout.astro';
     max-width: 1000px;
     width: 100%;
     text-align: center;
-    min-height: 100vh; /* 撑满首屏，把 footer 推到视口外 */
+    min-height: 100vh; /* 撑满首屏，把页脚推到视口外 */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -49,7 +45,8 @@ import Layout from '../layouts/Layout.astro';
 
   /* Hero 区域 */
   .hero {
-    margin-bottom: 4rem;
+    width: 100%;
+    margin-bottom: 3.5rem;
   }
   .hero h1 {
     font-size: 4.5rem;
@@ -70,54 +67,16 @@ import Layout from '../layouts/Layout.astro';
   .hero .tagline {
     font-size: 1.4rem;
     color: var(--text-secondary);
-    margin-bottom: 2.5rem;
     line-height: 1.6;
     white-space: nowrap;
   }
-  .hero .actions {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-  .hero .actions a {
-    display: inline-block;
-    padding: 0.8rem 2.2rem;
-    border-radius: 40px;
-    font-weight: 600;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    font-size: 1rem;
-  }
-  .hero .actions .btn-primary {
-    background: var(--btn-primary-bg);
-    color: var(--btn-primary-text);
-    box-shadow: 0 4px 15px rgba(240, 147, 251, 0.3);
-  }
-  .hero .actions .btn-primary:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(240, 147, 251, 0.5);
-    background: var(--btn-primary-bg-hover);
-    color: #fff;
-  }
-  .hero .actions .btn-secondary {
-    background: var(--surface);
-    color: var(--accent-text);
-    border: 1px solid var(--btn-secondary-border);
-    backdrop-filter: blur(10px);
-  }
-  .hero .actions .btn-secondary:hover {
-    background: var(--surface-hover);
-    transform: translateY(-3px);
-    box-shadow: var(--card-shadow);
-  }
 
-  /* Features 区域 */
+  /* Features 区域：三张卡片始终并排 */
   .features {
+    width: 100%;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 2rem;
-    margin-top: 2rem;
   }
   .features .card {
     background: var(--surface);
@@ -159,10 +118,6 @@ import Layout from '../layouts/Layout.astro';
     .hero .tagline {
       font-size: 1.1rem;
       white-space: normal;
-    }
-    .hero .actions {
-      flex-direction: column;
-      align-items: center;
     }
     .features {
       grid-template-columns: 1fr;

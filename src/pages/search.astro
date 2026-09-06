@@ -79,7 +79,8 @@ import Layout from '../layouts/Layout.astro';
   }
 </style>
 
-<script>
+<!-- data-astro-rerun：每次导航到本页都重新执行搜索渲染 -->
+<script data-astro-rerun>
   const metaEl = document.getElementById('search-meta');
   const listEl = document.getElementById('result-list');
 

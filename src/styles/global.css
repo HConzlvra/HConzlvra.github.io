@@ -12,7 +12,7 @@ html[data-theme='light'] {
   --surface-hover: rgba(255, 255, 255, 0.85);
   --surface-border: rgba(42, 36, 64, 0.14);
   --surface-border-hover: rgba(42, 36, 64, 0.22);
-  --nav-bg: rgba(255, 255, 255, 0.5);
+  --nav-tint: rgba(255, 255, 255, 0.42);
   --nav-border: rgba(42, 36, 64, 0.08);
   --heading-gradient: linear-gradient(135deg, #c74d86, #8b3fd1);
   --btn-primary-bg: #d64d8a;
@@ -33,7 +33,7 @@ html[data-theme='dark'] {
   --surface-hover: rgba(255, 255, 255, 0.09);
   --surface-border: rgba(255, 255, 255, 0.08);
   --surface-border-hover: rgba(255, 255, 255, 0.15);
-  --nav-bg: rgba(15, 12, 41, 0.45);
+  --nav-tint: rgba(15, 12, 41, 0.42);
   --nav-border: rgba(255, 255, 255, 0.08);
   --heading-gradient: linear-gradient(135deg, #f093fb, #f5576c);
   --btn-primary-bg: #f093fb;
@@ -58,11 +58,19 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--page-bg);
-  background-attachment: fixed;
   color: var(--text);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-  transition: background 0.3s ease, color 0.3s ease;
+  transition: color 0.3s ease;
+}
+
+/* 视口固定的渐变背景层：替代 background-attachment: fixed，
+   保证 backdrop-filter 在所有页面稳定生效，滚动也更流畅 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--page-bg);
 }
 
 a {

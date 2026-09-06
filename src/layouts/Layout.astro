@@ -1,4 +1,5 @@
 ---
+import { ClientRouter } from 'astro:transitions';
 import Navbar from '../components/Navbar.astro';
 import ThemeToggle from '../components/ThemeToggle.astro';
 import Footer from '../components/Footer.astro';
@@ -23,6 +24,8 @@ const { title = 'HConzlvra_', description = 'HConzlvra_ 的个人主页' } = Ast
     <meta name="generator" content={Astro.generator} />
     <meta name="description" content={description} />
     <title>{title}</title>
+    <!-- 视图切换：页面间导航不再整页重新加载 -->
+    <ClientRouter />
     <script is:inline>
       // 主题初始化：优先读取本地存储，否则跟随系统偏好（必须在渲染前执行，防止闪烁）
       (function () {

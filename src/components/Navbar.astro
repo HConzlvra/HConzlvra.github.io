@@ -1,5 +1,6 @@
 ---
-// 顶部导航栏：液态玻璃，页面滚动时收窄为居中的圆角胶囊条
+// 顶部导航栏：全局唯一实例（由 Layout.astro 引入，所有页面共享）
+// 悬浮液态玻璃条，页面滚动时收窄为居中圆角胶囊
 const pathname = Astro.url.pathname.replace(/\/+$/, '') || '/';
 
 const links = [
@@ -14,7 +15,7 @@ const isActive = (href: string) =>
 ---
 
 <header class="nav-wrap" id="nav-wrap">
-  <nav class="navbar" id="navbar" aria-label="主导航">
+  <nav class="navbar" aria-label="主导航">
     <a href="/" class="logo">HC</a>
     <div class="links">
       {
@@ -53,25 +54,24 @@ const isActive = (href: string) =>
 </header>
 
 <script>
-  // 页面滚动时给导航栏加 compact 状态（收窄成圆角条）
-  const wrap = document.getElementById('nav-wrap');
+  // 滚动时收窄导航栏；每次实时查询 DOM，兼容 ClientRouter 视图切换
   const onScroll = () => {
-    if (!wrap) return;
-    wrap.classList.toggle('compact', window.scrollY > 24);
+    document.getElementById('nav-wrap')?.classList.toggle('compact', window.scrollY > 24);
   };
-  onScroll();
   window.addEventListener('scroll', onScroll, { passive: true });
+  document.addEventListener('astro:page-load', onScroll);
+  onScroll();
 </script>
 
 <style>
-  /* 外层容器：初始贴边铺满，滚动后留出边距让导航栏收成居中胶囊 */
+  /* 外层容器：悬浮导航，四周留边距 */
   .nav-wrap {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     z-index: 100;
-    padding: 0;
+    padding: 0.75rem 1rem;
     display: flex;
     justify-content: center;
     pointer-events: none; /* 让周围空白可点击 */
@@ -79,19 +79,50 @@ const isActive = (href: string) =>
   }
   .navbar {
     pointer-events: auto;
+    position: relative;
     width: 100%;
-    height: 60px;
+    max-width: 1080px;
+    height: 56px;
     display: flex;
     align-items: center;
     gap: 1.5rem;
-    padding: 0 2rem;
-    border-radius: 0;
-    /* 液态玻璃 */
-    background: var(--nav-bg);
-    backdrop-filter: blur(24px) saturate(1.6);
-    -webkit-backdrop-filter: blur(24px) saturate(1.6);
-    border-bottom: 1px solid var(--nav-border);
+    padding: 0 1.25rem;
+    border-radius: 18px;
+    /* 液态玻璃：半透明底 + 渐变描边（模拟玻璃受光边缘） */
+    border: 1px solid transparent;
+    background:
+      linear-gradient(var(--nav-tint), var(--nav-tint)) padding-box,
+      linear-gradient(
+        120deg,
+        rgba(255, 255, 255, 0.65),
+        rgba(255, 255, 255, 0.15) 26%,
+        rgba(255, 255, 255, 0.04) 55%,
+        rgba(255, 255, 255, 0.4)
+      )
+        border-box;
+    backdrop-filter: blur(22px) saturate(1.8);
+    -webkit-backdrop-filter: blur(22px) saturate(1.8);
+    /* 内侧高光 = 玻璃上沿反光；外阴影 = 玻璃浮起 */
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.35),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.06),
+      0 4px 24px rgba(0, 0, 0, 0.08);
     transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  /* 斜向流光层，模拟玻璃表面反光 */
+  .navbar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      115deg,
+      rgba(255, 255, 255, 0.18) 0%,
+      rgba(255, 255, 255, 0) 30%,
+      rgba(255, 255, 255, 0) 70%,
+      rgba(255, 255, 255, 0.1) 100%
+    );
+    pointer-events: none;
   }
   /* 滚动后：收窄成居中的圆角胶囊条 */
   .nav-wrap.compact {
@@ -103,8 +134,10 @@ const isActive = (href: string) =>
     gap: 1rem;
     padding: 0 1.1rem;
     border-radius: 999px;
-    border-bottom-color: transparent;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.35),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.06),
+      0 8px 32px rgba(0, 0, 0, 0.18);
   }
 
   .logo {
