@@ -39,6 +39,20 @@ const { title = 'HConzlvra_', description = 'HConzlvra_ 的个人主页' } = Ast
         document.documentElement.setAttribute('data-theme', theme);
       })();
     </script>
+    <script>
+      // ClientRouter 软导航会把新页面的 <html data-theme="light"> 覆盖过来，
+      // 每次视图切换完成后从 localStorage 重新应用用户主题（模块脚本只执行一次，监听器常驻）
+      document.addEventListener('astro:after-swap', () => {
+        const stored = localStorage.getItem('theme');
+        const theme =
+          stored === 'light' || stored === 'dark'
+            ? stored
+            : window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+      });
+    </script>
   </head>
   <body>
     <Navbar />

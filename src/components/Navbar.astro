@@ -1,6 +1,7 @@
 ---
 // 顶部导航栏：全局唯一实例（由 Layout.astro 引入，所有页面共享）
-// 悬浮液态玻璃条，页面滚动时收窄为居中圆角胶囊
+// 桌面端：悬浮液态玻璃条，滚动收窄为胶囊，搜索框悬浮展开
+// 移动端：汉堡菜单（竖向下拉）+ 圆形搜索图标按钮
 const pathname = Astro.url.pathname.replace(/\/+$/, '') || '/';
 
 const links = [
@@ -17,6 +18,8 @@ const isActive = (href: string) =>
 <header class="nav-wrap" id="nav-wrap">
   <nav class="navbar" aria-label="主导航">
     <a href="/" class="logo">HC</a>
+
+    <!-- 桌面端横向链接 -->
     <div class="links">
       {
         links.map(({ href, label }) => (
@@ -26,21 +29,24 @@ const isActive = (href: string) =>
         ))
       }
     </div>
+
+    <!-- 搜索：移动端圆形图标按钮，桌面端悬浮展开为带 Search 字样的条 -->
     <form class="search-form" action="/search" method="get" role="search">
-      <svg
-        class="search-icon"
-        viewBox="0 0 24 24"
-        width="15"
-        height="15"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        aria-hidden="true"
-      >
-        <circle cx="11" cy="11" r="7"></circle>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-      </svg>
+      <button type="submit" class="search-btn" aria-label="搜索全站">
+        <svg
+          viewBox="0 0 24 24"
+          width="16"
+          height="16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="7"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+      </button>
       <input
         type="search"
         name="q"
@@ -50,17 +56,54 @@ const isActive = (href: string) =>
         autocomplete="off"
       />
     </form>
+
+    <!-- 移动端汉堡按钮 -->
+    <button id="menu-toggle" class="hamburger" aria-label="打开菜单" aria-expanded="false">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+
+    <!-- 移动端下拉菜单（竖向排列） -->
+    <div class="mobile-panel">
+      {
+        links.map(({ href, label }) => (
+          <a href={href} class={isActive(href) ? 'active' : ''} aria-current={isActive(href) ? 'page' : undefined}>
+            {label}
+          </a>
+        ))
+      }
+    </div>
   </nav>
 </header>
 
 <script>
-  // 滚动时收窄导航栏；每次实时查询 DOM，兼容 ClientRouter 视图切换
+  // 滚动时收窄导航栏；实时查询 DOM，兼容 ClientRouter 视图切换
   const onScroll = () => {
     document.getElementById('nav-wrap')?.classList.toggle('compact', window.scrollY > 24);
   };
   window.addEventListener('scroll', onScroll, { passive: true });
   document.addEventListener('astro:page-load', onScroll);
   onScroll();
+
+  // 移动端菜单开合：事件委托（视图切换后按钮被替换也正常工作）
+  document.addEventListener('click', (event) => {
+    const wrap = document.getElementById('nav-wrap');
+    if (!wrap) return;
+    const target = event.target instanceof Element ? event.target : null;
+    const menuBtn = document.getElementById('menu-toggle');
+
+    if (target?.closest('#menu-toggle')) {
+      const open = wrap.classList.toggle('mobile-open');
+      menuBtn?.setAttribute('aria-expanded', String(open));
+      return;
+    }
+    // 点击菜单外任意位置（含菜单内链接）时收起菜单
+    if (wrap.classList.contains('mobile-open')) {
+      wrap.classList.remove('mobile-open');
+      menuBtn?.setAttribute('aria-expanded', 'false');
+    }
+  });
 </script>
 
 <style>
@@ -75,7 +118,6 @@ const isActive = (href: string) =>
     display: flex;
     justify-content: center;
     pointer-events: none; /* 让周围空白可点击 */
-    transition: padding 0.45s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .navbar {
     pointer-events: auto;
@@ -124,21 +166,6 @@ const isActive = (href: string) =>
     );
     pointer-events: none;
   }
-  /* 滚动后：收窄成居中的圆角胶囊条 */
-  .nav-wrap.compact {
-    padding: 0.5rem 1rem;
-  }
-  .nav-wrap.compact .navbar {
-    max-width: 640px;
-    height: 46px;
-    gap: 1rem;
-    padding: 0 1.1rem;
-    border-radius: 999px;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.35),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.06),
-      0 8px 32px rgba(0, 0, 0, 0.18);
-  }
 
   .logo {
     font-size: 1.35rem;
@@ -150,17 +177,12 @@ const isActive = (href: string) =>
     text-decoration: none;
     flex-shrink: 0;
   }
-  .nav-wrap.compact .logo {
-    font-size: 1.15rem;
-  }
 
+  /* 桌面端横向链接 */
   .links {
     display: flex;
     gap: 1.4rem;
     flex: 1;
-  }
-  .nav-wrap.compact .links {
-    gap: 1rem;
   }
   .links a {
     position: relative;
@@ -195,23 +217,28 @@ const isActive = (href: string) =>
     transform: scaleX(1);
   }
 
-  /* 搜索框 */
+  /* 搜索：默认收成圆形图标按钮，悬浮/聚焦展开为条 */
   .search-form {
     display: flex;
     align-items: center;
-    gap: 0.45rem;
-    padding: 0.35rem 0.8rem;
+    height: 34px;
     border-radius: 999px;
     border: 1px solid var(--nav-border);
     background: var(--surface);
+    overflow: hidden;
     flex-shrink: 0;
+    margin-left: auto;
     transition: border-color 0.2s ease;
   }
-  .search-form:focus-within {
-    border-color: var(--btn-primary-bg);
-  }
-  .search-icon {
+  .search-btn {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border: none;
+    background: transparent;
     color: var(--text-secondary);
+    cursor: pointer;
     flex-shrink: 0;
   }
   .search-input {
@@ -221,39 +248,147 @@ const isActive = (href: string) =>
     color: var(--text);
     font: inherit;
     font-size: 0.88rem;
-    width: 7.5rem;
-    transition: width 0.3s ease;
+    width: 0;
+    opacity: 0;
+    padding: 0;
+    transition:
+      width 0.3s ease,
+      opacity 0.25s ease,
+      padding 0.3s ease;
   }
-  .search-input::placeholder {
-    color: var(--text-secondary);
+  .search-form:hover,
+  .search-form:focus-within {
+    border-color: var(--btn-primary-bg);
   }
-  .search-input:focus {
-    width: 10rem;
-  }
-  .nav-wrap.compact .search-input {
-    width: 5.5rem;
-  }
-  .nav-wrap.compact .search-input:focus {
+  .search-form:hover .search-input,
+  .search-form:focus-within .search-input {
     width: 8rem;
+    opacity: 1;
+    padding: 0 0.75rem 0 0.15rem;
   }
 
-  /* 移动端 */
-  @media (max-width: 640px) {
-    .links {
-      gap: 0.9rem;
+  /* 汉堡按钮（仅移动端显示） */
+  .hamburger {
+    display: none;
+    width: 34px;
+    height: 34px;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid var(--nav-border);
+    border-radius: 999px;
+    background: var(--surface);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .hamburger span {
+    width: 15px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--text-secondary);
+    transition:
+      transform 0.3s ease,
+      opacity 0.3s ease;
+  }
+  .nav-wrap.mobile-open .hamburger span:nth-child(1) {
+    transform: translateY(6px) rotate(45deg);
+  }
+  .nav-wrap.mobile-open .hamburger span:nth-child(2) {
+    opacity: 0;
+  }
+  .nav-wrap.mobile-open .hamburger span:nth-child(3) {
+    transform: translateY(-6px) rotate(-45deg);
+  }
+
+  /* 移动端下拉菜单（默认隐藏） */
+  .mobile-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 0.6rem);
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    padding: 0.5rem;
+    border-radius: 16px;
+    border: 1px solid transparent;
+    background:
+      linear-gradient(var(--nav-tint), var(--nav-tint)) padding-box,
+      linear-gradient(
+        120deg,
+        rgba(255, 255, 255, 0.65),
+        rgba(255, 255, 255, 0.15) 26%,
+        rgba(255, 255, 255, 0.04) 55%,
+        rgba(255, 255, 255, 0.4)
+      )
+        border-box;
+    backdrop-filter: blur(22px) saturate(1.8);
+    -webkit-backdrop-filter: blur(22px) saturate(1.8);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.35),
+      0 8px 32px rgba(0, 0, 0, 0.18);
+  }
+  .nav-wrap.mobile-open .mobile-panel {
+    display: flex;
+  }
+  .mobile-panel a {
+    padding: 0.8rem 1rem;
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--accent-text);
+    font-weight: 500;
+    transition:
+      background 0.2s ease,
+      color 0.2s ease;
+  }
+  .mobile-panel a:hover,
+  .mobile-panel a.active {
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  /* ============ 桌面端（> 768px）：滚动收窄为胶囊 ============ */
+  @media (min-width: 769px) {
+    .hamburger {
+      display: none;
     }
-    .links a {
-      font-size: 0.85rem;
+    .nav-wrap.compact {
+      padding: 0.5rem 1rem;
+    }
+    .nav-wrap.compact .navbar {
+      max-width: 640px;
+      height: 46px;
+      gap: 1rem;
+      padding: 0 1.1rem;
+      border-radius: 999px;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.35),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.06),
+        0 8px 32px rgba(0, 0, 0, 0.18);
+    }
+    .nav-wrap.compact .logo {
+      font-size: 1.15rem;
+    }
+    .nav-wrap.compact .links {
+      gap: 1rem;
+    }
+  }
+
+  /* ============ 移动端（<= 768px）：汉堡菜单 + 圆形搜索 ============ */
+  @media (max-width: 768px) {
+    .links {
+      display: none; /* 横向链接收进下拉菜单 */
+    }
+    .hamburger {
+      display: flex;
     }
     .search-input {
-      width: 4.5rem;
+      display: none; /* 搜索仅保留圆形图标按钮 */
     }
-    .search-input:focus {
-      width: 6rem;
-    }
-    .nav-wrap.compact .search-input,
-    .nav-wrap.compact .search-input:focus {
-      width: 4.5rem;
+    .navbar {
+      gap: 0.75rem;
+      height: 52px;
+      padding: 0 0.9rem;
     }
   }
 </style>

@@ -42,6 +42,9 @@ const posts = (await getCollection('posts')).sort(
 </PostsLayout>
 
 <style>
+  .posts-page {
+    padding-top: 0.5rem;
+  }
   .posts-page h1 {
     background: var(--heading-gradient);
     -webkit-background-clip: text;
@@ -49,9 +52,6 @@ const posts = (await getCollection('posts')).sort(
     background-clip: text;
     font-size: 2.2rem;
     margin-bottom: 0.5rem;
-  }
-  .posts-page {
-    padding-top: 0.5rem;
   }
   .intro {
     color: var(--text-secondary);
