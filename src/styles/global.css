@@ -14,6 +14,7 @@ html[data-theme='light'] {
   --surface-border-hover: rgba(42, 36, 64, 0.22);
   --nav-tint: rgba(255, 255, 255, 0.42);
   --nav-border: rgba(42, 36, 64, 0.08);
+  --nav-underline: #9c6fe0;
   --heading-gradient: linear-gradient(135deg, #c74d86, #8b3fd1);
   --btn-primary-bg: #d64d8a;
   --btn-primary-bg-hover: #c73e6e;
@@ -36,6 +37,7 @@ html[data-theme='dark'] {
   --surface-border-hover: rgba(255, 255, 255, 0.15);
   --nav-tint: rgba(15, 12, 41, 0.42);
   --nav-border: rgba(255, 255, 255, 0.08);
+  --nav-underline: #b48cf0;
   --heading-gradient: linear-gradient(135deg, #f093fb, #f5576c);
   --btn-primary-bg: #f093fb;
   --btn-primary-bg-hover: #f5576c;
