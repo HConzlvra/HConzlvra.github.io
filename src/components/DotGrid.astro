@@ -87,10 +87,10 @@
 
     // 移动端间距更小（点阵别太稀疏）；并按面积上限稀释，防止大屏/4K 点数爆炸
     const isMobile = w <= 768;
-    const maxDots = isMobile ? 1800 : 4500;
-    const minSpacing = isMobile ? 32 : 28;
+    const maxDots = isMobile ? 2800 : 4500;
+    const minSpacing = isMobile ? 26 : 28;
     spacing = Math.max(minSpacing, Math.sqrt((w * h) / maxDots));
-    baseR = isMobile ? 1.6 : 1.35;
+    baseR = isMobile ? 1.5 : 1.35;
     influence = Math.max(110, spacing * 4);
 
     dots = [];
