@@ -5,7 +5,7 @@ import Layout from '../layouts/Layout.astro';
 <Layout title="Search Results | HConzlvra_">
   <div class="search-page">
     <h1>Search Results</h1>
-    <div class="search-meta" id="search-meta">正在加载搜索索引……</div>
+    <div class="search-meta" id="search-meta">输入关键词开始搜索。</div>
     <ul class="result-list" id="result-list"></ul>
   </div>
 </Layout>
@@ -79,11 +79,8 @@ import Layout from '../layouts/Layout.astro';
   }
 </style>
 
-<!-- data-astro-rerun：每次导航到本页都重新执行搜索渲染 -->
-<script data-astro-rerun>
-  const metaEl = document.getElementById('search-meta');
-  const listEl = document.getElementById('result-list');
-
+<!-- 模块脚本监听 astro:page-load：首次加载与每次软导航后都会触发（ClientRouter 标准模式） -->
+<script>
   const escapeHtml = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -94,14 +91,18 @@ import Layout from '../layouts/Layout.astro';
     return escaped.replace(new RegExp(`(${safe})`, 'gi'), '<mark>$1</mark>');
   };
 
-  const render = async () => {
+  const renderResults = async () => {
+    const metaEl = document.getElementById('search-meta');
+    const listEl = document.getElementById('result-list');
+    if (!metaEl || !listEl) return; // 不在搜索页
+
     // 拉取构建时生成的全站索引
     let docs: any[] = [];
     try {
       const res = await fetch('/search-data.json');
       docs = await res.json();
     } catch {
-      metaEl!.textContent = '搜索索引加载失败，请刷新重试。';
+      metaEl.textContent = '搜索索引加载失败，请刷新重试。';
       return;
     }
 
@@ -109,8 +110,8 @@ import Layout from '../layouts/Layout.astro';
     const query = (params.get('q') ?? '').trim().toLowerCase();
 
     if (!query) {
-      metaEl!.textContent = '输入关键词开始搜索（试试右上角的搜索框）。';
-      listEl!.innerHTML = '';
+      metaEl.textContent = '输入关键词开始搜索（试试右上角的搜索框）。';
+      listEl.innerHTML = '';
       return;
     }
 
@@ -126,15 +127,15 @@ import Layout from '../layouts/Layout.astro';
       .filter((r: any) => r.score > 0)
       .sort((a: any, b: any) => b.score - a.score);
 
-    metaEl!.textContent = `“${query}” 共 ${results.length} 条结果`;
+    metaEl.textContent = `“${query}” 共 ${results.length} 条结果`;
 
     if (results.length === 0) {
-      listEl!.innerHTML =
+      listEl.innerHTML =
         '<li style="color:var(--text-secondary);padding:1rem 0">没有找到匹配的内容，换个关键词试试。</li>';
       return;
     }
 
-    listEl!.innerHTML = results
+    listEl.innerHTML = results
       .map(({ doc, snippetStart }: any) => {
         const start = Math.max(0, snippetStart - 40);
         const raw = doc.content.replace(/\s+/g, ' ').slice(start, start + 160);
@@ -150,5 +151,13 @@ import Layout from '../layouts/Layout.astro';
       .join('');
   };
 
-  render();
+  document.addEventListener('astro:page-load', () => {
+    renderResults();
+    // 软导航后把当前搜索词回填到导航栏搜索框（表单被替换导致的“清空”观感修复）
+    const navInput = document.querySelector('.navbar .search-input') as HTMLInputElement | null;
+    if (navInput) {
+      const q = new URLSearchParams(window.location.search).get('q');
+      navInput.value = q ?? '';
+    }
+  });
 </script>
