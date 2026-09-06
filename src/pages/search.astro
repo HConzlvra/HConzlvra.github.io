@@ -1,0 +1,146 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Search Results | HConzlvra_">
+  <div class="search-page">
+    <h1>Search Results</h1>
+    <div class="search-meta" id="search-meta">正在加载搜索索引……</div>
+    <ul class="result-list" id="result-list"></ul>
+  </div>
+</Layout>
+
+<style>
+  .search-page {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 6.5rem 1.5rem 4rem;
+    min-height: 70vh;
+  }
+  .search-page h1 {
+    background: var(--heading-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 2.2rem;
+    margin-bottom: 0.5rem;
+  }
+  .search-meta {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 2rem;
+  }
+  .result-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 0.75rem;
+  }
+  .result-item {
+    position: relative;
+    display: block;
+    padding: 1.1rem 1.25rem;
+    border: 1px solid var(--surface-border);
+    border-radius: 14px;
+    background: var(--surface);
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .result-item:hover {
+    border-color: var(--btn-primary-bg);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow);
+  }
+  .result-type {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--btn-primary-bg);
+    margin-bottom: 0.35rem;
+  }
+  .result-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 0.3rem;
+  }
+  .result-snippet {
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+  .result-snippet mark {
+    background: transparent;
+    color: var(--btn-primary-bg);
+    font-weight: 700;
+  }
+</style>
+
+<script>
+  const metaEl = document.getElementById('search-meta');
+  const listEl = document.getElementById('result-list');
+
+  const escapeHtml = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  const highlight = (text: string, query: string) => {
+    const escaped = escapeHtml(text);
+    if (!query) return escaped;
+    const safe = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return escaped.replace(new RegExp(`(${safe})`, 'gi'), '<mark>$1</mark>');
+  };
+
+  const render = () => {
+    // 从全局搜索索引（SearchData 组件注入）读取
+    const docs = (window as any).__SEARCH_DOCS__ ?? [];
+    const params = new URLSearchParams(window.location.search);
+    const query = (params.get('q') ?? '').trim().toLowerCase();
+
+    if (!query) {
+      metaEl!.textContent = '输入关键词开始搜索（试试右上角的搜索框）。';
+      listEl!.innerHTML = '';
+      return;
+    }
+
+    const results = docs
+      .map((doc: any) => {
+        const haystack = `${doc.title}\n${doc.description}\n${doc.content}`.toLowerCase();
+        const idx = doc.content.toLowerCase().indexOf(query);
+        const score =
+          (doc.title.toLowerCase().includes(query) ? 100 : 0) +
+          (doc.description.toLowerCase().includes(query) ? 50 : 0) +
+          (idx >= 0 ? 10 : 0);
+        return { doc, score, snippetStart: idx };
+      })
+      .filter((r: any) => r.score > 0)
+      .sort((a: any, b: any) => b.score - a.score);
+
+    metaEl!.textContent = `“${query}” 共 ${results.length} 条结果`;
+
+    if (results.length === 0) {
+      listEl!.innerHTML =
+        '<li style="color:var(--text-secondary);padding:1rem 0">没有找到匹配的内容，换个关键词试试。</li>';
+      return;
+    }
+
+    listEl!.innerHTML = results
+      .map(({ doc, snippetStart }: any) => {
+        const start = Math.max(0, snippetStart - 40);
+        const raw = doc.content.replace(/\s+/g, ' ').slice(start, start + 160);
+        const snippet = snippetStart >= 0 ? (start > 0 ? '…' : '') + raw + '…' : doc.description;
+        return `<li>
+          <a class="result-item" href="${doc.url}">
+            <span class="result-type">${doc.type === 'post' ? 'Post' : 'Page'}</span>
+            <div class="result-title">${highlight(doc.title, query)}</div>
+            <div class="result-snippet">${highlight(snippet, query)}</div>
+          </a>
+        </li>`;
+      })
+      .join('');
+  };
+
+  render();
+</script>

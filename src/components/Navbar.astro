@@ -1,5 +1,5 @@
 ---
-// 导航栏：当前页高亮在构建时通过 URL 路径判断
+// 顶部导航栏：液态玻璃，页面滚动时收窄为居中的圆角胶囊条
 const pathname = Astro.url.pathname.replace(/\/+$/, '') || '/';
 
 const links = [
@@ -13,55 +13,129 @@ const isActive = (href: string) =>
   href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(href + '/');
 ---
 
-<nav class="navbar">
-  <a href="/" class="logo">HC</a>
-  <div class="links">
-    {
-      links.map(({ href, label }) => (
-        <a href={href} class={isActive(href) ? 'active' : ''} aria-current={isActive(href) ? 'page' : undefined}>
-          {label}
-        </a>
-      ))
-    }
-  </div>
-</nav>
+<header class="nav-wrap" id="nav-wrap">
+  <nav class="navbar" id="navbar" aria-label="主导航">
+    <a href="/" class="logo">HC</a>
+    <div class="links">
+      {
+        links.map(({ href, label }) => (
+          <a href={href} class={isActive(href) ? 'active' : ''} aria-current={isActive(href) ? 'page' : undefined}>
+            {label}
+          </a>
+        ))
+      }
+    </div>
+    <form class="search-form" action="/search" method="get" role="search">
+      <svg
+        class="search-icon"
+        viewBox="0 0 24 24"
+        width="15"
+        height="15"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        aria-hidden="true"
+      >
+        <circle cx="11" cy="11" r="7"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input
+        type="search"
+        name="q"
+        class="search-input"
+        placeholder="Search…"
+        aria-label="搜索全站"
+        autocomplete="off"
+      />
+    </form>
+  </nav>
+</header>
+
+<script>
+  // 页面滚动时给导航栏加 compact 状态（收窄成圆角条）
+  const wrap = document.getElementById('nav-wrap');
+  const onScroll = () => {
+    if (!wrap) return;
+    wrap.classList.toggle('compact', window.scrollY > 24);
+  };
+  onScroll();
+  window.addEventListener('scroll', onScroll, { passive: true });
+</script>
 
 <style>
-  .navbar {
+  /* 外层容器：为悬浮导航留出空间 */
+  .nav-wrap {
     position: fixed;
     top: 0;
     left: 0;
+    right: 0;
+    z-index: 100;
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: center;
+    pointer-events: none; /* 让周围空白可点击 */
+  }
+  .navbar {
+    pointer-events: auto;
     width: 100%;
-    height: 60px;
+    max-width: 1080px;
+    height: 56px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 0 1.5rem;
-    box-sizing: border-box;
+    gap: 1.5rem;
+    padding: 0 1.25rem;
+    border-radius: 18px;
     background: var(--nav-bg);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--nav-border);
-    z-index: 100;
+    backdrop-filter: blur(18px) saturate(1.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    border: 1px solid var(--nav-border);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+    transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
   }
+  /* 滚动后：收窄成居中的圆角胶囊条 */
+  .nav-wrap.compact .navbar {
+    max-width: 640px;
+    height: 46px;
+    gap: 1rem;
+    padding: 0 1.1rem;
+    border-radius: 999px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  }
+  .nav-wrap.compact {
+    padding: 0.5rem 1rem;
+  }
+
   .logo {
-    font-size: 1.5rem;
+    font-size: 1.35rem;
     font-weight: 700;
     background: var(--heading-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     text-decoration: none;
+    flex-shrink: 0;
   }
+  .nav-wrap.compact .logo {
+    font-size: 1.15rem;
+  }
+
   .links {
     display: flex;
-    gap: 2rem;
+    gap: 1.4rem;
+    flex: 1;
+  }
+  .nav-wrap.compact .links {
+    gap: 1rem;
   }
   .links a {
     position: relative;
     color: var(--accent-text);
     text-decoration: none;
     font-weight: 500;
-    padding-bottom: 6px;
+    font-size: 0.95rem;
+    padding-bottom: 4px;
+    white-space: nowrap;
     transition: color 0.2s ease;
   }
   /* 底部横杠：悬浮时从左到右扫过 */
@@ -85,5 +159,67 @@ const isActive = (href: string) =>
   .links a:hover::after,
   .links a.active::after {
     transform: scaleX(1);
+  }
+
+  /* 搜索框 */
+  .search-form {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.35rem 0.8rem;
+    border-radius: 999px;
+    border: 1px solid var(--nav-border);
+    background: var(--surface);
+    flex-shrink: 0;
+    transition: border-color 0.2s ease;
+  }
+  .search-form:focus-within {
+    border-color: var(--btn-primary-bg);
+  }
+  .search-icon {
+    color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+  .search-input {
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 0.88rem;
+    width: 7.5rem;
+    transition: width 0.3s ease;
+  }
+  .search-input::placeholder {
+    color: var(--text-secondary);
+  }
+  .search-input:focus {
+    width: 10rem;
+  }
+  .nav-wrap.compact .search-input {
+    width: 5.5rem;
+  }
+  .nav-wrap.compact .search-input:focus {
+    width: 8rem;
+  }
+
+  /* 移动端 */
+  @media (max-width: 640px) {
+    .links {
+      gap: 0.9rem;
+    }
+    .links a {
+      font-size: 0.85rem;
+    }
+    .search-input {
+      width: 4.5rem;
+    }
+    .search-input:focus {
+      width: 6rem;
+    }
+    .nav-wrap.compact .search-input,
+    .nav-wrap.compact .search-input:focus {
+      width: 4.5rem;
+    }
   }
 </style>

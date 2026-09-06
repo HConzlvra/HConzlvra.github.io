@@ -15,7 +15,13 @@ const { Content } = await render(page);
 ---
 
 <Layout title={`${page.data.title} | HConzlvra_`} description={page.data.description}>
-  <article class="prose">
+  <article class="prose page-prose">
     <Content />
   </article>
 </Layout>
+
+<style>
+  .page-prose {
+    padding-top: 7rem;
+  }
+</style>

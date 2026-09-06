@@ -21,6 +21,7 @@ html[data-theme='light'] {
   --btn-secondary-border: rgba(42, 36, 64, 0.25);
   --card-shadow: 0 12px 40px rgba(42, 36, 64, 0.12);
   --code-bg: rgba(42, 36, 64, 0.07);
+  --footer-bg: #f0edf5;
 }
 
 html[data-theme='dark'] {
@@ -41,6 +42,7 @@ html[data-theme='dark'] {
   --btn-secondary-border: rgba(255, 255, 255, 0.15);
   --card-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
   --code-bg: rgba(255, 255, 255, 0.08);
+  --footer-bg: #171528;
 }
 
 /* ============================================
@@ -54,11 +56,12 @@ html[data-theme='dark'] {
 
 body {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: var(--page-bg);
   background-attachment: fixed;
   color: var(--text);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-  padding-top: 70px; /* 为固定导航栏留出空间 */
   transition: background 0.3s ease, color 0.3s ease;
 }
 

@@ -1,0 +1,109 @@
+---
+// 页脚：纯色背景随主题变化，左侧站点信息 + 右侧社交链接
+const year = new Date().getFullYear();
+---
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="brand">
+      <span class="brand-name">HConzlvra's Personal Site</span>
+      <span class="brand-tagline">万物皆有裂痕，那是光照进来的地方。</span>
+    </div>
+    <nav class="social-links" aria-label="社交链接">
+      <a href="https://github.com/HConzlvra" target="_blank" rel="noopener noreferrer" class="social-link">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+          <path
+            d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55 0-.27-.01-1.17-.02-2.12-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.72-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.18-3.09-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18a10.9 10.9 0 0 1 5.74 0c2.19-1.49 3.15-1.18 3.15-1.18.62 1.59.23 2.76.11 3.05.73.81 1.18 1.83 1.18 3.09 0 4.41-2.69 5.38-5.25 5.67.41.35.77 1.05.77 2.12 0 1.53-.01 2.76-.01 3.14 0 .3.2.67.8.55A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"
+          ></path>
+        </svg>
+        <span>GitHub</span>
+      </a>
+      <a
+        href="https://space.bilibili.com/3493291423172656"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="social-link"
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+          <path
+            d="M17.813 4.653h.854c1.51.054 2.769.578 3.773 1.574 1.004.995 1.524 2.249 1.56 3.76v7.2c.036 1.205-.302 2.284-1.014 3.238a4.897 4.897 0 0 1-2.565 1.806 5.27 5.27 0 0 1-1.414.2h-1.6c-1.004-.018-1.858-.326-2.562-.924a3.85 3.85 0 0 1-1.02-1.442 7.33 7.33 0 0 1-.304-.683 2.13 2.13 0 0 1-.108-.416c-.036-.16-.08-.229-.232-.229h-.996c-.152 0-.196.069-.232.229-.036.125-.072.251-.108.416a7.33 7.33 0 0 1-.304.683 3.85 3.85 0 0 1-1.02 1.442c-.704.598-1.558.906-2.562.924h-1.6a5.27 5.27 0 0 1-1.414-.2 4.897 4.897 0 0 1-2.565-1.806c-.712-.954-1.05-2.033-1.014-3.238v-7.2c.036-1.511.556-2.765 1.56-3.76 1.004-.996 2.263-1.52 3.773-1.574h.774l-1.174-1.12a1.234 1.234 0 0 1-.378-.882c0-.34.132-.633.378-.882a1.28 1.28 0 0 1 1.931 0l3.193 3.044c.107.108.178.198.214.27h3.387a.94.94 0 0 0 .214-.27l3.193-3.044a1.28 1.28 0 0 1 1.931 0c.246.249.378.543.378.882 0 .34-.132.633-.378.882l-1.174 1.12Zm-.782 9.943c.43 0 .8-.154 1.11-.462a1.5 1.5 0 0 0 .464-1.113 1.5 1.5 0 0 0-.464-1.113 1.504 1.504 0 0 0-1.11-.462 1.5 1.5 0 0 0-1.11.462 1.5 1.5 0 0 0-.464 1.113c0 .435.155.807.464 1.113.31.308.679.462 1.11.462Zm-10.062 0c.43 0 .8-.154 1.11-.462a1.5 1.5 0 0 0 .464-1.113 1.5 1.5 0 0 0-.464-1.113 1.504 1.504 0 0 0-1.11-.462 1.5 1.5 0 0 0-1.11.462 1.5 1.5 0 0 0-.464 1.113c0 .435.155.807.464 1.113.31.308.679.462 1.11.462Z"
+          ></path>
+        </svg>
+        <span>Bilibili</span>
+      </a>
+    </nav>
+  </div>
+  <div class="copyright">© {year} HConzlvra_ · Powered by Astro</div>
+</footer>
+
+<style>
+  .footer {
+    margin-top: auto;
+    background: var(--footer-bg);
+    border-top: 1px solid var(--surface-border);
+    padding: 2rem 1.5rem 1.5rem;
+    transition: background 0.3s ease;
+  }
+  .footer-inner {
+    max-width: 1000px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+  .brand {
+    display: grid;
+    gap: 0.35rem;
+  }
+  .brand-name {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--text);
+  }
+  .brand-tagline {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+  .social-links {
+    display: flex;
+    gap: 1.25rem;
+  }
+  .social-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid var(--surface-border);
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  }
+  .social-link:hover {
+    color: var(--text);
+    border-color: var(--btn-primary-bg);
+    transform: translateY(-2px);
+  }
+  .social-link:hover svg {
+    fill: var(--btn-primary-bg);
+  }
+  .social-link svg {
+    fill: currentColor;
+    transition: fill 0.2s ease;
+  }
+  .copyright {
+    max-width: 1000px;
+    margin: 1.5rem auto 0;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--surface-border);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+</style>
