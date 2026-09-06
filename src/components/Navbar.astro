@@ -17,57 +17,60 @@ const isActive = (href: string) =>
 ---
 
 <header class="nav-wrap" id="nav-wrap">
-  <nav class="navbar" aria-label="主导航">
-    <a href="/" class="logo">HC</a>
+  <div class="nav-inner">
+    <nav class="navbar" aria-label="主导航">
+      <a href="/" class="logo">HC</a>
 
-    <!-- 桌面端横向链接 -->
-    <div class="links">
-      {
-        links.map(({ href, label }) => (
-          <a href={href} class={isActive(href) ? 'active' : ''} aria-current={isActive(href) ? 'page' : undefined}>
-            {label}
-          </a>
-        ))
-      }
-    </div>
+      <!-- 桌面端横向链接 -->
+      <div class="links">
+        {
+          links.map(({ href, label }) => (
+            <a href={href} class={isActive(href) ? 'active' : ''} aria-current={isActive(href) ? 'page' : undefined}>
+              {label}
+            </a>
+          ))
+        }
+      </div>
 
-    <!-- 搜索：默认收成圆形图标按钮，点一下展开输入框，Enter 提交（桌面端悬浮也会展开） -->
-    <form class="search-form" action="/search" method="get" role="search">
-      <button type="button" class="search-btn" aria-label="展开搜索">
-        <svg
-          viewBox="0 0 24 24"
-          width="16"
-          height="16"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          aria-hidden="true"
-        >
-          <circle cx="11" cy="11" r="7"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      <!-- 搜索：默认收成圆形图标按钮，点一下展开输入框，Enter 提交（桌面端悬浮也会展开） -->
+      <form class="search-form" action="/search" method="get" role="search">
+        <button type="button" class="search-btn" aria-label="展开搜索">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="7"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </button>
+        <input
+          type="search"
+          name="q"
+          class="search-input"
+          placeholder="Search…"
+          aria-label="搜索全站"
+          autocomplete="off"
+        />
+      </form>
+
+      <!-- 移动端汉堡按钮：SVG 线条（span 细横线旋转后端点在移动端会被光栅化成多余的点） -->
+      <button id="menu-toggle" class="hamburger" aria-label="打开菜单" aria-expanded="false">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <line x1="4" y1="6" x2="20" y2="6" />
+          <line x1="4" y1="12" x2="20" y2="12" />
+          <line x1="4" y1="18" x2="20" y2="18" />
         </svg>
       </button>
-      <input
-        type="search"
-        name="q"
-        class="search-input"
-        placeholder="Search…"
-        aria-label="搜索全站"
-        autocomplete="off"
-      />
-    </form>
+    </nav>
 
-    <!-- 移动端汉堡按钮：SVG 线条（span 细横线旋转后端点在移动端会被光栅化成多余的点） -->
-    <button id="menu-toggle" class="hamburger" aria-label="打开菜单" aria-expanded="false">
-      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-        <line x1="4" y1="6" x2="20" y2="6" />
-        <line x1="4" y1="12" x2="20" y2="12" />
-        <line x1="4" y1="18" x2="20" y2="18" />
-      </svg>
-    </button>
-
-    <!-- 移动端下拉菜单（竖向排列） -->
+    <!-- 移动端下拉菜单（竖向排列）：与导航栏平级而不是嵌在里面，
+         否则导航栏带滤镜时嵌套 backdrop-filter 采不到页面内容，玻璃效果会"变两种" -->
     <div class="mobile-panel">
       {
         links.map(({ href, label }) => (
@@ -77,7 +80,7 @@ const isActive = (href: string) =>
         ))
       }
     </div>
-  </nav>
+  </div>
 </header>
 
 <script>
@@ -177,6 +180,14 @@ const isActive = (href: string) =>
     display: flex;
     justify-content: center;
     pointer-events: none; /* 让周围空白可点击 */
+  }
+  /* 内层包装：承载导航栏与下拉面板，让面板与导航栏平级（避免嵌套 backdrop-filter） */
+  .nav-inner {
+    position: relative;
+    width: 100%;
+    max-width: 1080px;
+    display: flex;
+    justify-content: center;
   }
   .navbar {
     pointer-events: auto;
@@ -382,10 +393,9 @@ const isActive = (href: string) =>
     transform: translateY(-6px) rotate(-45deg);
   }
 
-  /* 移动端下拉菜单：常驻 DOM、用 visibility 隐藏，开合走淡入淡出 + 轻微下坠。
-     不用 display 切换——移动端 display:none→flex 后 backdrop-filter 常不重绘，
-     面板会"变透明"；且面板嵌在带模糊的导航栏里属嵌套 backdrop-filter，移动浏览器不稳，
-     所以背景用更高不透明度的玻璃底（--nav-panel-bg），模糊仅作增强 */
+  /* 移动端下拉菜单：与导航栏平级 + 导航栏同款玻璃配方（--nav-tint + blur + 细描边），
+     backdrop-filter 始终采样真实页面内容，任何滚动状态下效果都和导航栏完全一致；
+     常驻 DOM 用 visibility 隐藏，开合走淡入淡出 + 轻微下坠 */
   .mobile-panel {
     position: absolute;
     top: calc(100% + 0.6rem);
@@ -395,10 +405,11 @@ const isActive = (href: string) =>
     flex-direction: column;
     padding: 0.5rem;
     border-radius: 16px;
-    border: 1px solid var(--nav-border);
-    background: var(--nav-panel-bg);
+    pointer-events: auto;
+    background: var(--nav-tint);
     backdrop-filter: blur(20px) saturate(1.7);
     -webkit-backdrop-filter: blur(20px) saturate(1.7);
+    border: 1px solid var(--nav-border);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
     /* 关闭态：淡出并轻微上收 */
     opacity: 0;
