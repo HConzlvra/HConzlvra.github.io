@@ -93,6 +93,19 @@ const isActive = (href: string) =>
   document.addEventListener('astro:page-load', playNavEnter);
   playNavEnter();
 
+  // 导航栏光标泛光：把光标相对导航栏的坐标写进 --mx/--my，驱动 ::before 的光斑实时跟随
+  document.addEventListener(
+    'mousemove',
+    (e) => {
+      const nav = e.target instanceof Element ? e.target.closest('.navbar') : null;
+      if (!nav) return;
+      const rect = nav.getBoundingClientRect();
+      nav.style.setProperty('--mx', `${e.clientX - rect.left}px`);
+      nav.style.setProperty('--my', `${e.clientY - rect.top}px`);
+    },
+    { passive: true }
+  );
+
   // 滚动时收窄导航栏；实时查询 DOM，兼容 ClientRouter 视图切换
   const onScroll = () => {
     document.getElementById('nav-wrap')?.classList.toggle('compact', window.scrollY > 24);
@@ -193,13 +206,33 @@ const isActive = (href: string) =>
       padding 0.45s cubic-bezier(0.16, 1, 0.3, 1),
       border-radius 0.45s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  /* 滚动后液态玻璃淡入：柔和半透明底 + 细腻描边 + 柔和投影，无生硬白边 */
-  .nav-wrap.compact .navbar {
+  /* 滚动后或悬浮时液态玻璃淡入：柔和半透明底 + 细腻描边 + 柔和投影，无生硬白边 */
+  .nav-wrap.compact .navbar,
+  .navbar:hover {
     background: var(--nav-tint);
     backdrop-filter: blur(20px) saturate(1.7);
     -webkit-backdrop-filter: blur(20px) saturate(1.7);
     border-color: var(--nav-border);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  }
+  /* 光标泛光层：白色光斑以 --mx/--my（相对导航栏坐标）为圆心，随光标实时移动 */
+  .navbar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(
+      180px circle at var(--mx, 50%) var(--my, 50%),
+      rgba(255, 255, 255, 0.22),
+      rgba(255, 255, 255, 0.08) 45%,
+      transparent 72%
+    );
+    opacity: 0;
+    transition: opacity 0.45s ease;
+    pointer-events: none;
+  }
+  .navbar:hover::before {
+    opacity: 1;
   }
 
   .logo {
