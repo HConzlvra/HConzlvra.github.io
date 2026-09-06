@@ -30,9 +30,9 @@ const isActive = (href: string) =>
       }
     </div>
 
-    <!-- 搜索：移动端圆形图标按钮，桌面端悬浮展开为带 Search 字样的条 -->
+    <!-- 搜索：默认收成圆形图标按钮，点一下展开输入框，Enter 提交（桌面端悬浮也会展开） -->
     <form class="search-form" action="/search" method="get" role="search">
-      <button type="submit" class="search-btn" aria-label="搜索全站">
+      <button type="button" class="search-btn" aria-label="展开搜索">
         <svg
           viewBox="0 0 24 24"
           width="16"
@@ -103,6 +103,36 @@ const isActive = (href: string) =>
       wrap.classList.remove('mobile-open');
       menuBtn?.setAttribute('aria-expanded', 'false');
     }
+  });
+
+  // 搜索交互：点圆形按钮第一次展开输入框并聚焦，已展开时点击 = 提交搜索
+  document.addEventListener('click', (event) => {
+    const btn = event.target instanceof Element ? event.target.closest('.search-btn') : null;
+    if (!btn) return;
+    const form = btn.closest('.search-form');
+    if (!form) return;
+    if (form.classList.contains('expanded')) {
+      form.submit();
+    } else {
+      form.classList.add('expanded');
+      form.querySelector('.search-input')?.focus();
+    }
+  });
+
+  // 点击搜索框外部：输入为空时才收起（有内容时保留，方便继续编辑/点按钮提交）
+  document.addEventListener('click', (event) => {
+    const inside = event.target instanceof Element ? event.target.closest('.search-form') : null;
+    if (inside) return;
+    document.querySelectorAll('.search-form.expanded').forEach((form) => {
+      const input = form.querySelector('.search-input');
+      if (input && !input.value.trim()) form.classList.remove('expanded');
+    });
+  });
+  // 输入框失焦：输入为空时才收起
+  document.addEventListener('focusout', (event) => {
+    const input = event.target;
+    if (!(input instanceof Element) || !input.classList.contains('search-input')) return;
+    if (!input.value.trim()) input.closest('.search-form')?.classList.remove('expanded');
   });
 </script>
 
@@ -257,11 +287,13 @@ const isActive = (href: string) =>
       padding 0.3s ease;
   }
   .search-form:hover,
-  .search-form:focus-within {
+  .search-form:focus-within,
+  .search-form.expanded {
     border-color: var(--btn-primary-bg);
   }
   .search-form:hover .search-input,
-  .search-form:focus-within .search-input {
+  .search-form:focus-within .search-input,
+  .search-form.expanded .search-input {
     width: 8rem;
     opacity: 1;
     padding: 0 0.75rem 0 0.15rem;
@@ -382,8 +414,15 @@ const isActive = (href: string) =>
     .hamburger {
       display: flex;
     }
+    /* 搜索默认只剩圆形按钮；点一下加 .expanded 展开输入框（Enter 提交） */
     .search-input {
-      display: none; /* 搜索仅保留圆形图标按钮 */
+      display: none;
+    }
+    .search-form.expanded .search-input {
+      display: block;
+      width: 6.5rem;
+      opacity: 1;
+      padding: 0 0.6rem 0 0.15rem;
     }
     .navbar {
       gap: 0.75rem;

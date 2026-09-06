@@ -94,9 +94,17 @@ import Layout from '../layouts/Layout.astro';
     return escaped.replace(new RegExp(`(${safe})`, 'gi'), '<mark>$1</mark>');
   };
 
-  const render = () => {
-    // 从全局搜索索引（SearchData 组件注入）读取
-    const docs = (window as any).__SEARCH_DOCS__ ?? [];
+  const render = async () => {
+    // 拉取构建时生成的全站索引
+    let docs: any[] = [];
+    try {
+      const res = await fetch('/search-data.json');
+      docs = await res.json();
+    } catch {
+      metaEl!.textContent = '搜索索引加载失败，请刷新重试。';
+      return;
+    }
+
     const params = new URLSearchParams(window.location.search);
     const query = (params.get('q') ?? '').trim().toLowerCase();
 
@@ -108,7 +116,6 @@ import Layout from '../layouts/Layout.astro';
 
     const results = docs
       .map((doc: any) => {
-        const haystack = `${doc.title}\n${doc.description}\n${doc.content}`.toLowerCase();
         const idx = doc.content.toLowerCase().indexOf(query);
         const score =
           (doc.title.toLowerCase().includes(query) ? 100 : 0) +
