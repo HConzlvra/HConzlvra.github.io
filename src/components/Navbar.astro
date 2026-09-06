@@ -115,17 +115,22 @@ const isActive = (href: string) =>
     { passive: true }
   );
 
-  // 移动端触控：没有 hover，用 touching 类等效触发玻璃 + 光斑
-  const setTouching = (on: boolean) =>
+  // 移动端触控：没有 hover，用 touching 类等效触发玻璃 + 光斑。
+  // touchstart 直接绑在导航栏容器上（不需要 document.elementFromPoint，
+  // 那个会强制同步布局导致按钮点击卡顿/丢失）；
+  // touchend + touchcancel 双保险清理（移动端滚动时浏览器会发 touchcancel
+  // 而不是 touchend，只听 touchend 会导致玻璃残留不消失）
+  let touching = false;
+  const setTouching = (on: boolean) => {
+    touching = on;
     document.getElementById('nav-wrap')?.classList.toggle('touching', on);
-  document.addEventListener(
+  };
+  const navInner = document.querySelector('.nav-inner');
+  navInner?.addEventListener(
     'touchstart',
     (e) => {
       const t = e.touches[0];
-      if (!t) return;
-      // 只在触摸落在导航栏/面板内时激活（pointer-events 穿透后需命中 .nav-inner 内的元素）
-      const target = document.elementFromPoint(t.clientX, t.clientY);
-      if (target?.closest('.nav-inner')) {
+      if (t) {
         updateGlow(t.clientX, t.clientY);
         setTouching(true);
       }
@@ -135,17 +140,16 @@ const isActive = (href: string) =>
   document.addEventListener(
     'touchmove',
     (e) => {
-      if (!document.getElementById('nav-wrap')?.classList.contains('touching')) return;
+      if (!touching) return;
       const t = e.touches[0];
       if (t) updateGlow(t.clientX, t.clientY);
     },
     { passive: true }
   );
-  document.addEventListener(
-    'touchend',
-    () => setTouching(false),
-    { passive: true }
-  );
+  // touchend / touchcancel 都要清除，避免滚动或系统中断后玻璃残留
+  const endTouch = () => setTouching(false);
+  document.addEventListener('touchend', endTouch, { passive: true });
+  document.addEventListener('touchcancel', endTouch, { passive: true });
 
   // 滚动时收窄导航栏；实时查询 DOM，兼容 ClientRouter 视图切换
   const onScroll = () => {
