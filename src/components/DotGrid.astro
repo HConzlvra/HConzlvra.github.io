@@ -149,7 +149,21 @@
     draw();
   };
 
+  // 触摸结束后浏览器会派发合成的 mousemove，会把 mouse.active 重新置 true，
+  // 导致格点松手后卡在挤压态不回弹。用一个短窗口屏蔽这类合成事件。
+  let suppressMouse = false;
+  let suppressTimer: number | null = null;
+  const armSuppress = () => {
+    suppressMouse = true;
+    if (suppressTimer) clearTimeout(suppressTimer);
+    suppressTimer = window.setTimeout(() => {
+      suppressMouse = false;
+      suppressTimer = null;
+    }, 400);
+  };
+
   window.addEventListener('mousemove', (e) => {
+    if (suppressMouse) return;
     mouse.x = e.clientX;
     mouse.y = e.clientY;
     mouse.active = true;
@@ -157,6 +171,7 @@
   }, { passive: true });
 
   window.addEventListener('mouseout', (e) => {
+    if (suppressMouse) return;
     if (!e.relatedTarget) {
       mouse.active = false;
       mouse.x = -1e4;
@@ -165,8 +180,8 @@
     }
   });
 
-  // 移动端：手指滑动同样触发挤压
-  window.addEventListener('touchmove', (e) => {
+  // 移动端：手指触摸或滑动都触发挤压
+  const onTouch = (e: TouchEvent) => {
     const t = e.touches[0];
     if (t) {
       mouse.x = t.clientX;
@@ -174,14 +189,19 @@
       mouse.active = true;
       kick();
     }
-  }, { passive: true });
+  };
+  window.addEventListener('touchstart', onTouch, { passive: true });
+  window.addEventListener('touchmove', onTouch, { passive: true });
 
-  window.addEventListener('touchend', () => {
+  const endTouch = () => {
     mouse.active = false;
     mouse.x = -1e4;
     mouse.y = -1e4;
+    armSuppress();
     kick();
-  });
+  };
+  window.addEventListener('touchend', endTouch, { passive: true });
+  window.addEventListener('touchcancel', endTouch, { passive: true });
 
   window.addEventListener('resize', () => {
     if (canvas?.isConnected) {

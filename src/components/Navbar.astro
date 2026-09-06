@@ -116,13 +116,15 @@ const isActive = (href: string) =>
   );
 
   // 移动端触控：没有 hover，用 touching 类等效触发玻璃 + 光斑。
-  // touchstart 用事件委托绑在 document 上（只处理 .nav-inner 内的触摸），
-  // 这样 ClientRouter 页面切换后无需重新绑定；
-  // touchend + touchcancel 双保险清理（移动端滚动时浏览器会发 touchcancel
-  // 而不是 touchend，只听 touchend 会导致玻璃残留不消失）。
-  // 注意：移动端 :hover 会粘滞，所以 CSS 中 :hover 相关规则已用
-  // @media (hover:hover) 限制，移动端完全靠 touching 类控制显隐。
+  // - touchstart 用事件委托绑在 document 上（只处理 .nav-inner 内的触摸），
+  //   ClientRouter 页面切换后无需重新绑定
+  // - touchend + touchcancel 双保险清理（移动端滚动时浏览器会发 touchcancel
+  //   而不是 touchend，只听 touchend 会导致玻璃残留不消失）
+  // - 注意：移动端 :hover 会粘滞，CSS 中 :hover 规则已用 @media (hover:hover) 限制
+  // - 快速点击时 touchstart→touchend 间隔极短，0.45s 淡入还没跑完就淡出，
+  //   所以 touchend 延迟 ~120ms 再移除 touching，让泛光先亮起来再消失
   let touching = false;
+  let glowTimer: number | null = null;
   const setTouching = (on: boolean) => {
     touching = on;
     document.getElementById('nav-wrap')?.classList.toggle('touching', on);
@@ -134,6 +136,11 @@ const isActive = (href: string) =>
       if (!t) return;
       // 只在触摸落在导航栏/面板内时激活
       if (!(e.target instanceof Element) || !e.target.closest('.nav-inner')) return;
+      // 新的触摸开始，取消之前挂起的淡出
+      if (glowTimer) {
+        clearTimeout(glowTimer);
+        glowTimer = null;
+      }
       updateGlow(t.clientX, t.clientY);
       setTouching(true);
     },
@@ -148,8 +155,14 @@ const isActive = (href: string) =>
     },
     { passive: true }
   );
-  // touchend / touchcancel 都要清除，避免滚动或系统中断后玻璃残留
-  const endTouch = () => setTouching(false);
+  // 松手后延迟一小段再淡出，保证快速点击也能看到泛光亮起
+  const endTouch = () => {
+    if (glowTimer) clearTimeout(glowTimer);
+    glowTimer = window.setTimeout(() => {
+      setTouching(false);
+      glowTimer = null;
+    }, 120);
+  };
   document.addEventListener('touchend', endTouch, { passive: true });
   document.addEventListener('touchcancel', endTouch, { passive: true });
 
@@ -295,11 +308,14 @@ const isActive = (href: string) =>
       transparent 72%
     );
     opacity: 0;
-    transition: opacity 0.45s ease;
+    /* 基础态的 transition 决定"离开 touching"时的淡出速度（慢一点，余韵自然） */
+    transition: opacity 0.4s ease;
     pointer-events: none;
   }
   .nav-wrap.touching .navbar::before {
     opacity: 1;
+    /* touching 态的 transition 决定"进入 touching"时的淡入速度（几乎瞬时亮起） */
+    transition: opacity 0.05s ease;
   }
   /* 仅桌面端 hover 才显示光斑 */
   @media (hover: hover) {
