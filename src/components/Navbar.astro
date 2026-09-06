@@ -175,41 +175,31 @@ const isActive = (href: string) =>
     gap: 1.5rem;
     padding: 0 1.25rem;
     border-radius: 18px;
-    /* 液态玻璃：半透明底 + 渐变描边（模拟玻璃受光边缘） */
+    /* 顶部（未滚动）时液态玻璃淡出：完全透明、无模糊、无描边 */
     border: 1px solid transparent;
-    background:
-      linear-gradient(var(--nav-tint), var(--nav-tint)) padding-box,
-      linear-gradient(
-        120deg,
-        rgba(255, 255, 255, 0.65),
-        rgba(255, 255, 255, 0.15) 26%,
-        rgba(255, 255, 255, 0.04) 55%,
-        rgba(255, 255, 255, 0.4)
-      )
-        border-box;
-    backdrop-filter: blur(22px) saturate(1.8);
-    -webkit-backdrop-filter: blur(22px) saturate(1.8);
-    /* 内侧高光 = 玻璃上沿反光；外阴影 = 玻璃浮起 */
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.35),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.06),
-      0 4px 24px rgba(0, 0, 0, 0.08);
-    transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    transition:
+      background 0.45s ease,
+      backdrop-filter 0.45s ease,
+      -webkit-backdrop-filter 0.45s ease,
+      border-color 0.45s ease,
+      box-shadow 0.45s ease,
+      height 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+      max-width 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+      gap 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+      padding 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+      border-radius 0.45s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  /* 斜向流光层，模拟玻璃表面反光 */
-  .navbar::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: linear-gradient(
-      115deg,
-      rgba(255, 255, 255, 0.18) 0%,
-      rgba(255, 255, 255, 0) 30%,
-      rgba(255, 255, 255, 0) 70%,
-      rgba(255, 255, 255, 0.1) 100%
-    );
-    pointer-events: none;
+  /* 滚动后液态玻璃淡入：柔和半透明底 + 细腻描边 + 柔和投影，无生硬白边 */
+  .nav-wrap.compact .navbar {
+    background: var(--nav-tint);
+    backdrop-filter: blur(20px) saturate(1.7);
+    -webkit-backdrop-filter: blur(20px) saturate(1.7);
+    border-color: var(--nav-border);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
   }
 
   .logo {
@@ -358,7 +348,7 @@ const isActive = (href: string) =>
     transform: translateY(-6px) rotate(-45deg);
   }
 
-  /* 移动端下拉菜单（默认隐藏） */
+  /* 移动端下拉菜单（默认隐藏）：与滚动后导航栏一致的纯净液态玻璃 */
   .mobile-panel {
     display: none;
     position: absolute;
@@ -368,22 +358,11 @@ const isActive = (href: string) =>
     flex-direction: column;
     padding: 0.5rem;
     border-radius: 16px;
-    border: 1px solid transparent;
-    background:
-      linear-gradient(var(--nav-tint), var(--nav-tint)) padding-box,
-      linear-gradient(
-        120deg,
-        rgba(255, 255, 255, 0.65),
-        rgba(255, 255, 255, 0.15) 26%,
-        rgba(255, 255, 255, 0.04) 55%,
-        rgba(255, 255, 255, 0.4)
-      )
-        border-box;
-    backdrop-filter: blur(22px) saturate(1.8);
-    -webkit-backdrop-filter: blur(22px) saturate(1.8);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.35),
-      0 8px 32px rgba(0, 0, 0, 0.18);
+    border: 1px solid var(--nav-border);
+    background: var(--nav-tint);
+    backdrop-filter: blur(20px) saturate(1.7);
+    -webkit-backdrop-filter: blur(20px) saturate(1.7);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   }
   .nav-wrap.mobile-open .mobile-panel {
     display: flex;
@@ -418,10 +397,6 @@ const isActive = (href: string) =>
       gap: 1rem;
       padding: 0 1.1rem;
       border-radius: 999px;
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.35),
-        inset 0 -1px 0 rgba(255, 255, 255, 0.06),
-        0 8px 32px rgba(0, 0, 0, 0.18);
     }
     .nav-wrap.compact .logo {
       font-size: 1.15rem;
