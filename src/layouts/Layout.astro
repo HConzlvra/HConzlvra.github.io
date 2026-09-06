@@ -95,11 +95,11 @@ const { title = 'HConzlvra_', description = 'HConzlvra_ 的个人主页' } = Ast
           mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
         });
 
-        // 8 秒后移除高亮（用户可能想继续看页面）
-        window.setTimeout(() => {
+        // 动画播放完毕后移除 mark，把文字还原回普通文本（不干扰后续阅读）
+        mark.addEventListener('animationend', () => {
           const parent = mark.parentNode;
           if (parent) parent.replaceChild(document.createTextNode(mark.textContent ?? ''), mark);
-        }, 8000);
+        });
 
         // 清掉 hash，避免刷新时重复定位（不触发页面滚动）
         history.replaceState(null, '', window.location.pathname + window.location.search);
