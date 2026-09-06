@@ -1,7 +1,8 @@
 ---
 // 主页交互格点背景：canvas 绘制点阵
-// - 海浪：一条对角线波峰从左上涌向右下，一波接一波循环不断；
-//   波峰扫过处格点变粗、并向波峰两侧微微推开（间隙张开）
+// - 海浪（微波）：宽波带沿对角线从左上涌向右下，波峰紧挨波峰持续滚动；
+//   波带扫过处格点轻微变粗、间隙轻轻张开。形变小且连续：
+//   波峰压过单个格点时位移目标平滑过渡，不存在瞬间跳变
 // - 光标/手指靠近时格点被"挤压"推开并变粗（与海浪效果叠加共存）
 // 仅在主页使用；模块脚本常驻事件监听，astro:page-load 时重新绑定画布
 ---
@@ -50,18 +51,20 @@
     pos: number; // 波峰在对角线方向上的投影位置（px）
   }
   const SQRT1_2 = Math.SQRT1_2;
-  const WAVE_SPEED = 300; // 推进速度 px/s
-  const WAVE_BAND = 170; // 波影响带宽（波峰两侧各这么宽逐渐收敛）
-  const WAVE_PUSH = 10; // 波峰处最大位移（较小：主要靠间隙与变粗表达波浪）
-  const WAVE_GROW = 2.4; // 波峰处增粗量
-  const WAVE_MIN_GAP = 3.2; // 两波之间的最小间隔（秒），随机再加长一点更自然
+  const WAVE_SPEED = 240; // 推进速度 px/s（慢速轻柔）
+  const WAVE_BAND = 460; // 半带宽：波峰两侧各这么宽渐变（宽微波而非窄条）
+  const WAVE_PUSH = 6; // 波峰两侧最大位移（轻微形变即可）
+  const WAVE_FLIP = 90; // 推开方向在波峰前后各这么宽内平滑翻转，避免跳变
+  const WAVE_GROW = 1.4; // 波峰处增粗量
+  // 波峰间距 = 带宽：一波刚过去下一波紧跟而来，固定间隔不随机
+  const WAVE_INTERVAL = WAVE_BAND / WAVE_SPEED;
   let waves: Wave[] = [];
-  let waveTimer = 0.5; // 距下一波出生的倒计时：首波 0.5s 后涌来
+  let waveTimer = 0.4; // 距下一波出生的倒计时：首波 0.4s 后涌来
   const advanceWaves = (dt: number) => {
     waveTimer -= dt;
     if (waveTimer <= 0) {
       waves.push({ pos: -WAVE_BAND }); // 从画面左上角外淡入，避免突兀
-      waveTimer += WAVE_MIN_GAP + Math.random() * 1.4;
+      waveTimer += WAVE_INTERVAL;
     }
     const maxP = (window.innerWidth + window.innerHeight) * SQRT1_2; // 右下角投影
     for (const w of waves) w.pos += WAVE_SPEED * dt;
@@ -114,16 +117,19 @@
       let tx = 0;
       let ty = 0;
       let tr = baseR;
-      // 海浪贡献：波没到的点顺波向前推、已越过的向后拉 → 波峰处间隙张开 + 变粗
+      // 海浪贡献：波峰两侧的点向两边轻轻推开（间隙张开）+ 变粗。
+      // 推开方向不用 sign(s) 硬翻转，而是在波峰前后 ±WAVE_FLIP 内线性过渡，
+      // 波峰压过单个格点时位移目标连续变化，不会出现瞬间跳变。
       for (const w of waves) {
         const s = w.pos - (d.bx + d.by) * SQRT1_2; // <0 波未到；>0 波已越过
         const a = 1 - Math.abs(s) / WAVE_BAND;
         if (a <= 0) continue; // 不在波带内
-        const f = a * a * (3 - 2 * a); // smoothstep：波峰最强、边缘平滑收敛
-        const push = (s < 0 ? 1 : -1) * f * WAVE_PUSH * SQRT1_2;
+        const env = a * a * (3 - 2 * a); // smoothstep 包络：波峰最强、边缘平滑收敛
+        const dir = Math.max(-1, Math.min(1, -s / WAVE_FLIP)); // 未到 +1 / 已过 -1
+        const push = dir * env * WAVE_PUSH * SQRT1_2;
         tx += push;
         ty += push;
-        tr += f * WAVE_GROW;
+        tr += env * WAVE_GROW;
       }
       if (mouse.active) {
         const ex = d.bx + d.dx - mouse.x;
@@ -189,9 +195,9 @@
     readColor();
     resize();
     draw();
-    // 每次（重新）进入主页重置海浪：0.5s 后第一波从左上角涌来
+    // 每次（重新）进入主页重置海浪：0.4s 后第一波从左上角涌来
     waves = [];
-    waveTimer = 0.5;
+    waveTimer = 0.4;
     kick();
   };
 
