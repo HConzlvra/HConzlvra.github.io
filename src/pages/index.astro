@@ -38,7 +38,12 @@ import Layout from '../layouts/Layout.astro';
     max-width: 1000px;
     width: 100%;
     text-align: center;
-    padding: 7.5rem 1rem 3rem;
+    min-height: 100vh; /* 撑满首屏，把 footer 推到视口外 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center; /* 上下左右居中 */
+    padding: 5rem 1.5rem 3rem;
     margin: 0 auto;
   }
 
@@ -47,7 +52,7 @@ import Layout from '../layouts/Layout.astro';
     margin-bottom: 4rem;
   }
   .hero h1 {
-    font-size: 3.5rem;
+    font-size: 4.5rem;
     font-weight: 700;
     background: var(--heading-gradient);
     -webkit-background-clip: text;
@@ -57,13 +62,13 @@ import Layout from '../layouts/Layout.astro';
     letter-spacing: -0.02em;
   }
   .hero .subtitle {
-    font-size: 1.8rem;
+    font-size: 2.2rem;
     font-weight: 500;
     color: var(--accent-text);
     margin-bottom: 0.75rem;
   }
   .hero .tagline {
-    font-size: 1.2rem;
+    font-size: 1.4rem;
     color: var(--text-secondary);
     margin-bottom: 2.5rem;
     line-height: 1.6;
@@ -146,13 +151,13 @@ import Layout from '../layouts/Layout.astro';
   /* 响应式 */
   @media (max-width: 640px) {
     .hero h1 {
-      font-size: 2.5rem;
+      font-size: 3rem;
     }
     .hero .subtitle {
-      font-size: 1.3rem;
+      font-size: 1.6rem;
     }
     .hero .tagline {
-      font-size: 1rem;
+      font-size: 1.1rem;
       white-space: normal;
     }
     .hero .actions {

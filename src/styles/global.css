@@ -12,8 +12,8 @@ html[data-theme='light'] {
   --surface-hover: rgba(255, 255, 255, 0.85);
   --surface-border: rgba(42, 36, 64, 0.14);
   --surface-border-hover: rgba(42, 36, 64, 0.22);
-  --nav-bg: rgba(255, 255, 255, 0.88);
-  --nav-border: rgba(42, 36, 64, 0.1);
+  --nav-bg: rgba(255, 255, 255, 0.5);
+  --nav-border: rgba(42, 36, 64, 0.08);
   --heading-gradient: linear-gradient(135deg, #c74d86, #8b3fd1);
   --btn-primary-bg: #d64d8a;
   --btn-primary-bg-hover: #c73e6e;
@@ -33,7 +33,7 @@ html[data-theme='dark'] {
   --surface-hover: rgba(255, 255, 255, 0.09);
   --surface-border: rgba(255, 255, 255, 0.08);
   --surface-border-hover: rgba(255, 255, 255, 0.15);
-  --nav-bg: rgba(15, 12, 41, 0.9);
+  --nav-bg: rgba(15, 12, 41, 0.45);
   --nav-border: rgba(255, 255, 255, 0.08);
   --heading-gradient: linear-gradient(135deg, #f093fb, #f5576c);
   --btn-primary-bg: #f093fb;

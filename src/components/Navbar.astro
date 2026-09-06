@@ -64,46 +64,47 @@ const isActive = (href: string) =>
 </script>
 
 <style>
-  /* 外层容器：为悬浮导航留出空间 */
+  /* 外层容器：初始贴边铺满，滚动后留出边距让导航栏收成居中胶囊 */
   .nav-wrap {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     z-index: 100;
-    padding: 0.75rem 1rem;
+    padding: 0;
     display: flex;
     justify-content: center;
     pointer-events: none; /* 让周围空白可点击 */
+    transition: padding 0.45s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .navbar {
     pointer-events: auto;
     width: 100%;
-    max-width: 1080px;
-    height: 56px;
+    height: 60px;
     display: flex;
     align-items: center;
     gap: 1.5rem;
-    padding: 0 1.25rem;
-    border-radius: 18px;
+    padding: 0 2rem;
+    border-radius: 0;
+    /* 液态玻璃 */
     background: var(--nav-bg);
-    backdrop-filter: blur(18px) saturate(1.4);
-    -webkit-backdrop-filter: blur(18px) saturate(1.4);
-    border: 1px solid var(--nav-border);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    border-bottom: 1px solid var(--nav-border);
     transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
   }
   /* 滚动后：收窄成居中的圆角胶囊条 */
+  .nav-wrap.compact {
+    padding: 0.5rem 1rem;
+  }
   .nav-wrap.compact .navbar {
     max-width: 640px;
     height: 46px;
     gap: 1rem;
     padding: 0 1.1rem;
     border-radius: 999px;
+    border-bottom-color: transparent;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
-  }
-  .nav-wrap.compact {
-    padding: 0.5rem 1rem;
   }
 
   .logo {
