@@ -1,0 +1,198 @@
+---
+// 主页交互格点背景：canvas 绘制点阵，光标/手指靠近时格点被"挤压"推开并变粗
+// 仅在主页使用；模块脚本常驻事件监听，astro:page-load 时重新绑定画布
+---
+
+<canvas id="dot-grid" class="dot-grid" aria-hidden="true"></canvas>
+
+<style>
+  .dot-grid {
+    position: fixed;
+    inset: 0;
+    z-index: -1; /* 位于渐变背景之上、页面内容之下 */
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+</style>
+
+<script>
+  // ---------- 状态 ----------
+  let canvas: HTMLCanvasElement | null = null;
+  let ctx: CanvasRenderingContext2D | null = null;
+  interface Dot {
+    bx: number; // 基准 x
+    by: number; // 基准 y
+    dx: number; // 当前位移 x
+    dy: number; // 当前位移 y
+    r: number; // 当前半径
+  }
+  let dots: Dot[] = [];
+  let spacing = 28;
+  let baseR = 1.4;
+  let influence = 130;
+  let dpr = 1;
+  let dotColor = 'rgba(128, 128, 128, 0.3)';
+  let running = false;
+  const mouse = { x: -1e4, y: -1e4, active: false };
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  // ---------- 尺寸与点阵 ----------
+  const resize = () => {
+    if (!canvas || !ctx) return;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+
+    // 移动端间距更大（视觉更稀疏）；并按面积上限稀释，防止大屏/4K 点数爆炸
+    const isMobile = w <= 768;
+    const maxDots = isMobile ? 1100 : 4500;
+    const minSpacing = isMobile ? 46 : 28;
+    spacing = Math.max(minSpacing, Math.sqrt((w * h) / maxDots));
+    baseR = isMobile ? 1.7 : 1.35;
+    influence = Math.max(110, spacing * 4);
+
+    dots = [];
+    for (let y = spacing / 2; y < h; y += spacing) {
+      for (let x = spacing / 2; x < w; x += spacing) {
+        dots.push({ bx: x, by: y, dx: 0, dy: 0, r: baseR });
+      }
+    }
+  };
+
+  const readColor = () => {
+    dotColor =
+      getComputedStyle(document.documentElement).getPropertyValue('--dot-color').trim() || dotColor;
+  };
+
+  // ---------- 绘制与物理 ----------
+  const draw = () => {
+    if (!ctx || !canvas) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    ctx.fillStyle = dotColor;
+
+    const PUSH = 14; // 最大位移距离（轻微挤压）
+    const GROW = 2.6; // 最大增粗量
+    for (const d of dots) {
+      let tx = 0;
+      let ty = 0;
+      let tr = baseR;
+      if (mouse.active) {
+        const ex = d.bx + d.dx - mouse.x;
+        const ey = d.by + d.dy - mouse.y;
+        const dist = Math.hypot(ex, ey);
+        if (dist < influence) {
+          const f = 1 - dist / influence; // 0~1 影响强度
+          tx = (dist > 0.001 ? (ex / dist) * f * f * PUSH : 0);
+          ty = (dist > 0.001 ? (ey / dist) * f * f * PUSH : 0);
+          tr = baseR + f * f * GROW;
+        }
+      }
+      // 缓动逼近目标（松手/移开后自然回弹）
+      d.dx += (tx - d.dx) * 0.18;
+      d.dy += (ty - d.dy) * 0.18;
+      d.r += (tr - d.r) * 0.22;
+      ctx.beginPath();
+      ctx.arc(d.bx + d.dx, d.by + d.dy, d.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  };
+
+  const settled = () =>
+    dots.every((d) => Math.abs(d.dx) < 0.1 && Math.abs(d.dy) < 0.1 && Math.abs(d.r - baseR) < 0.05);
+
+  const loop = () => {
+    if (!canvas || !canvas.isConnected) {
+      running = false;
+      return;
+    }
+    draw();
+    if (!reduced.matches && (mouse.active || !settled())) {
+      requestAnimationFrame(loop);
+    } else {
+      running = false; // 完全静止后停帧，零空转
+    }
+  };
+
+  const kick = () => {
+    if (!canvas || !canvas.isConnected) return;
+    if (reduced.matches) {
+      draw(); // 减少动态：只静态绘制
+      return;
+    }
+    if (!running) {
+      running = true;
+      requestAnimationFrame(loop);
+    }
+  };
+
+  // ---------- 绑定（模块只执行一次，监听器常驻） ----------
+  const init = () => {
+    const el = document.getElementById('dot-grid');
+    if (!(el instanceof HTMLCanvasElement)) return; // 非主页
+    canvas = el;
+    ctx = el.getContext('2d');
+    readColor();
+    resize();
+    draw();
+  };
+
+  window.addEventListener('mousemove', (e) => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+    mouse.active = true;
+    kick();
+  }, { passive: true });
+
+  window.addEventListener('mouseout', (e) => {
+    if (!e.relatedTarget) {
+      mouse.active = false;
+      mouse.x = -1e4;
+      mouse.y = -1e4;
+      kick();
+    }
+  });
+
+  // 移动端：手指滑动同样触发挤压
+  window.addEventListener('touchmove', (e) => {
+    const t = e.touches[0];
+    if (t) {
+      mouse.x = t.clientX;
+      mouse.y = t.clientY;
+      mouse.active = true;
+      kick();
+    }
+  }, { passive: true });
+
+  window.addEventListener('touchend', () => {
+    mouse.active = false;
+    mouse.x = -1e4;
+    mouse.y = -1e4;
+    kick();
+  });
+
+  window.addEventListener('resize', () => {
+    if (canvas?.isConnected) {
+      readColor();
+      resize();
+      kick();
+    }
+  });
+
+  // 主题切换时重读颜色（观察 data-theme 属性变化）
+  new MutationObserver(() => {
+    if (canvas?.isConnected) {
+      readColor();
+      kick();
+    }
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  // 软导航回到主页时画布是全新元素，需重新绑定
+  document.addEventListener('astro:page-load', init);
+  init();
+</script>
