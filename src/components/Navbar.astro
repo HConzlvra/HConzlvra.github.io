@@ -7,9 +7,9 @@ const pathname = Astro.url.pathname.replace(/\/+$/, '') || '/';
 const links = [
   { href: '/', label: 'Home' },
   { href: '/about', label: 'About' },
-  { href: '/characters', label: 'Characters' },
   { href: '/posts', label: 'Posts' },
   { href: '/bruh', label: 'Bruh' },
+  // Characters 页面保留可访问（/characters 直接访问），但不进导航栏
 ];
 
 const isActive = (href: string) =>
