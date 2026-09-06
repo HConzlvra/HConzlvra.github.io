@@ -1,0 +1,38 @@
+---
+import Layout from './Layout.astro';
+import PostsSidebar from '../components/PostsSidebar.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+  currentSlug?: string;
+}
+
+const { title, description, currentSlug } = Astro.props;
+---
+
+<Layout title={title} description={description}>
+  <div class="posts-layout">
+    <PostsSidebar currentSlug={currentSlug} />
+    <div class="posts-content">
+      <slot />
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .posts-layout {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 3rem;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 4rem;
+  }
+  @media (max-width: 768px) {
+    .posts-layout {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+  }
+</style>

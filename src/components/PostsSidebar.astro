@@ -1,0 +1,114 @@
+---
+import { getCollection } from 'astro:content';
+
+interface Props {
+  currentSlug?: string;
+}
+const { currentSlug = '' } = Astro.props;
+
+// 按发布日期倒序
+const posts = (await getCollection('posts')).sort(
+  (a, b) => (b.data.pubDate?.valueOf() ?? 0) - (a.data.pubDate?.valueOf() ?? 0)
+);
+---
+
+<aside class="posts-sidebar">
+  <h2 class="sidebar-title">Posts</h2>
+  {
+    posts.length === 0 ? (
+      <p class="sidebar-empty">暂无文章</p>
+    ) : (
+      <nav class="sidebar-links">
+        {posts.map((post) => (
+          <a
+            href={`/posts/${post.id}`}
+            class:list={['sidebar-link', currentSlug === post.id && 'active']}
+            aria-current={currentSlug === post.id ? 'page' : undefined}
+          >
+            <span class="link-title">{post.data.title}</span>
+            {post.data.pubDate && (
+              <time class="link-date" datetime={post.data.pubDate.toISOString()}>
+                {post.data.pubDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </time>
+            )}
+          </a>
+        ))}
+      </nav>
+    )
+  }
+</aside>
+
+<style>
+  .posts-sidebar {
+    position: sticky;
+    top: 90px;
+    align-self: start;
+    display: grid;
+    gap: 0.75rem;
+  }
+  .sidebar-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--surface-border);
+  }
+  .sidebar-links {
+    display: grid;
+    gap: 0.25rem;
+  }
+  .sidebar-link {
+    position: relative;
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.6rem 0.75rem 0.7rem;
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--text);
+    transition: background 0.2s ease;
+  }
+  /* 底部横杠：悬浮时从左到右扫过（与顶部导航栏一致） */
+  .sidebar-link::after {
+    content: '';
+    position: absolute;
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: 0.2rem;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--btn-primary-bg);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.3s ease;
+  }
+  .sidebar-link:hover {
+    background: var(--surface);
+  }
+  .sidebar-link:hover::after,
+  .sidebar-link.active::after {
+    transform: scaleX(1);
+  }
+  .sidebar-link.active {
+    background: var(--surface);
+  }
+  .link-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1.4;
+  }
+  .link-date {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+  .sidebar-empty {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+  @media (max-width: 768px) {
+    .posts-sidebar {
+      position: static;
+    }
+  }
+</style>
