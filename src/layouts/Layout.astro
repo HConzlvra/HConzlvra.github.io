@@ -64,19 +64,46 @@ const { title = 'HConzlvra_', description = 'HConzlvra_ 的个人主页' } = Ast
         const main = document.querySelector('main');
         if (!main) return;
 
-        // 用 TreeWalker 找到第一个包含关键词的文本节点
+        const qLower = q.toLowerCase();
+
+        // 判断一个文本节点是否在"渐变文字"元素内：
+        // 渐变标题用 -webkit-text-fill-color: transparent + background-clip: text，
+        // 套 <mark> 后黄底会被裁成文字形状不可见，所以这类节点要跳过，
+        // 继续找下一个在普通文本里的匹配。
+        const isGradientText = (node: Node | null) => {
+          let el: Element | null = node instanceof Element ? node : node?.parentElement ?? null;
+          while (el && el !== main) {
+            const cs = getComputedStyle(el);
+            const fill = cs.getPropertyValue('-webkit-text-fill-color');
+            const clip = String((cs as any).webkitBackgroundClip || cs.backgroundClip || '');
+            // transparent 的计算值通常是 rgba(0,0,0,0)：取最后一个逗号后的数值作为 alpha
+            let isTransparent = fill === 'transparent';
+            if (!isTransparent && fill.indexOf('rgba') === 0) {
+              const lastComma = fill.lastIndexOf(',');
+              const lastParen = fill.lastIndexOf(')');
+              if (lastComma >= 0 && lastParen > lastComma) {
+                const alpha = parseFloat(fill.slice(lastComma + 1, lastParen).trim());
+                if (alpha === 0) isTransparent = true;
+              }
+            }
+            if (isTransparent && clip.indexOf('text') >= 0) return true;
+            el = el.parentElement;
+          }
+          return false;
+        };
+
+        // 用 TreeWalker 遍历文本节点，跳过渐变文字，直到找到可高亮的匹配
         const walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT, {
           acceptNode(node) {
-            const text = node.textContent ?? '';
-            return text.toLowerCase().includes(q.toLowerCase())
-              ? NodeFilter.FILTER_ACCEPT
-              : NodeFilter.FILTER_REJECT;
+            if (!node.textContent?.toLowerCase().includes(qLower)) return NodeFilter.FILTER_REJECT;
+            if (isGradientText(node)) return NodeFilter.FILTER_SKIP;
+            return NodeFilter.FILTER_ACCEPT;
           },
         });
         const textNode = walker.nextNode();
         if (!textNode || !textNode.textContent) return;
         const text = textNode.textContent;
-        const idx = text.toLowerCase().indexOf(q.toLowerCase());
+        const idx = text.toLowerCase().indexOf(qLower);
         if (idx < 0) return;
 
         // 把匹配片段包进 <mark class="search-hit"> 以便定位和高亮
@@ -106,6 +133,9 @@ const { title = 'HConzlvra_', description = 'HConzlvra_ 的个人主页' } = Ast
       };
 
       document.addEventListener('astro:page-load', scrollToSearchHit);
+      // 兜底：初始加载时若 astro:page-load 已在模块执行前触发，
+      // 直接调用一次（带 hash 才执行，无副作用）
+      if (window.location.hash.startsWith('#q=')) scrollToSearchHit();
     </script>
   </head>
   <body>

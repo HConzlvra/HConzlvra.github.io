@@ -95,22 +95,29 @@ a {
   text-shadow: none;
 }
 
-/* 搜索结果跳转定位的临时高亮：亮几下后淡出消失（不干扰后续阅读） */
+/* 搜索结果跳转定位的临时高亮：闪烁几下后背景淡出，文字始终正常显示。
+   用 !important 强制覆盖渐变标题（h1/h3）的 -webkit-text-fill-color: transparent
+   与 -webkit-background-clip: text 继承，否则命中渐变文字时高亮不可见 */
 mark.search-hit {
-  background: #ffd54a;
-  color: #1a1a1a;
+  background: #ffd54a !important;
+  color: #1a1a1a !important;
+  -webkit-text-fill-color: #1a1a1a !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
   border-radius: 3px;
   padding: 0 2px;
-  -webkit-text-fill-color: #1a1a1a;
   box-shadow: 0 0 0 3px rgba(255, 213, 74, 0.35);
-  animation: search-hit-flash 2s ease-in-out 2 forwards;
+  animation: search-hit-flash 2.4s ease-out forwards;
 }
 @keyframes search-hit-flash {
-  0%   { box-shadow: 0 0 0 3px rgba(255, 213, 74, 0.35); opacity: 1; }
-  25%  { box-shadow: 0 0 0 6px rgba(255, 213, 74, 0.6); }
-  50%  { box-shadow: 0 0 0 3px rgba(255, 213, 74, 0.35); }
-  75%  { box-shadow: 0 0 0 6px rgba(255, 213, 74, 0.6); }
-  100% { box-shadow: 0 0 0 0 rgba(255, 213, 74, 0); opacity: 0.3; }
+  0%   { background: #ffd54a !important; box-shadow: 0 0 0 3px rgba(255, 213, 74, 0.35); }
+  12%  { background: #ffd54a !important; box-shadow: 0 0 0 6px rgba(255, 213, 74, 0.65); }
+  24%  { background: #ffd54a !important; box-shadow: 0 0 0 3px rgba(255, 213, 74, 0.35); }
+  36%  { background: #ffd54a !important; box-shadow: 0 0 0 6px rgba(255, 213, 74, 0.65); }
+  48%  { background: #ffd54a !important; box-shadow: 0 0 0 3px rgba(255, 213, 74, 0.35); }
+  /* 闪烁 3 次后保持一下，再缓慢淡出背景色（文字颜色不变，始终可读） */
+  70%  { background: #ffd54a !important; box-shadow: 0 0 0 3px rgba(255, 213, 74, 0.35); }
+  100% { background: transparent !important; box-shadow: 0 0 0 0 rgba(255, 213, 74, 0); }
 }
 
 /* ============================================
