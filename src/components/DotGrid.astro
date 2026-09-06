@@ -70,14 +70,16 @@
   };
 
   // ---------- 绘制与物理 ----------
-  const draw = () => {
-    if (!ctx || !canvas) return;
+  // 返回值：本帧是否仍有位移/形变（合并静止判断，省掉一次全量遍历）
+  const draw = (): boolean => {
+    if (!ctx || !canvas) return false;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
     ctx.fillStyle = dotColor;
 
     const PUSH = 14; // 最大位移距离（轻微挤压）
     const GROW = 2.6; // 最大增粗量
+    let busy = mouse.active;
     for (const d of dots) {
       let tx = 0;
       let ty = 0;
@@ -98,22 +100,26 @@
       d.dx += (tx - d.dx) * 0.32;
       d.dy += (ty - d.dy) * 0.32;
       d.r += (tr - d.r) * 0.38;
+      if (
+        Math.abs(d.dx) > 0.1 ||
+        Math.abs(d.dy) > 0.1 ||
+        Math.abs(d.r - baseR) > 0.05
+      ) {
+        busy = true;
+      }
       ctx.beginPath();
       ctx.arc(d.bx + d.dx, d.by + d.dy, d.r, 0, Math.PI * 2);
       ctx.fill();
     }
+    return busy;
   };
-
-  const settled = () =>
-    dots.every((d) => Math.abs(d.dx) < 0.1 && Math.abs(d.dy) < 0.1 && Math.abs(d.r - baseR) < 0.05);
 
   const loop = () => {
     if (!canvas || !canvas.isConnected) {
       running = false;
       return;
     }
-    draw();
-    if (!reduced.matches && (mouse.active || !settled())) {
+    if (!reduced.matches && draw()) {
       requestAnimationFrame(loop);
     } else {
       running = false; // 完全静止后停帧，零空转
