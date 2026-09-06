@@ -94,9 +94,10 @@
         }
       }
       // 缓动逼近目标（松手/移开后自然回弹）
-      d.dx += (tx - d.dx) * 0.18;
-      d.dy += (ty - d.dy) * 0.18;
-      d.r += (tr - d.r) * 0.22;
+      // 系数越大跟踪越紧、滞后越小；0.3 左右保留一丝拖尾感又不显迟钝
+      d.dx += (tx - d.dx) * 0.32;
+      d.dy += (ty - d.dy) * 0.32;
+      d.r += (tr - d.r) * 0.38;
       ctx.beginPath();
       ctx.arc(d.bx + d.dx, d.by + d.dy, d.r, 0, Math.PI * 2);
       ctx.fill();
