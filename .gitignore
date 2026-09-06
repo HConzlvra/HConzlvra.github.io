@@ -22,3 +22,6 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# 聊天上传的临时文件（截图等），不进仓库
+.uploads/
