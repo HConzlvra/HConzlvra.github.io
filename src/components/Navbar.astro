@@ -57,11 +57,13 @@ const isActive = (href: string) =>
       />
     </form>
 
-    <!-- 移动端汉堡按钮 -->
+    <!-- 移动端汉堡按钮：SVG 线条（span 细横线旋转后端点在移动端会被光栅化成多余的点） -->
     <button id="menu-toggle" class="hamburger" aria-label="打开菜单" aria-expanded="false">
-      <span></span>
-      <span></span>
-      <span></span>
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <line x1="4" y1="6" x2="20" y2="6" />
+        <line x1="4" y1="12" x2="20" y2="12" />
+        <line x1="4" y1="18" x2="20" y2="18" />
+      </svg>
     </button>
 
     <!-- 移动端下拉菜单（竖向排列） -->
@@ -299,37 +301,47 @@ const isActive = (href: string) =>
     padding: 0 0.75rem 0 0.15rem;
   }
 
-  /* 汉堡按钮（仅移动端显示） */
+  /* 汉堡按钮（仅移动端显示）：三根 SVG 线，开合时同样做变形成叉叉 */
   .hamburger {
     display: none;
     width: 34px;
     height: 34px;
-    flex-direction: column;
     justify-content: center;
     align-items: center;
-    gap: 4px;
     border: 1px solid var(--nav-border);
     border-radius: 999px;
     background: var(--surface);
+    color: var(--text-secondary);
     cursor: pointer;
     flex-shrink: 0;
   }
-  .hamburger span {
-    width: 15px;
-    height: 2px;
-    border-radius: 1px;
-    background: var(--text-secondary);
+  .hamburger svg {
+    display: block;
+  }
+  .hamburger line {
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    /* 以整个 viewBox 为参考系，每根线绕自身中点旋转 */
+    transform-box: view-box;
+    transform-origin: 12px 6px;
     transition:
       transform 0.3s ease,
       opacity 0.3s ease;
   }
-  .nav-wrap.mobile-open .hamburger span:nth-child(1) {
+  .hamburger line:nth-child(2) {
+    transform-origin: 12px 12px;
+  }
+  .hamburger line:nth-child(3) {
+    transform-origin: 12px 18px;
+  }
+  .nav-wrap.mobile-open .hamburger line:nth-child(1) {
     transform: translateY(6px) rotate(45deg);
   }
-  .nav-wrap.mobile-open .hamburger span:nth-child(2) {
+  .nav-wrap.mobile-open .hamburger line:nth-child(2) {
     opacity: 0;
   }
-  .nav-wrap.mobile-open .hamburger span:nth-child(3) {
+  .nav-wrap.mobile-open .hamburger line:nth-child(3) {
     transform: translateY(-6px) rotate(-45deg);
   }
 

@@ -1,6 +1,22 @@
 <button id="theme-toggle" aria-label="切换深浅色主题" title="切换深浅色">
-  <span class="icon-sun">☀️</span>
-  <span class="icon-moon">🌙</span>
+  <!-- 纯色简洁太阳：深色模式下显示（点击切到浅色） -->
+  <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+    <circle cx="12" cy="12" r="4.2" fill="currentColor"></circle>
+    <g stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <line x1="12" y1="2.2" x2="12" y2="4.6"></line>
+      <line x1="12" y1="19.4" x2="12" y2="21.8"></line>
+      <line x1="2.2" y1="12" x2="4.6" y2="12"></line>
+      <line x1="19.4" y1="12" x2="21.8" y2="12"></line>
+      <line x1="5.1" y1="5.1" x2="6.8" y2="6.8"></line>
+      <line x1="17.2" y1="17.2" x2="18.9" y2="18.9"></line>
+      <line x1="18.9" y1="5.1" x2="17.2" y2="6.8"></line>
+      <line x1="6.8" y1="17.2" x2="5.1" y2="18.9"></line>
+    </g>
+  </svg>
+  <!-- 纯色简洁月亮：浅色模式下显示（点击切到深色） -->
+  <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+    <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="currentColor"></path>
+  </svg>
 </button>
 
 <style>
@@ -17,8 +33,8 @@
     border-radius: 50%;
     background: var(--surface);
     backdrop-filter: blur(10px);
+    color: var(--text);
     cursor: pointer;
-    font-size: 1.1rem;
     transition:
       transform 0.2s ease,
       background 0.2s ease;
@@ -27,7 +43,10 @@
     transform: translateY(-3px);
     background: var(--surface-hover);
   }
-  /* 深色模式显示太阳（点击切到浅色），浅色模式显示月亮 */
+  /* 两个图标叠放在同一格子里，按主题显隐 */
+  #theme-toggle svg {
+    grid-area: 1 / 1;
+  }
   :global(html[data-theme='dark']) .icon-moon {
     display: none;
   }
@@ -36,14 +55,75 @@
   }
 </style>
 
+<!-- 必须全局：视图过渡伪元素挂在 html 上，作用域样式选择不到 -->
+<style is:global>
+  /* 主题扩散动画期间，关闭默认的交叉淡入，让位于 clip-path 圆形扩散 */
+  html.theme-transition::view-transition-old(root),
+  html.theme-transition::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+  }
+</style>
+
 <script>
+  interface ThemeViewTransition {
+    ready: Promise<void>;
+    finished: Promise<void>;
+  }
+
   // 事件委托：视图切换后按钮被替换也能正常工作
   document.addEventListener('click', (event) => {
     const target = event.target instanceof Element ? event.target.closest('#theme-toggle') : null;
     if (!target) return;
     const html = document.documentElement;
     const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', next);
-    localStorage.setItem('theme', next);
+
+    const apply = () => {
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    };
+
+    // 必须以 document 为调用者（解耦出来调用会报 Illegal invocation）
+    const doc = document as Document & {
+      startViewTransition?: (cb: () => void) => ThemeViewTransition;
+    };
+
+    // 不支持视图过渡、或用户偏好减少动态：直接切换
+    if (!doc.startViewTransition || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      apply();
+      return;
+    }
+
+    // 挂上动画类（配合上面的 is:global 样式），切换完成后摘掉
+    html.classList.add('theme-transition');
+    const transition = doc.startViewTransition(apply);
+
+    transition.ready
+      .then(() => {
+        // 以按钮（屏幕右下角）为圆心，clip-path 圆形向外扩散：扩到哪，哪变成新主题
+        const rect = target.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        const radius = Math.hypot(
+          Math.max(x, window.innerWidth - x),
+          Math.max(y, window.innerHeight - y)
+        );
+        html.animate(
+          { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+          {
+            duration: 550,
+            easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+            pseudoElement: '::view-transition-new(root)',
+          }
+        );
+      })
+      .catch(() => {
+        /* 过渡被打断时静默处理 */
+      });
+
+    transition.finished.then(
+      () => html.classList.remove('theme-transition'),
+      () => html.classList.remove('theme-transition')
+    );
   });
 </script>
