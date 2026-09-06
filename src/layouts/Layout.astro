@@ -1,42 +1,45 @@
 ---
-import navbar from '../components/navbar.astro';
+import Navbar from '../components/Navbar.astro';
+import ThemeToggle from '../components/ThemeToggle.astro';
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title = 'HConzlvra_', description = 'HConzlvra_ 的个人主页' } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" />
     <meta name="generator" content={Astro.generator} />
-    <title>HConzlvra_</title>
-    <style>
-      /* 全局重置和样式 */
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      html, body {
-        width: 100%;
-        min-height: 100vh;
-        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-        color: #e0e0e0;
-        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-        padding-top: 70px; /* 为固定导航留出空间 */
-      }
-      main {
-        max-width: 1000px;
-        margin: 0 auto;
-        padding: 0 1.5rem 3rem;
-      }
-    </style>
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <script is:inline>
+      // 主题初始化：优先读取本地存储，否则跟随系统偏好（必须在渲染前执行，防止闪烁）
+      (function () {
+        const stored = localStorage.getItem('theme');
+        const theme =
+          stored === 'light' || stored === 'dark'
+            ? stored
+            : window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
   </head>
   <body>
-    <navbar />
+    <Navbar />
     <main>
-      <slot />  <!-- 页面内容渲染到这里 -->
+      <slot />
     </main>
+    <ThemeToggle />
   </body>
 </html>

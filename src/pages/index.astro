@@ -1,188 +1,166 @@
 ---
-// Astro 组件脚本（类似 Vue 的 script setup）
-// 这里可以放 JS 逻辑，但当前页面纯静态，不需要
+import Layout from '../layouts/Layout.astro';
 ---
 
-<!DOCTYPE html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HConzlvra_ 的主页</title>
-    <style>
-      /* 全局样式 */
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      body {
-        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-        color: #e0e0e0;
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 2rem 1rem;
-      }
-      .container {
-        max-width: 1000px;
-        width: 100%;
-        text-align: center;
-      }
-      
-      /* Hero 区域 */
-      .hero {
-        margin-bottom: 4rem;
-      }
-      .hero h1 {
-        font-size: 3.5rem;
-        font-weight: 700;
-        background: linear-gradient(135deg, #f093fb, #f5576c);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 0.5rem;
-        letter-spacing: -0.02em;
-      }
-      .hero .subtitle {
-        font-size: 1.8rem;
-        font-weight: 500;
-        color: #c8b6ff;
-        margin-bottom: 0.75rem;
-      }
-      .hero .tagline {
-        font-size: 1.2rem;
-        color: #a0a0b8;
-        margin-bottom: 2.5rem;
-        line-height: 1.6;
-        white-space: nowrap;
-      }
-      .hero .actions {
-        display: flex;
-        gap: 1rem;
-        justify-content: center;
-        flex-wrap: wrap;
-      }
-      .hero .actions a {
-        display: inline-block;
-        padding: 0.8rem 2.2rem;
-        border-radius: 40px;
-        font-weight: 600;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        font-size: 1rem;
-      }
-      .hero .actions .btn-primary {
-        background: #f093fb;
-        color: #1a1a2e;
-        box-shadow: 0 4px 15px rgba(240, 147, 251, 0.3);
-      }
-      .hero .actions .btn-primary:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 25px rgba(240, 147, 251, 0.5);
-        background: #f5576c;
-        color: #fff;
-      }
-      .hero .actions .btn-secondary {
-        background: rgba(255, 255, 255, 0.08);
-        color: #c8b6ff;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        backdrop-filter: blur(10px);
-      }
-      .hero .actions .btn-secondary:hover {
-        background: rgba(255, 255, 255, 0.18);
-        transform: translateY(-3px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-      }
+<Layout title="HConzlvra_ 的主页">
+  <div class="container">
+    <!-- Hero -->
+    <section class="hero">
+      <h1>Hi ! Here's HConzlvra_</h1>
+      <p class="subtitle">你好！这里是哈康HC</p>
+      <p class="tagline">「我让自己登基，做疯的君王｜万物皆有裂痕，那是光照进来的地方」</p>
+      <div class="actions">
+        <a href="https://github.com/HConzlvra" class="btn-primary">HC's Github Page</a>
+        <a href="https://space.bilibili.com/3493291423172656" class="btn-secondary">HC's Bilibili Page</a>
+      </div>
+    </section>
 
-      /* Features 区域 */
-      .features {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-        gap: 2rem;
-        margin-top: 2rem;
-      }
-      .features .card {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 20px;
-        padding: 2rem 1.5rem;
-        transition: all 0.3s ease;
-      }
-      .features .card:hover {
-        transform: translateY(-6px);
-        background: rgba(255, 255, 255, 0.09);
-        border-color: rgba(255, 255, 255, 0.15);
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
-      }
-      .features .card h3 {
-        font-size: 1.5rem;
-        font-weight: 600;
-        margin-bottom: 0.75rem;
-        background: linear-gradient(135deg, #f093fb, #f5576c);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-      }
-      .features .card p {
-        color: #b0b0c8;
-        line-height: 1.6;
-        font-size: 1rem;
-      }
+    <!-- Features -->
+    <section class="features">
+      <div class="card">
+        <h3>由 Astro 搭建</h3>
+        <p>不知道</p>
+      </div>
+      <div class="card">
+        <h3>是个人物</h3>
+        <p>烨然若神人</p>
+      </div>
+      <div class="card">
+        <h3>哈康大会@Official</h3>
+        <p>Harold_Conzlvra, HConzlvra_, HC, 哈康, 哈康HC, 哈康国王～</p>
+      </div>
+    </section>
+  </div>
+</Layout>
 
-      /* 响应式 */
-      @media (max-width: 640px) {
-        .hero h1 {
-          font-size: 2.5rem;
-        }
-        .hero .subtitle {
-          font-size: 1.3rem;
-        }
-        .hero .tagline {
-          font-size: 1rem;
-          white-space: normal;
-        }
-        .hero .actions {
-          flex-direction: column;
-          align-items: center;
-        }
-        .features {
-          grid-template-columns: 1fr;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <!-- Hero -->
-      <section class="hero">
-        <h1>Hi !  Here's HConzlvra_</h1>
-        <p class="subtitle">你好！这里是哈康HC</p>
-        <p class="tagline">「我让自己登基，做疯的君王｜万物皆有裂痕，那是光照进来的地方」</p>
-        <div class="actions">
-          <a href="https://github.com/HConzlvra" class="btn-primary">HC's Github Page</a>
-          <a href="https://space.bilibili.com/3493291423172656" class="btn-secondary">HC's Bilibili Page</a>
-        </div>
-      </section>
+<style>
+  .container {
+    max-width: 1000px;
+    width: 100%;
+    text-align: center;
+    padding: 3rem 1rem;
+    margin: 0 auto;
+  }
 
-      <!-- Features -->
-      <section class="features">
-        <div class="card">
-          <h3>由 Astro 搭建</h3>
-          <p>不知道</p>
-        </div>
-        <div class="card">
-          <h3>是个人物</h3>
-          <p>烨然若神人</p>
-        </div>
-        <div class="card">
-          <h3>哈康大会@Official</h3>
-          <p>Harold_Conzlvra, HConzlvra_, HC, 哈康, 哈康HC, 哈康国王～</p>
-        </div>
-      </section>
-    </div>
-  </body>
-</html>
+  /* Hero 区域 */
+  .hero {
+    margin-bottom: 4rem;
+  }
+  .hero h1 {
+    font-size: 3.5rem;
+    font-weight: 700;
+    background: var(--heading-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+  }
+  .hero .subtitle {
+    font-size: 1.8rem;
+    font-weight: 500;
+    color: var(--accent-text);
+    margin-bottom: 0.75rem;
+  }
+  .hero .tagline {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    margin-bottom: 2.5rem;
+    line-height: 1.6;
+    white-space: nowrap;
+  }
+  .hero .actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .hero .actions a {
+    display: inline-block;
+    padding: 0.8rem 2.2rem;
+    border-radius: 40px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    font-size: 1rem;
+  }
+  .hero .actions .btn-primary {
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    box-shadow: 0 4px 15px rgba(240, 147, 251, 0.3);
+  }
+  .hero .actions .btn-primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(240, 147, 251, 0.5);
+    background: var(--btn-primary-bg-hover);
+    color: #fff;
+  }
+  .hero .actions .btn-secondary {
+    background: var(--surface);
+    color: var(--accent-text);
+    border: 1px solid var(--btn-secondary-border);
+    backdrop-filter: blur(10px);
+  }
+  .hero .actions .btn-secondary:hover {
+    background: var(--surface-hover);
+    transform: translateY(-3px);
+    box-shadow: var(--card-shadow);
+  }
+
+  /* Features 区域 */
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+  }
+  .features .card {
+    background: var(--surface);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--surface-border);
+    border-radius: 20px;
+    padding: 2rem 1.5rem;
+    transition: all 0.3s ease;
+  }
+  .features .card:hover {
+    transform: translateY(-6px);
+    background: var(--surface-hover);
+    border-color: var(--surface-border-hover);
+    box-shadow: var(--card-shadow);
+  }
+  .features .card h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    background: var(--heading-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .features .card p {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    font-size: 1rem;
+  }
+
+  /* 响应式 */
+  @media (max-width: 640px) {
+    .hero h1 {
+      font-size: 2.5rem;
+    }
+    .hero .subtitle {
+      font-size: 1.3rem;
+    }
+    .hero .tagline {
+      font-size: 1rem;
+      white-space: normal;
+    }
+    .hero .actions {
+      flex-direction: column;
+      align-items: center;
+    }
+    .features {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
