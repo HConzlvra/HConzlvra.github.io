@@ -156,15 +156,15 @@ a {
      干扰 backdrop-filter 玻璃面板与渐变文字渲染（防止“文字与轮廓脱离”）
    ============================================ */
 :root {
-  --anim-x: -2rem;
-  --anim-y: 1.5rem;
-  --nav-drop: 3rem;
+  --anim-x: -4rem;
+  --anim-y: 3rem;
+  --nav-drop: 5rem;
 }
 @media (max-width: 768px) {
   :root {
-    --anim-x: -1rem;
-    --anim-y: 1rem;
-    --nav-drop: 2.5rem;
+    --anim-x: -2rem;
+    --anim-y: 1.5rem;
+    --nav-drop: 3.25rem;
   }
 }
 
@@ -178,15 +178,15 @@ a {
 }
 @keyframes nav-in {
   0%   { opacity: 0; transform: translateY(var(--nav-drop)); }
-  60%  { opacity: 1; transform: translateY(-6px); }
+  60%  { opacity: 1; transform: translateY(-10px); }
   100% { opacity: 1; transform: translateY(0); }
 }
 
-.enter-left { animation: enter-left 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
-.enter-up   { animation: enter-up   0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.enter-left { animation: enter-left 0.85s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.enter-up   { animation: enter-up   0.8s  cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 /* 导航栏从下方弹上来（带轻微过冲），由 Navbar 脚本在首次加载时挂上 .nav-enter */
 .navbar.nav-enter {
-  animation: nav-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation: nav-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 /* 用户偏好减少动态：关闭所有入场动画 */
