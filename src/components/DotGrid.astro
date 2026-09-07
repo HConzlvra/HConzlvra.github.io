@@ -1,12 +1,9 @@
 ---
 // 主页交互格点背景：canvas 绘制点阵
-// - 立体海面：略偏俯侧视角，地平线在屏幕上方 HORIZON_RATIO 处；
-//   点阵向地平线方向汇聚——远端行距与点径同步缩小、透明度变淡，
-//   近端（屏幕底部）点大而疏。x 方向也轻微向地平线中点汇聚，
-//   压缩温和不呈"隧道"感，整体读作一片略侧面的海面。
-// - 海浪：波峰为横线，从地平线涌向屏幕底部（向观察者推进），
-//   波带扫过处点轻微变粗、间隙张开。形变连续无跳变。
-// - 光标/手指靠近时点被"挤压"推开并变粗（与海浪叠加共存）
+// - 海浪（微波）：宽波带沿对角线从左上涌向右下，波峰紧挨波峰持续滚动；
+//   波带扫过处格点轻微变粗、间隙轻轻张开。形变小且连续：
+//   波峰压过单个格点时位移目标平滑过渡，不存在瞬间跳变
+// - 光标/手指靠近时格点被"挤压"推开并变粗（与海浪效果叠加共存）
 // 仅在主页使用；模块脚本常驻事件监听，astro:page-load 时重新绑定画布
 ---
 
@@ -28,12 +25,11 @@
   let canvas: HTMLCanvasElement | null = null;
   let ctx: CanvasRenderingContext2D | null = null;
   interface Dot {
-    bx: number; // 屏幕基准 x（已透视投影）
-    by: number; // 屏幕基准 y（已透视投影）
-    s: number;  // 透视缩放（近端=1，远端→0）
-    dx: number; // 屏幕位移 x
-    dy: number; // 屏幕位移 y
-    r: number;  // 屏幕半径
+    bx: number; // 基准 x
+    by: number; // 基准 y
+    dx: number; // 当前位移 x
+    dy: number; // 当前位移 y
+    r: number; // 当前半径
   }
   let dots: Dot[] = [];
   let spacing = 28;
@@ -46,49 +42,36 @@
   const mouse = { x: -1e4, y: -1e4, active: false };
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-  // ---------- 透视海面 ----------
-  // 视角略偏俯侧：地平线在屏幕上方 HORIZON_RATIO 处，
-  // 越接近地平线（远）点越小越密越淡，越接近底部（近）点越大越疏越实。
-  // screen_y(z) = horizon_y + depthSpan / (1 + z * PERSP_K)
-  // screen_x(z) = vp_x + (world_x - vp_x) / (1 + z * PERSP_K)
-  // x 方向同样按深度收敛到地平线中点（消失点），强化立体感。
-  const HORIZON_RATIO = 0.03;    // 地平线贴近屏幕顶部：消失点在上方，
-  // 点阵从上部汇聚(远)向下铺展(近)，透过透明内容区可见立体透视
-  const PERSP_K = 0.0026;         // 深度压缩系数（越大压缩越剧、消失点越近）
-  const PERSP_HAZE = 0.42;        // 最远处大气透明度（越远越淡）
-  const PERSP_VP_X_RATIO = 0.5;  // 消失点横向位置（0.5=屏幕正中）
-  let horizon_y = 0;              // 地平线屏幕 y
-  let depthSpan = 0;              // 地平线到屏幕底部的屏幕跨度
-  let vp_x = 0;                   // 消失点 x
-
   // ---------- 海浪 ----------
-  // 波峰是一条横线（恒定屏幕 y），从地平线略下方涌向屏幕底部（向观察者推进）。
-  // 波带在屏幕空间为均匀宽度，扫过的点变粗、间隙张开；离开后自然回弹。
-  // 推开方向在波峰前后 ±WAVE_FLIP_PX 内平滑翻转，波峰压过单个点时位移连续。
-  // 变粗与推开解耦：推开用宽带（间隙开合），变粗只用窄带 → 波峰核心粗、
-  // 波峰之间细，保留点阵层次。
+  // 波峰是一条垂直于对角线的整排线段，从左上角外向右下推进。
+  // 每个格点在"波峰在对角线方向上的投影"处受影响：
+  // 波没到的点被向前推、已越过的点被向后拉 → 波峰处间隙张开；
+  // 同时波峰处点半径增大（类似光标悬浮），离开波带后自然回弹。
   interface Wave {
-    sy: number; // 波峰屏幕 y 位置
+    pos: number; // 波峰在对角线方向上的投影位置（px）
   }
-  const WAVE_SCREEN_SPEED = 175;  // 屏幕推进速度 px/s（向近处=向下）
-  const WAVE_BAND_PX = 75;        // 半带宽（屏幕 px）：很宽的微波带
-  const WAVE_FLIP_PX = 32;        // 推开方向翻转带（屏幕 px），避免跳变
-  const WAVE_PUSH = 6;            // 波峰两侧最大位移（屏幕 px，轻微形变）
-  const WAVE_GROW = 0.9;          // 波峰处增粗量（屏幕 px，刻意小：粗细只留暗示）
-  const WAVE_GROW_BAND_PX = 26;  // 增粗半带宽（远窄于 WAVE_BAND）：波峰核心微微变粗
-  const WAVE_INTERVAL = 1.15;    // 波间隔（秒）：波峰紧挨波峰持续滚动
-  const WAVE_START_FRAC = 0.15;  // 出生位置：地平线下方 depthSpan 的此比例处淡入
+  const SQRT1_2 = Math.SQRT1_2;
+  const WAVE_SPEED = 200; // 推进速度 px/s（慢速轻柔，呼吸感）
+  const WAVE_BAND = 560; // 半带宽：波峰两侧各这么宽渐变（很宽的微波带）
+  const WAVE_PUSH = 7; // 波峰两侧最大位移（轻微形变即可）
+  const WAVE_FLIP = 130; // 推开方向在波峰前后各这么宽内平滑翻转，避免跳变
+  const WAVE_GROW = 0.7; // 波峰处增粗量（刻意小：弱化粗细对比，
+  // 波浪主要靠间隙开合表达，粗细只留一点若有若无的暗示）
+  const WAVE_GROW_BAND = 150; // 增粗半带宽（远窄于 WAVE_BAND）：只有波峰核心微微变粗，
+  // 相邻波峰之间回到细点，保留点阵层次
+  // 波峰间距 = 带宽：一波刚过去下一波紧跟而来，固定间隔不随机
+  const WAVE_INTERVAL = WAVE_BAND / WAVE_SPEED;
   let waves: Wave[] = [];
   let waveTimer = 0.4; // 距下一波出生的倒计时：首波 0.4s 后涌来
   const advanceWaves = (dt: number) => {
     waveTimer -= dt;
     if (waveTimer <= 0) {
-      waves.push({ sy: horizon_y + depthSpan * WAVE_START_FRAC }); // 从地平线附近淡入
+      waves.push({ pos: -WAVE_BAND }); // 从画面左上角外淡入，避免突兀
       waveTimer += WAVE_INTERVAL;
     }
-    const bottom = window.innerHeight;
-    for (const w of waves) w.sy += WAVE_SCREEN_SPEED * dt;
-    waves = waves.filter((w) => w.sy < bottom + WAVE_BAND_PX); // 完全驶出后回收
+    const maxP = (window.innerWidth + window.innerHeight) * SQRT1_2; // 右下角投影
+    for (const w of waves) w.pos += WAVE_SPEED * dt;
+    waves = waves.filter((w) => w.pos < maxP + WAVE_BAND); // 完全驶出后回收
   };
 
   // ---------- 尺寸与点阵 ----------
@@ -102,42 +85,18 @@
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
 
-    horizon_y = h * HORIZON_RATIO;
-    depthSpan = h - horizon_y;
-    vp_x = w * PERSP_VP_X_RATIO;
-
     // 移动端间距更小（点阵别太稀疏）；并按面积上限稀释，防止大屏/4K 点数爆炸
     const isMobile = w <= 768;
     const maxDots = isMobile ? 2800 : 4500;
     const minSpacing = isMobile ? 26 : 28;
     spacing = Math.max(minSpacing, Math.sqrt((w * h) / maxDots));
-    baseR = isMobile ? 2.0 : 1.9;
+    baseR = isMobile ? 1.5 : 1.35;
     influence = Math.max(110, spacing * 4);
 
     dots = [];
-    // 按世界深度 z 生成行：z=0 近端（屏幕底），z→∞ 远端（地平线）。
-    // 近端每单位 z 的屏幕步长 = depthSpan * PERSP_K；令近端屏幕行距 = spacing 反推 dz。
-    const nearRowStep = depthSpan * PERSP_K;
-    const dz = nearRowStep > 0 ? spacing / nearRowStep : 1;
-    // 固定世界半宽：近端行覆盖屏幕，远端行按透视自然变窄并向消失点汇聚
-    // （若按深度放大世界宽来铺满屏幕，则所有行都满宽，x 方向就不再收敛，立体感丢失）
-    const worldHalfW = w * 0.5 + spacing * 2;
-    const colStepWorld = spacing;
-    const colsHalf = Math.ceil(worldHalfW / colStepWorld);
-    for (let zi = 0; ; zi++) {
-      const z = zi * dz;
-      const factor = 1 + z * PERSP_K; // = depthSpan / (sy - horizon_y)
-      const sy = horizon_y + depthSpan / factor;
-      if (sy <= horizon_y + 0.5) break; // 太接近地平线
-      // 当前行屏幕步长（关于 z 的导数）：spacing / factor²
-      const rowStep = spacing / (factor * factor);
-      if (rowStep < 1.8) break; // 行太密，停止（避免远端点重叠成实心带）
-      const xScale = 1 / factor; // 该深度 x 缩放：远→0，近→1
-      for (let ci = -colsHalf; ci <= colsHalf; ci++) {
-        const wx = vp_x + ci * colStepWorld;
-        const sx = vp_x + (wx - vp_x) * xScale;
-        if (sx < -spacing || sx > w + spacing) continue;
-        dots.push({ bx: sx, by: sy, s: xScale, dx: 0, dy: 0, r: baseR * xScale });
+    for (let y = spacing / 2; y < h; y += spacing) {
+      for (let x = spacing / 2; x < w; x += spacing) {
+        dots.push({ bx: x, by: y, dx: 0, dy: 0, r: baseR });
       }
     }
   };
@@ -160,27 +119,28 @@
     for (const d of dots) {
       let tx = 0;
       let ty = 0;
-      let tr = baseR * d.s;
+      let tr = baseR;
       // 海浪贡献：波峰两侧的点向两边轻轻推开（间隙张开）+ 波峰核心变粗。
-      // 推开方向不用 sign(s) 硬翻转，而是在波峰前后 ±WAVE_FLIP_PX 内线性过渡，
-      // 波峰压过单个格点时位移目标连续变化，不会瞬间跳变。
-      // 形变量按 d.s 缩放：近处形变明显，远处几乎不动（透视一致）。
+      // 推开方向不用 sign(s) 硬翻转，而是在波峰前后 ±WAVE_FLIP 内线性过渡，
+      // 波峰压过单个格点时位移目标连续变化，不会出现瞬间跳变。
+      // 变粗与推开解耦：推开用宽带（间隙轻柔开合，相邻波之间相互抵消），
+      // 变粗只用窄带 → 波峰核心粗、波峰之间细，保留点阵层次。
       for (const w of waves) {
-        const s = w.sy - d.by; // >0 波已越过(在下方/近处)；<0 波未到(在上方/远处)
-        const a = 1 - Math.abs(s) / WAVE_BAND_PX;
+        const s = w.pos - (d.bx + d.by) * SQRT1_2; // <0 波未到；>0 波已越过
+        const a = 1 - Math.abs(s) / WAVE_BAND;
         if (a <= 0) continue; // 不在波带内
         const env = a * a * (3 - 2 * a); // smoothstep 包络：波峰最强、边缘平滑收敛
-        const dir = Math.max(-1, Math.min(1, s / WAVE_FLIP_PX)); // 未到 -1 / 已过 +1
-        // 间隙张开：波已过(下方)→点向上(-y)；波未到(上方)→点向下(+y)
-        ty += -dir * env * WAVE_PUSH * d.s;
-        const ar = 1 - Math.abs(s) / WAVE_GROW_BAND_PX;
+        const dir = Math.max(-1, Math.min(1, -s / WAVE_FLIP)); // 未到 +1 / 已过 -1
+        const push = dir * env * WAVE_PUSH * SQRT1_2;
+        tx += push;
+        ty += push;
+        const ar = 1 - Math.abs(s) / WAVE_GROW_BAND;
         if (ar > 0) {
           const er = ar * ar * (3 - 2 * ar);
-          tr += er * WAVE_GROW * d.s;
+          tr += er * WAVE_GROW;
         }
       }
       if (mouse.active) {
-        // 光标距离用渲染后坐标计算，确保视觉上准确定位
         const ex = d.bx + d.dx - mouse.x;
         const ey = d.by + d.dy - mouse.y;
         const dist = Math.hypot(ex, ey);
@@ -188,7 +148,7 @@
           const f = 1 - dist / influence; // 0~1 影响强度
           tx += dist > 0.001 ? (ex / dist) * f * f * PUSH : 0;
           ty += dist > 0.001 ? (ey / dist) * f * f * PUSH : 0;
-          tr += f * f * GROW * d.s;
+          tr += f * f * GROW;
         }
       }
       // 缓动逼近目标（松手/波过后自然回弹）
@@ -196,13 +156,10 @@
       d.dx += (tx - d.dx) * 0.32;
       d.dy += (ty - d.dy) * 0.32;
       d.r += (tr - d.r) * 0.38;
-      // 大气透视：远端（d.s 小）更淡，近端更实
-      ctx.globalAlpha = PERSP_HAZE + (1 - PERSP_HAZE) * d.s;
       ctx.beginPath();
-      ctx.arc(d.bx + d.dx, d.by + d.dy, Math.max(0.5, d.r), 0, Math.PI * 2);
+      ctx.arc(d.bx + d.dx, d.by + d.dy, d.r, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.globalAlpha = 1; // 复位，防止影响其他绘制
   };
 
   // 渲染循环：海浪持续发生 → 常驻 rAF（页面切走时 rAF 自动暂停，
@@ -247,7 +204,7 @@
     readColor();
     resize();
     draw();
-    // 每次（重新）进入主页重置海浪：0.4s 后第一波从地平线涌来
+    // 每次（重新）进入主页重置海浪：0.4s 后第一波从左上角涌来
     waves = [];
     waveTimer = 0.4;
     kick();
