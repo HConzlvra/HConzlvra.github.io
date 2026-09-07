@@ -1,9 +1,9 @@
 ---
 // 主页交互格点背景：canvas 绘制点阵
-// - 立体海面：偏俯侧视角，消失点位于屏幕上方偏右（HORIZON_RATIO 处地平线、
-//   VP_X_RATIO 处横向）。点阵向消失点汇聚——远端行距与点径同步缩小、透明度变淡，
-//   近端（屏幕底部）点大而疏。海面从右上方远处向左下方近处铺展，
-//   既有俯视的纵深，又有侧倾的立体感（不是完全侧面，保留俯视基调）。
+// - 立体海面：略偏俯侧视角，地平线在屏幕上方 HORIZON_RATIO 处；
+//   点阵向地平线方向汇聚——远端行距与点径同步缩小、透明度变淡，
+//   近端（屏幕底部）点大而疏。x 方向也轻微向地平线中点汇聚，
+//   压缩温和不呈"隧道"感，整体读作一片略侧面的海面。
 // - 海浪：波峰为横线，从地平线涌向屏幕底部（向观察者推进），
 //   波带扫过处点轻微变粗、间隙张开。形变连续无跳变。
 // - 光标/手指靠近时点被"挤压"推开并变粗（与海浪叠加共存）
@@ -47,17 +47,16 @@
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   // ---------- 透视海面 ----------
-  // 偏俯侧视角：消失点在屏幕上方偏右（HORIZON_RATIO 处地平线、VP_X_RATIO 处横向）。
-  // 越接近消失点（远）点越小越密越淡，越接近底部（近）点越大越疏越实。
+  // 视角略偏俯侧：地平线在屏幕上方 HORIZON_RATIO 处，
+  // 越接近地平线（远）点越小越密越淡，越接近底部（近）点越大越疏越实。
   // screen_y(z) = horizon_y + depthSpan / (1 + z * PERSP_K)
   // screen_x(z) = vp_x + (world_x - vp_x) / (1 + z * PERSP_K)
-  // x 方向按深度收敛到偏右的消失点，海面从右上方远处向左下方近处铺展，
-  // 既保留俯视的纵深，又有侧倾的立体感（不是完全侧面）。
-  const HORIZON_RATIO = 0.08;     // 地平线略离屏幕顶部：从俯视变略侧视，
-  // 上方留出小段背景，地平线作为海天分界更明显
-  const PERSP_K = 0.0030;         // 深度压缩系数（越大压缩越剧、消失点越近）
-  const PERSP_HAZE = 0.35;        // 最远处大气透明度（越远越淡，强化大气透视）
-  const PERSP_VP_X_RATIO = 0.65;  // 消失点横向偏右：海面侧倾，从右上远方延伸到左下近处
+  // x 方向同样按深度收敛到地平线中点（消失点），强化立体感。
+  const HORIZON_RATIO = 0.03;    // 地平线贴近屏幕顶部：消失点在上方，
+  // 点阵从上部汇聚(远)向下铺展(近)，透过透明内容区可见立体透视
+  const PERSP_K = 0.0026;         // 深度压缩系数（越大压缩越剧、消失点越近）
+  const PERSP_HAZE = 0.42;        // 最远处大气透明度（越远越淡）
+  const PERSP_VP_X_RATIO = 0.5;  // 消失点横向位置（0.5=屏幕正中）
   let horizon_y = 0;              // 地平线屏幕 y
   let depthSpan = 0;              // 地平线到屏幕底部的屏幕跨度
   let vp_x = 0;                   // 消失点 x
@@ -120,10 +119,9 @@
     // 近端每单位 z 的屏幕步长 = depthSpan * PERSP_K；令近端屏幕行距 = spacing 反推 dz。
     const nearRowStep = depthSpan * PERSP_K;
     const dz = nearRowStep > 0 ? spacing / nearRowStep : 1;
-    // 固定世界半宽：消失点偏右后，左侧需要更宽的世界覆盖才能铺满屏幕，
-    // 取消失点到屏幕两侧的较大距离 + 边距，确保近端行覆盖全屏宽度
+    // 固定世界半宽：近端行覆盖屏幕，远端行按透视自然变窄并向消失点汇聚
     // （若按深度放大世界宽来铺满屏幕，则所有行都满宽，x 方向就不再收敛，立体感丢失）
-    const worldHalfW = Math.max(vp_x, w - vp_x) + spacing * 2;
+    const worldHalfW = w * 0.5 + spacing * 2;
     const colStepWorld = spacing;
     const colsHalf = Math.ceil(worldHalfW / colStepWorld);
     for (let zi = 0; ; zi++) {
