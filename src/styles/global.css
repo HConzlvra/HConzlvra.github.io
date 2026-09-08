@@ -27,7 +27,7 @@ html[data-theme='light'] {
 }
 
 html[data-theme='dark'] {
-  --page-bg: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  --page-bg: linear-gradient(135deg, #0a0820, #241e54, #1c1a36);
   --text: #e0e0e0;
   --text-secondary: #b0b0c8;
   --accent-text: #c8b6ff;
@@ -35,12 +35,12 @@ html[data-theme='dark'] {
   --surface-hover: rgba(255, 255, 255, 0.09);
   --surface-border: rgba(255, 255, 255, 0.08);
   --surface-border-hover: rgba(255, 255, 255, 0.15);
-  --nav-tint: rgba(15, 12, 41, 0.42);
+  --nav-tint: rgba(10, 8, 32, 0.42);
   --nav-border: rgba(255, 255, 255, 0.08);
   --nav-underline: #b48cf0;
-  --heading-gradient: linear-gradient(135deg, #f093fb, #f5576c);
-  --btn-primary-bg: #f093fb;
-  --btn-primary-bg-hover: #f5576c;
+  --heading-gradient: linear-gradient(135deg, #c8a2ff, #a06be0);
+  --btn-primary-bg: #c8a2ff;
+  --btn-primary-bg-hover: #a06be0;
   --btn-primary-text: #1a1a2e;
   --btn-secondary-border: rgba(255, 255, 255, 0.15);
   --card-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
