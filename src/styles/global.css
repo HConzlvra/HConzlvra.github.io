@@ -38,9 +38,9 @@ html[data-theme='dark'] {
   --nav-tint: rgba(10, 8, 32, 0.42);
   --nav-border: rgba(255, 255, 255, 0.08);
   --nav-underline: #b48cf0;
-  --heading-gradient: linear-gradient(135deg, #c8a2ff, #a06be0);
-  --btn-primary-bg: #c8a2ff;
-  --btn-primary-bg-hover: #a06be0;
+  --heading-gradient: linear-gradient(135deg, #f093fb, #f5576c);
+  --btn-primary-bg: #f093fb;
+  --btn-primary-bg-hover: #f5576c;
   --btn-primary-text: #1a1a2e;
   --btn-secondary-border: rgba(255, 255, 255, 0.15);
   --card-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
