@@ -27,7 +27,7 @@ html[data-theme='light'] {
 }
 
 html[data-theme='dark'] {
-  --page-bg: linear-gradient(135deg, #0a0820, #241e54, #1c1a36);
+  --page-bg: linear-gradient(135deg, #070612, #161428, #100f1d);
   --text: #e0e0e0;
   --text-secondary: #b0b0c8;
   --accent-text: #c8b6ff;
@@ -35,7 +35,7 @@ html[data-theme='dark'] {
   --surface-hover: rgba(255, 255, 255, 0.09);
   --surface-border: rgba(255, 255, 255, 0.08);
   --surface-border-hover: rgba(255, 255, 255, 0.15);
-  --nav-tint: rgba(10, 8, 32, 0.42);
+  --nav-tint: rgba(7, 6, 18, 0.42);
   --nav-border: rgba(255, 255, 255, 0.08);
   --nav-underline: #b48cf0;
   --heading-gradient: linear-gradient(135deg, #f093fb, #f5576c);
