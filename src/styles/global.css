@@ -28,8 +28,8 @@ html[data-theme='light'] {
 }
 
 html[data-theme='dark'] {
-  --page-bg: linear-gradient(135deg, #09071a, #221e4c, #1a1832);
-  --html-bg: #141128;
+  --page-bg: linear-gradient(135deg, #050310, #17142f, #0e0c1c);
+  --html-bg: #0a0917;
   --text: #e0e0e0;
   --text-secondary: #b0b0c8;
   --accent-text: #c8b6ff;
@@ -47,7 +47,7 @@ html[data-theme='dark'] {
   --btn-secondary-border: rgba(255, 255, 255, 0.15);
   --card-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
   --code-bg: rgba(255, 255, 255, 0.08);
-  --footer-bg: #171528;
+  --footer-bg: #110f1f;
   --dot-color: rgba(255, 255, 255, 0.13);
 }
 
