@@ -130,40 +130,6 @@ import Layout from '../layouts/Layout.astro';
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 0.9rem;
-  }
-  .gb-item {
-    border: 1px solid var(--surface-border);
-    border-radius: 14px;
-    padding: 0.9rem 1.1rem;
-    background: var(--code-bg);
-    animation: gb-in 0.35s ease both;
-  }
-  .gb-meta {
-    display: flex;
-    align-items: baseline;
-    gap: 0.6rem;
-    margin-bottom: 0.35rem;
-  }
-  .gb-nick {
-    font-weight: 600;
-    color: var(--accent-text);
-    overflow-wrap: anywhere;
-  }
-  .gb-time {
-    font-size: 0.78rem;
-    color: var(--text-secondary);
-    flex-shrink: 0;
-  }
-  .gb-content {
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    color: var(--text);
-  }
-  .gb-empty {
-    text-align: center;
-    color: var(--text-secondary);
-    padding: 2rem 0;
   }
   .gb-more-wrap {
     text-align: center;
@@ -184,6 +150,52 @@ import Layout from '../layouts/Layout.astro';
     border-color: var(--text-secondary);
   }
 
+  @media (max-width: 640px) {
+    .card {
+      padding: 1.6rem 1.2rem;
+    }
+  }
+</style>
+
+<!-- 留言条目由 JS createElement 动态创建，不带 Astro scoped 属性，
+     这些样式必须全局化才对动态元素生效（类名均有 gb- 前缀，无冲突风险） -->
+<style is:global>
+  .gb-item {
+    padding: 1rem 0.2rem;
+    animation: gb-in 0.35s ease both;
+  }
+  /* 留言之间用一条线分隔（首条无线） */
+  .gb-item + .gb-item {
+    border-top: 1px solid var(--surface-border);
+  }
+  .gb-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 0.3rem;
+  }
+  .gb-nick {
+    font-weight: 600;
+    color: var(--accent-text);
+    overflow-wrap: anywhere;
+  }
+  .gb-time {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    opacity: 0.75;
+    flex-shrink: 0;
+  }
+  .gb-content {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: var(--text);
+  }
+  .gb-empty {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 2rem 0;
+  }
+
   @keyframes gb-in {
     from {
       opacity: 0;
@@ -192,12 +204,6 @@ import Layout from '../layouts/Layout.astro';
     to {
       opacity: 1;
       transform: translateY(0);
-    }
-  }
-
-  @media (max-width: 640px) {
-    .card {
-      padding: 1.6rem 1.2rem;
     }
   }
 </style>
