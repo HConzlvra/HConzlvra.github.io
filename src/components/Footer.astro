@@ -17,6 +17,18 @@ const socialLinks = [
   { href: 'https://github.com/HConzlvra', label: 'GitHub' },
   { href: 'https://space.bilibili.com/3493291423172656', label: 'Bilibili' },
 ];
+
+const friendLinks = [
+  { href: 'https://bfladderbean.me', label: 'BFladderbean' },
+  { href: 'https://molforte.github.io/Molforte.pages/', label: 'Molforte' },
+  { href: 'https://arcadia.moe', label: '4rcadia' },
+];
+
+// 两组外链栏（Connect / Friends），共用同一渲染
+const externalCols = [
+  { title: 'Connect', aria: 'Connect', links: socialLinks },
+  { title: 'Friends', aria: 'Friends', links: friendLinks },
+];
 ---
 
 <footer class="footer">
@@ -43,35 +55,37 @@ const socialLinks = [
       </ul>
     </nav>
 
-    <!-- 联系方式：外链 -->
-    <nav class="footer-col" aria-label="Connect">
-      <h3>Connect</h3>
-      <ul>
-        {
-          socialLinks.map(({ href, label }) => (
-            <li>
-              <a href={href} target="_blank" rel="noopener noreferrer" class="footer-link">
-                {label}
-                <svg
-                  viewBox="0 0 24 24"
-                  width="12"
-                  height="12"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M7 7h10v10"></path>
-                  <path d="M7 17 17 7"></path>
-                </svg>
-              </a>
-            </li>
-          ))
-        }
-      </ul>
-    </nav>
+    <!-- 外链栏：Connect（社交）/ Friends（友链） -->
+    {
+      externalCols.map(({ title, aria, links }) => (
+        <nav class="footer-col" aria-label={aria}>
+          <h3>{title}</h3>
+          <ul>
+            {links.map(({ href, label }) => (
+              <li>
+                <a href={href} target="_blank" rel="noopener noreferrer" class="footer-link">
+                  {label}
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M7 7h10v10"></path>
+                    <path d="M7 17 17 7"></path>
+                  </svg>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ))
+    }
   </div>
 
   <!-- 底部版权条 -->
@@ -92,7 +106,7 @@ const socialLinks = [
     max-width: 1000px;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
     gap: 2.5rem;
   }
 
@@ -129,7 +143,7 @@ const socialLinks = [
     display: grid;
     gap: 0.75rem;
   }
-  /* 链接：悬浮文字提亮 + 下划线从左划入（同 andrewawa 的效果） */
+  /* 链接：悬浮文字提亮 + 下划线从左划入 */
   .footer-link {
     position: relative;
     display: inline-flex;
@@ -140,21 +154,25 @@ const socialLinks = [
     text-decoration: none;
     transition: color 0.2s ease;
   }
+  /* 下划线与导航栏完全同源：同色 --nav-underline、同 2px 粗细、同左入动画 */
   .footer-link::after {
     content: '';
     position: absolute;
     left: 0;
     bottom: -2px;
-    width: 0;
-    height: 1px;
-    background: currentColor;
-    transition: width 0.3s ease-out;
+    width: 100%;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--nav-underline);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.3s ease;
   }
   .footer-link:hover {
     color: var(--text);
   }
   .footer-link:hover::after {
-    width: 100%;
+    transform: scaleX(1);
   }
   /* 外链小箭头：默认偏淡，悬浮点亮 */
   .footer-link svg {
