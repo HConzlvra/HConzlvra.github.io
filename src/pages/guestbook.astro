@@ -1,0 +1,349 @@
+---
+// 留言板：前端直连 Cloudflare Worker（api.hconzlvra.top）+ D1
+// - 提交：昵称可选（缺省"匿名"），内容必填，走 POST /messages
+// - 列表：分页加载（每页 20 条），"加载更多"
+// - XSS 防护：所有动态内容一律 textContent 注入，不用 innerHTML
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="留言板 | HConzlvra_">
+  <div class="page">
+    <div class="card enter-left">
+      <h1>留言板</h1>
+      <p class="subtitle">路过就留句话吧～</p>
+
+      <!-- 提交表单 -->
+      <form id="gb-form" class="gb-form">
+        <input id="gb-nickname" class="gb-input" type="text" placeholder="昵称（可选）" maxlength="48" autocomplete="off" />
+        <textarea id="gb-content" class="gb-input gb-textarea" rows="3" placeholder="说点什么…（500 字以内）" maxlength="1000"></textarea>
+        <div class="gb-form-foot">
+          <span id="gb-status" class="gb-status" role="status" aria-live="polite"></span>
+          <button type="submit" id="gb-submit" class="gb-submit">留下</button>
+        </div>
+      </form>
+
+      <!-- 留言列表 -->
+      <ul id="gb-list" class="gb-list"></ul>
+
+      <div class="gb-more-wrap">
+        <button id="gb-more" class="gb-more" hidden>加载更多</button>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .page {
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 7.5rem 1rem 3rem;
+  }
+  .card {
+    max-width: 700px;
+    width: 100%;
+    background: var(--surface);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--surface-border);
+    border-radius: 20px;
+    padding: 2.5rem;
+    line-height: 1.7;
+  }
+  .card h1 {
+    background: var(--heading-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.2rem;
+  }
+  .subtitle {
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+  }
+
+  /* ---- 表单 ---- */
+  .gb-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+  }
+  .gb-input {
+    width: 100%;
+    border: 1px solid var(--surface-border);
+    border-radius: 12px;
+    background: var(--code-bg);
+    color: var(--text);
+    font: inherit;
+    padding: 0.7rem 1rem;
+    outline: none;
+    transition: border-color 0.2s ease;
+  }
+  .gb-input:focus {
+    border-color: var(--btn-primary-bg);
+  }
+  .gb-textarea {
+    resize: vertical;
+    min-height: 5rem;
+  }
+  .gb-form-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .gb-status {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    min-height: 1.2em;
+  }
+  .gb-status.ok {
+    color: var(--btn-primary-bg);
+  }
+  .gb-status.err {
+    color: var(--btn-primary-bg);
+    font-weight: 600;
+  }
+  .gb-submit {
+    border: none;
+    border-radius: 999px;
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    font: inherit;
+    font-weight: 600;
+    padding: 0.55rem 1.6rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.2s ease, opacity 0.2s ease;
+  }
+  .gb-submit:hover {
+    background: var(--btn-primary-bg-hover);
+  }
+  .gb-submit:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  /* ---- 留言列表 ---- */
+  .gb-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+  .gb-item {
+    border: 1px solid var(--surface-border);
+    border-radius: 14px;
+    padding: 0.9rem 1.1rem;
+    background: var(--code-bg);
+    animation: gb-in 0.35s ease both;
+  }
+  .gb-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    margin-bottom: 0.35rem;
+  }
+  .gb-nick {
+    font-weight: 600;
+    color: var(--accent-text);
+    overflow-wrap: anywhere;
+  }
+  .gb-time {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+  .gb-content {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: var(--text);
+  }
+  .gb-empty {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 2rem 0;
+  }
+  .gb-more-wrap {
+    text-align: center;
+    margin-top: 1.4rem;
+  }
+  .gb-more {
+    border: 1px solid var(--btn-secondary-border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    padding: 0.45rem 1.4rem;
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+  .gb-more:hover {
+    color: var(--text);
+    border-color: var(--text-secondary);
+  }
+
+  @keyframes gb-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .card {
+      padding: 1.6rem 1.2rem;
+    }
+  }
+</style>
+
+<script>
+  // 留言板客户端：模块脚本只执行一次，astro:page-load 时重新初始化
+  const API = 'https://api.hconzlvra.top';
+  const SIZE = 20;
+  let page = 1;
+
+  // 相对时间显示
+  function timeAgo(ts: number): string {
+    const diff = Date.now() - ts;
+    if (diff < 60_000) return '刚刚';
+    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`;
+    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`;
+    if (diff < 30 * 86_400_000) return `${Math.floor(diff / 86_400_000)} 天前`;
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  interface Msg {
+    id: number;
+    nickname: string;
+    content: string;
+    created_at: number;
+  }
+
+  // XSS 防护：节点 + textContent 构造，绝不拼 HTML 字符串
+  function renderItem(m: Msg): HTMLElement {
+    const li = document.createElement('li');
+    li.className = 'gb-item';
+
+    const meta = document.createElement('div');
+    meta.className = 'gb-meta';
+    const nick = document.createElement('span');
+    nick.className = 'gb-nick';
+    nick.textContent = m.nickname;
+    const time = document.createElement('span');
+    time.className = 'gb-time';
+    time.textContent = timeAgo(m.created_at);
+    meta.append(nick, time);
+
+    const content = document.createElement('div');
+    content.className = 'gb-content';
+    content.textContent = m.content; // 原文注入，浏览器按纯文本解析
+
+    li.append(meta, content);
+    return li;
+  }
+
+  const setStatus = (text: string, cls: string) => {
+    const el = document.getElementById('gb-status');
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'gb-status' + (cls ? ' ' + cls : '');
+  };
+
+  async function loadPage(reset: boolean) {
+    const list = document.getElementById('gb-list');
+    const more = document.getElementById('gb-more') as HTMLButtonElement | null;
+    if (!list || !more) return;
+
+    if (reset) {
+      page = 1;
+      list.replaceChildren();
+      setStatus('加载中…', '');
+    }
+    more.disabled = true;
+    try {
+      const res = await fetch(`${API}/messages?page=${page}&size=${SIZE}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { messages: Msg[]; hasMore: boolean };
+
+      if (reset && data.messages.length === 0) {
+        const empty = document.createElement('li');
+        empty.className = 'gb-empty';
+        empty.textContent = '还没有留言，来当第一个吧～';
+        list.appendChild(empty);
+      } else {
+        for (const m of data.messages) list.appendChild(renderItem(m));
+      }
+      more.hidden = !data.hasMore;
+      more.disabled = false;
+      if (reset) setStatus('', '');
+    } catch {
+      setStatus('加载失败，请稍后重试', 'err');
+      more.disabled = false;
+    }
+  }
+
+  function init() {
+    const form = document.getElementById('gb-form') as HTMLFormElement | null;
+    const nickEl = document.getElementById('gb-nickname') as HTMLInputElement | null;
+    const contentEl = document.getElementById('gb-content') as HTMLTextAreaElement | null;
+    const submit = document.getElementById('gb-submit') as HTMLButtonElement | null;
+    const more = document.getElementById('gb-more') as HTMLButtonElement | null;
+    if (!form || !nickEl || !contentEl || !submit || !more) return;
+
+    // 委托过的重复初始化防御：软导航回来时元素是新的，直接重绑
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const nickname = nickEl.value.trim();
+      const content = contentEl.value.trim();
+      if (!content) {
+        setStatus('留言内容不能为空', 'err');
+        return;
+      }
+      submit.disabled = true;
+      setStatus('发送中…', '');
+      try {
+        const res = await fetch(`${API}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nickname, content }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (res.ok) {
+          contentEl.value = '';
+          setStatus('已留下～', 'ok');
+          // 新留言插到列表最前（清掉"还没有留言"占位）
+          const empty = form.parentElement?.querySelector('.gb-empty');
+          empty?.remove();
+          const list = document.getElementById('gb-list');
+          list?.prepend(renderItem(body.message as Msg));
+        } else {
+          setStatus(body.error || `提交失败（${res.status}）`, 'err');
+        }
+      } catch {
+        setStatus('网络错误，请稍后重试', 'err');
+      } finally {
+        submit.disabled = false;
+        setTimeout(() => {
+          if (document.getElementById('gb-status')?.textContent === '发送中…') setStatus('', '');
+        }, 300);
+      }
+    };
+
+    more.onclick = () => {
+      page += 1;
+      loadPage(false);
+    };
+
+    loadPage(true);
+  }
+
+  document.addEventListener('astro:page-load', init);
+  init();
+</script>
