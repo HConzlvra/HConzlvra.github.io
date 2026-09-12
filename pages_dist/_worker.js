@@ -1,9 +1,12 @@
-// 留言板 API：Cloudflare Worker + D1
+// 留言板 API：Cloudflare Pages Function（_worker.js 高级模式）
+//
+// 部署形态：独立 Pages 项目（guestbook-9z8.pages.dev），仅承载 API；
+// 主站仍在 GitHub Pages（hconzlvra.top），前端跨域调用本 API（CORS 白名单）。
 //
 // 路由：
-//   GET    /messages?page=1&size=20   分页拉取留言
-//   POST   /messages                  提交留言（同 IP 每分钟最多 3 条）
-//   DELETE /messages/:id               删除留言（需 Authorization: Bearer <ADMIN_KEY>）
+//   GET    /api/messages?page=1&size=20   分页拉取留言
+//   POST   /api/messages                  提交留言（同 IP 每分钟最多 3 条）
+//   DELETE /api/messages/:id              删除留言（需 Authorization: Bearer <ADMIN_KEY>）
 //
 // 安全设计：
 //   - CORS 仅放行白名单站点，其余来源不带 CORS 头（浏览器自行拦截）
@@ -165,7 +168,7 @@ async function deleteMessage(request, env, cors, idStr) {
   return json({ ok: true }, 200, cors);
 }
 
-// ---- 入口 ----
+// ---- 入口（Pages _worker.js：export default 的 fetch 处理所有未命中静态资源的请求）----
 export default {
   async fetch(request, env) {
     const cors = corsHeadersFor(request);
@@ -175,16 +178,16 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
 
-    if (path === '/' && request.method === 'GET')
+    if (path === '/api')
       return json({ service: 'guestbook-api', status: 'ok' }, 200, cors);
 
-    if (path === '/messages' && request.method === 'GET')
+    if (path === '/api/messages' && request.method === 'GET')
       return listMessages(request, env, cors);
 
-    if (path === '/messages' && request.method === 'POST')
+    if (path === '/api/messages' && request.method === 'POST')
       return createMessage(request, env, cors);
 
-    const m = path.match(/^\/messages\/(\d+)$/);
+    const m = path.match(/^\/api\/messages\/(\d+)$/);
     if (m && request.method === 'DELETE') return deleteMessage(request, env, cors, m[1]);
 
     return json({ error: 'Not Found' }, 404, cors);

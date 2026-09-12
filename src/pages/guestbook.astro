@@ -204,7 +204,8 @@ import Layout from '../layouts/Layout.astro';
 
 <script>
   // 留言板客户端：模块脚本只执行一次，astro:page-load 时重新初始化
-  const API = 'https://api.hconzlvra.top';
+  // API 部署在 Cloudflare Pages（Pages Function + D1），主站跨域调用，CORS 白名单放行
+  const API = 'https://guestbook-9z8.pages.dev/api';
   const SIZE = 20;
   let page = 1;
 
