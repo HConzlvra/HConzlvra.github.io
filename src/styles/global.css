@@ -5,6 +5,7 @@
 :root,
 html[data-theme='light'] {
   --page-bg: linear-gradient(135deg, #f5f2fb, #e9e4f7, #f0e9f4);
+  --html-bg: #efeaf5;
   --text: #2a2440;
   --text-secondary: #5a5470;
   --accent-text: #6b4fa8;
@@ -28,6 +29,7 @@ html[data-theme='light'] {
 
 html[data-theme='dark'] {
   --page-bg: linear-gradient(135deg, #0b0920, #272356, #1e1c3a);
+  --html-bg: #17142e;
   --text: #e0e0e0;
   --text-secondary: #b0b0c8;
   --accent-text: #c8b6ff;
@@ -56,6 +58,12 @@ html[data-theme='dark'] {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/* html 底色兜底：移动端 overscroll 橡皮筋/滚动到边界时露出的是 html 的背景，
+   不设置的话会露出默认白色，与页面主题色割裂（渐变层 body::before 只覆盖视口内） */
+html {
+  background-color: var(--html-bg);
 }
 
 body {

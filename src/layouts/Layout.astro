@@ -21,6 +21,9 @@ const { title = 'HConzlvra_', description = 'HConzlvra_ 的个人主页' } = Ast
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" />
     <meta name="generator" content={Astro.generator} />
+    <!-- 移动端浏览器 UI（地址栏/底栏）颜色跟随主题，与 --html-bg 同值 -->
+    <meta name="theme-color" content="#efeaf5" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#17142e" media="(prefers-color-scheme: dark)" />
     <meta name="description" content={description} />
     <title>{title}</title>
     <!-- 视图切换：页面间导航不再整页重新加载 -->
@@ -51,6 +54,22 @@ const { title = 'HConzlvra_', description = 'HConzlvra_ 的个人主页' } = Ast
               : 'light';
         document.documentElement.setAttribute('data-theme', theme);
       });
+
+      // 手动切换主题时同步更新 meta theme-color（覆盖上面的 prefers-color-scheme 版本），
+      // 否则移动端浏览器地址栏颜色跟系统偏好走，和页面实际主题不一致
+      const syncThemeColor = () => {
+        const color =
+          document.documentElement.getAttribute('data-theme') === 'dark' ? '#17142e' : '#efeaf5';
+        for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+          meta.setAttribute('content', color);
+          meta.removeAttribute('media');
+        }
+      };
+      new MutationObserver(syncThemeColor).observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-theme'],
+      });
+      syncThemeColor();
 
       // 搜索结果跳转定位：从搜索页点进某页面时，URL 带 #q=关键词，
       // 在目标页找到第一处匹配，滚动到视口中部并临时高亮
