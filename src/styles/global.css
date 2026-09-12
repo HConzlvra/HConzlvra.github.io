@@ -76,6 +76,18 @@ html {
   overscroll-behavior-y: none;
 }
 
+/* 手机端：把视窗对准背景中部。
+   背景从文档左上角铺满整页，手机停在页面顶部时整屏看到的都是渐变起点
+   （深色主题下接近纯黑）。这里把背景放大到两倍并居中，让页面对应
+   背景正中央那一块（沿渐变方向落在 25%~75% 段）：顶部不再压着最暗角，
+   观感与桌面端看到的背景中部一致，滚动时仍能看到渐变过渡 */
+@media (max-width: 768px) {
+  html {
+    background-size: 200% 200%;
+    background-position: center;
+  }
+}
+
 body {
   min-height: 100vh;
   display: flex;
