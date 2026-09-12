@@ -167,6 +167,18 @@ async function createMessage(request, env, cors) {
   if (countPoints(content) > CONTENT_MAX)
     return json({ error: `Message must be at most ${CONTENT_MAX} characters` }, 400, cors);
 
+  // 反垃圾词表（逗号分隔，经 Pages 环境变量下发，不写死在代码里）
+  // 命中时不给任何可探测的拒绝信号：挂起 30 秒后返回不带 CORS 头的响应，
+  // 浏览器侧表现为"卡了很久然后网络错误"，与普通故障无异
+  const spamTerms = String(env.SPAM_TERMS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (spamTerms.length > 0 && spamTerms.some((t) => nickname.includes(t) || content.includes(t))) {
+    await new Promise((r) => setTimeout(r, 30_000));
+    return new Response('', { status: 403 });
+  }
+
   // 回复目标：可选；必须是已存在的留言（顶层或任意深度的回复都可以）
   let parentId = null;
   if (body.parent_id != null) {
