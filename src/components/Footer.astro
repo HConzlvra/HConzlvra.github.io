@@ -21,12 +21,9 @@ const socialLinks = [
 
 <footer class="footer">
   <div class="footer-grid">
-    <!-- 品牌：logo + 简介（手机端独占一行） -->
+    <!-- 品牌：名字 + 简介（手机端独占一行） -->
     <div class="footer-brand">
-      <a href="/" class="brand-logo">
-        <span class="logo-badge">HC</span>
-        <span class="brand-name">HConzlvra_</span>
-      </a>
+      <a href="/" class="brand-name">HConzlvra_'s Site</a>
       <p class="brand-desc">万物皆有裂痕，那是光照进来的地方。</p>
     </div>
 
@@ -100,30 +97,17 @@ const socialLinks = [
   }
 
   /* ---- 品牌栏 ---- */
-  .brand-logo {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.55rem;
-    text-decoration: none;
-    margin-bottom: 0.9rem;
-  }
-  .logo-badge {
-    width: 2rem;
-    height: 2rem;
-    display: grid;
-    place-items: center;
-    border-radius: 8px;
-    background: var(--heading-gradient);
-    color: #ffffff;
-    font-weight: 700;
-    font-size: 0.85rem;
-    letter-spacing: 0.02em;
-    flex-shrink: 0;
-  }
   .brand-name {
+    display: inline-block;
     font-size: 1.1rem;
     font-weight: 700;
     color: var(--text);
+    text-decoration: none;
+    margin-bottom: 0.9rem;
+    transition: color 0.2s ease;
+  }
+  .brand-name:hover {
+    color: var(--accent-text);
   }
   .brand-desc {
     font-size: 0.9rem;
