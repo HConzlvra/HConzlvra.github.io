@@ -345,6 +345,7 @@ import Layout from '../layouts/Layout.astro';
     loadPage(true);
   }
 
+  // ClientRouter 下 astro:page-load 首次加载与每次软导航都会触发，
+  // 不能再裸调用 init()，否则首屏并发跑两次 loadPage 导致列表重复渲染
   document.addEventListener('astro:page-load', init);
-  init();
 </script>
