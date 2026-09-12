@@ -4,9 +4,9 @@
 // 主站仍在 GitHub Pages（hconzlvra.top），前端跨域调用本 API（CORS 白名单）。
 //
 // 路由：
-//   GET    /api/messages?page=1&size=20   分页拉取留言
-//   POST   /api/messages                  提交留言（同 IP 每分钟最多 3 条）
-//   DELETE /api/messages/:id              删除留言（需 Authorization: Bearer <ADMIN_KEY>）
+//   GET    /api/messages?page=1&size=20   分页拉取顶层留言（replies 字段挂好嵌套回复树）
+//   POST   /api/messages                  提交留言/回复（body.parent_id 可选；同 IP 每分钟最多 3 条）
+//   DELETE /api/messages/:id              删除留言及其全部子孙回复（需 Authorization: Bearer <ADMIN_KEY>）
 //
 // 安全设计：
 //   - CORS 仅放行白名单站点，其余来源不带 CORS 头（浏览器自行拦截）
@@ -103,15 +103,43 @@ async function listMessages(request, env, cors) {
     Math.max(1, parseInt(url.searchParams.get('size') || String(PAGE_SIZE_DEFAULT), 10) || PAGE_SIZE_DEFAULT)
   );
 
+  // 分页只按顶层留言算；回复（parent_id 非空）不占页
   const total = (
-    await env.DB.prepare('SELECT COUNT(*) AS n FROM messages').first()
+    await env.DB.prepare('SELECT COUNT(*) AS n FROM messages WHERE parent_id IS NULL').first()
   ).n;
 
   const { results } = await env.DB.prepare(
-    'SELECT id, nickname, content, created_at FROM messages ORDER BY id DESC LIMIT ? OFFSET ?'
+    'SELECT id, parent_id, nickname, content, created_at FROM messages WHERE parent_id IS NULL ORDER BY id DESC LIMIT ? OFFSET ?'
   )
     .bind(size, (page - 1) * size)
     .all();
+
+  // 逐层拉取本页顶层留言的所有后代回复，挂成树（任意嵌套深度；回复按时间正序）。
+  // 先按顶层 id 查一层，再按这层回复的 id 查下一层……直到没有新的回复为止。
+  const byId = new Map();
+  for (const m of results) {
+    m.replies = [];
+    byId.set(m.id, m);
+  }
+  let frontier = results.map((m) => m.id);
+  while (frontier.length > 0) {
+    const placeholders = frontier.map(() => '?').join(',');
+    const { results: children } = await env.DB.prepare(
+      `SELECT id, parent_id, nickname, content, created_at FROM messages WHERE parent_id IN (${placeholders}) ORDER BY id ASC`
+    )
+      .bind(...frontier)
+      .all();
+
+    const next = [];
+    for (const c of children) {
+      c.replies = [];
+      byId.set(c.id, c);
+      const parent = byId.get(c.parent_id);
+      if (parent) parent.replies.push(c); // 防御：孤儿回复直接丢弃（正常写入不会出现）
+      next.push(c.id);
+    }
+    frontier = next;
+  }
 
   return json(
     { messages: results, page, size, total, hasMore: page * size < total },
@@ -139,18 +167,34 @@ async function createMessage(request, env, cors) {
   if (countPoints(content) > CONTENT_MAX)
     return json({ error: `留言最长 ${CONTENT_MAX} 个字符` }, 400, cors);
 
+  // 回复目标：可选；必须是已存在的留言（顶层或任意深度的回复都可以）
+  let parentId = null;
+  if (body.parent_id != null) {
+    parentId = Number(body.parent_id);
+    if (!Number.isInteger(parentId) || parentId < 1)
+      return json({ error: '无效的回复目标' }, 400, cors);
+    const parent = await env.DB.prepare('SELECT id FROM messages WHERE id = ?')
+      .bind(parentId)
+      .first();
+    if (!parent) return json({ error: '回复的目标留言不存在' }, 404, cors);
+  }
+
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
   if (!(await rateLimitPass(env, ip)))
     return json({ error: '发得太快了，休息一分钟再发吧' }, 429, cors);
 
   const now = Date.now();
   const { meta } = await env.DB.prepare(
-    'INSERT INTO messages (nickname, content, created_at) VALUES (?, ?, ?)'
+    'INSERT INTO messages (nickname, content, created_at, parent_id) VALUES (?, ?, ?, ?)'
   )
-    .bind(nickname, content, now)
+    .bind(nickname, content, now, parentId)
     .run();
 
-  return json({ message: { id: meta.last_row_id, nickname, content, created_at: now } }, 201, cors);
+  return json(
+    { message: { id: meta.last_row_id, parent_id: parentId, nickname, content, created_at: now } },
+    201,
+    cors
+  );
 }
 
 async function deleteMessage(request, env, cors, idStr) {
@@ -163,7 +207,17 @@ async function deleteMessage(request, env, cors, idStr) {
   if (token.length !== env.ADMIN_KEY.length || token !== env.ADMIN_KEY)
     return json({ error: '未授权' }, 401, cors);
 
-  const { meta } = await env.DB.prepare('DELETE FROM messages WHERE id = ?').bind(id).run();
+  // 级联删除：递归 CTE 先找出该留言和它的全部子孙回复，再一并删掉
+  const { meta } = await env.DB.prepare(
+    `WITH RECURSIVE subtree(id) AS (
+       SELECT id FROM messages WHERE id = ?
+       UNION ALL
+       SELECT m.id FROM messages m JOIN subtree s ON m.parent_id = s.id
+     )
+     DELETE FROM messages WHERE id IN (SELECT id FROM subtree)`
+  )
+    .bind(id)
+    .run();
   if (meta.changes === 0) return json({ error: '留言不存在' }, 404, cors);
   return json({ ok: true }, 200, cors);
 }

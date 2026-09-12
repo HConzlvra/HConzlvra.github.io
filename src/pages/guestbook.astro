@@ -1,7 +1,8 @@
 ---
-// 留言板：前端直连 Cloudflare Worker（api.hconzlvra.top）+ D1
+// 留言板：前端直连 Cloudflare Pages 上的留言 API（guestbook-9z8.pages.dev）+ D1
 // - 提交：昵称可选（缺省"匿名"），内容必填，走 POST /messages
-// - 列表：分页加载（每页 20 条），"加载更多"
+// - 回复：任意层级，带 parent_id 提交；嵌套渲染 + "回复 @昵称"标注（参考 andrewawa.pages.dev）
+// - 列表：分页加载（每页 20 条），"加载更多"；分页只按顶层留言算
 // - XSS 防护：所有动态内容一律 textContent 注入，不用 innerHTML
 import Layout from '../layouts/Layout.astro';
 ---
@@ -196,6 +197,132 @@ import Layout from '../layouts/Layout.astro';
     padding: 2rem 0;
   }
 
+  /* ---- 回复按钮 ---- */
+  .gb-actions {
+    margin-top: 0.3rem;
+  }
+  .gb-reply-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border: none;
+    background: none;
+    padding: 0;
+    font: inherit;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
+  .gb-reply-btn:hover {
+    color: var(--btn-primary-bg);
+  }
+  .gb-reply-btn svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  /* ---- 内联回复表单（单例，插在目标留言下方）---- */
+  .gb-rform {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    margin-top: 0.8rem;
+    padding: 0.85rem;
+    background: var(--code-bg);
+    border: 1px solid var(--surface-border);
+    border-radius: 12px;
+    animation: gb-in 0.25s ease both;
+  }
+  .gb-rform .gb-textarea {
+    min-height: 0;
+  }
+  .gb-rfoot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+  }
+  .gb-rbtns {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    flex-shrink: 0;
+  }
+  .gb-rstatus {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    min-height: 1.2em;
+  }
+  .gb-rstatus.err {
+    color: var(--btn-primary-bg);
+    font-weight: 600;
+  }
+  .gb-rsubmit {
+    border: none;
+    border-radius: 999px;
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.4rem 1.2rem;
+    cursor: pointer;
+    transition: background 0.2s ease, opacity 0.2s ease;
+  }
+  .gb-rsubmit:hover {
+    background: var(--btn-primary-bg-hover);
+  }
+  .gb-rsubmit:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+  .gb-rcancel {
+    border: none;
+    background: none;
+    padding: 0;
+    font: inherit;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+  .gb-rcancel:hover {
+    color: var(--text);
+  }
+
+  /* ---- 嵌套回复：每层左侧竖线 + 缩进，视觉同 andrewawa 的树形结构 ---- */
+  .gb-replies {
+    margin-top: 0.6rem;
+    margin-left: 0.85rem;
+    padding-left: 0.85rem;
+    border-left: 2px solid var(--surface-border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .gb-reply {
+    font-size: 0.95rem;
+  }
+  .gb-reply .gb-meta {
+    gap: 0.6rem;
+    margin-bottom: 0.15rem;
+  }
+  .gb-reply .gb-nick {
+    font-size: 0.9rem;
+  }
+  .gb-replyto {
+    font-size: 0.78rem;
+    color: var(--btn-primary-bg);
+    overflow-wrap: anywhere;
+  }
+
+  @media (max-width: 640px) {
+    .gb-replies {
+      margin-left: 0.55rem;
+      padding-left: 0.55rem;
+    }
+  }
+
   @keyframes gb-in {
     from {
       opacity: 0;
@@ -210,8 +337,9 @@ import Layout from '../layouts/Layout.astro';
 
 <script>
   // 留言板客户端：模块脚本只执行一次，astro:page-load 时重新初始化
-  // API 部署在 Cloudflare Pages（Pages Function + D1），主站跨域调用，CORS 白名单放行
-  const API = 'https://guestbook-9z8.pages.dev/api';
+  // API 部署在 Cloudflare Pages（Pages _worker.js + D1），主站跨域调用，CORS 白名单放行
+  // 开发时走 astro dev 的同源代理（astro.config.mjs 把 /api 转发到本地 wrangler），构建后用线上 API
+  const API = import.meta.env.DEV ? '/api' : 'https://guestbook-9z8.pages.dev/api';
   const SIZE = 20;
   let page = 1;
 
@@ -228,32 +356,190 @@ import Layout from '../layouts/Layout.astro';
 
   interface Msg {
     id: number;
+    parent_id: number | null;
     nickname: string;
     content: string;
     created_at: number;
+    replies?: Msg[];
   }
 
   // XSS 防护：节点 + textContent 构造，绝不拼 HTML 字符串
-  function renderItem(m: Msg): HTMLElement {
-    const li = document.createElement('li');
-    li.className = 'gb-item';
+  function renderMessage(m: Msg, parentNick?: string): HTMLElement {
+    const el = document.createElement(m.parent_id == null ? 'li' : 'div');
+    el.className = m.parent_id == null ? 'gb-item' : 'gb-reply';
+    el.dataset.id = String(m.id);
 
     const meta = document.createElement('div');
     meta.className = 'gb-meta';
+
     const nick = document.createElement('span');
     nick.className = 'gb-nick';
     nick.textContent = m.nickname;
+    meta.append(nick);
+
+    // 回复显示"回复 @目标昵称"（同 andrewawa：所有层级都带标注）
+    if (parentNick) {
+      const to = document.createElement('span');
+      to.className = 'gb-replyto';
+      to.textContent = `回复 @${parentNick}`;
+      meta.append(to);
+    }
+
     const time = document.createElement('span');
     time.className = 'gb-time';
     time.textContent = timeAgo(m.created_at);
-    meta.append(nick, time);
+    meta.append(time);
 
     const content = document.createElement('div');
     content.className = 'gb-content';
     content.textContent = m.content; // 原文注入，浏览器按纯文本解析
 
-    li.append(meta, content);
-    return li;
+    // 回复按钮（顶层留言和回复都有）
+    const actions = document.createElement('div');
+    actions.className = 'gb-actions';
+    const replyBtn = document.createElement('button');
+    replyBtn.type = 'button';
+    replyBtn.className = 'gb-reply-btn';
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.setAttribute('aria-hidden', 'true');
+    const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    polyline.setAttribute('points', '9 17 4 12 9 7');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M20 18v-2a4 4 0 0 0-4-4H4');
+    svg.append(polyline, path);
+    replyBtn.append(svg, document.createTextNode('回复'));
+    replyBtn.addEventListener('click', () => {
+      if (el.isConnected) openReplyForm(el, m);
+    });
+    actions.append(replyBtn);
+
+    // 子回复容器（一层缩进一层竖线，递归渲染任意深度）
+    const replies = document.createElement('div');
+    replies.className = 'gb-replies';
+    for (const r of m.replies || []) replies.append(renderMessage(r, m.nickname));
+
+    el.append(meta, content, actions, replies);
+    return el;
+  }
+
+  // ---- 内联回复表单：全局单例，点"回复"时移动到目标留言下方（同一时间只开一个）----
+  let replyForm: HTMLFormElement | null = null;
+
+  function setRStatus(form: HTMLFormElement, text: string, cls: string) {
+    const el = form.querySelector('.gb-rstatus');
+    if (el) {
+      el.textContent = text;
+      el.className = 'gb-rstatus' + (cls ? ' ' + cls : '');
+    }
+  }
+
+  function closeReplyForm() {
+    if (!replyForm) return;
+    // 清空并摘下表单（保留节点和监听器，下次直接复用）
+    (replyForm.querySelector('.gb-rnick') as HTMLInputElement).value = '';
+    (replyForm.querySelector('.gb-rcontent') as HTMLTextAreaElement).value = '';
+    setRStatus(replyForm, '', '');
+    delete replyForm.dataset.targetId;
+    delete replyForm.dataset.targetNick;
+    replyForm.remove();
+  }
+
+  function buildReplyForm(): HTMLFormElement {
+    const form = document.createElement('form');
+    form.className = 'gb-rform';
+
+    const nick = document.createElement('input');
+    nick.className = 'gb-input gb-rnick';
+    nick.type = 'text';
+    nick.placeholder = '昵称（可选）';
+    nick.maxLength = 48;
+    nick.autocomplete = 'off';
+
+    const content = document.createElement('textarea');
+    content.className = 'gb-input gb-textarea gb-rcontent';
+    content.rows = 2;
+    content.placeholder = '';
+    content.maxLength = 500;
+
+    const foot = document.createElement('div');
+    foot.className = 'gb-rfoot';
+    const status = document.createElement('span');
+    status.className = 'gb-rstatus';
+    const btns = document.createElement('div');
+    btns.className = 'gb-rbtns';
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'gb-rcancel';
+    cancel.textContent = '取消';
+    cancel.addEventListener('click', closeReplyForm);
+    const submit = document.createElement('button');
+    submit.type = 'submit';
+    submit.className = 'gb-rsubmit';
+    submit.textContent = '回复';
+    btns.append(cancel, submit);
+    foot.append(status, btns);
+
+    form.append(nick, content, foot);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const targetId = Number(form.dataset.targetId);
+      const targetNick = form.dataset.targetNick || '';
+      if (!targetId) return closeReplyForm();
+
+      const nickname = nick.value.trim();
+      const text = content.value.trim();
+      if (!text) {
+        setRStatus(form, '回复内容不能为空', 'err');
+        return;
+      }
+
+      submit.disabled = true;
+      setRStatus(form, '发送中…', '');
+      try {
+        const res = await fetch(`${API}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nickname, content: text, parent_id: targetId }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (res.ok) {
+          // 插到目标留言的回复区末尾（表单此刻就在目标元素里，直接找兄弟容器）
+          const host = form.parentElement;
+          const box = host?.querySelector(':scope > .gb-replies');
+          box?.append(renderMessage(body.message as Msg, targetNick));
+          closeReplyForm();
+        } else {
+          setRStatus(form, body.error || `提交失败（${res.status}）`, 'err');
+        }
+      } catch {
+        setRStatus(form, '网络错误，请稍后重试', 'err');
+      } finally {
+        submit.disabled = false;
+      }
+    });
+
+    return form;
+  }
+
+  function openReplyForm(item: HTMLElement, m: Msg) {
+    if (!replyForm) replyForm = buildReplyForm();
+    if (replyForm.parentElement === item) return closeReplyForm(); // 再点一次收起
+
+    closeReplyForm();
+    // 表单插到回复区前面，视觉上紧跟这条留言
+    item.insertBefore(replyForm, item.querySelector(':scope > .gb-replies'));
+    replyForm.dataset.targetId = String(m.id);
+    replyForm.dataset.targetNick = m.nickname;
+    const content = replyForm.querySelector('.gb-rcontent') as HTMLTextAreaElement;
+    content.placeholder = `回复 @${m.nickname}…`;
+    content.focus();
   }
 
   const setStatus = (text: string, cls: string) => {
@@ -270,6 +556,7 @@ import Layout from '../layouts/Layout.astro';
 
     if (reset) {
       page = 1;
+      closeReplyForm();
       list.replaceChildren();
       setStatus('加载中…', '');
     }
@@ -285,7 +572,7 @@ import Layout from '../layouts/Layout.astro';
         empty.textContent = '还没有留言，来当第一个吧～';
         list.appendChild(empty);
       } else {
-        for (const m of data.messages) list.appendChild(renderItem(m));
+        for (const m of data.messages) list.appendChild(renderMessage(m));
       }
       more.hidden = !data.hasMore;
       more.disabled = false;
@@ -303,6 +590,9 @@ import Layout from '../layouts/Layout.astro';
     const submit = document.getElementById('gb-submit') as HTMLButtonElement | null;
     const more = document.getElementById('gb-more') as HTMLButtonElement | null;
     if (!form || !nickEl || !contentEl || !submit || !more) return;
+
+    // 软导航回来时整棵 DOM 是新的，旧回复表单节点作废，重建
+    replyForm = null;
 
     // 委托过的重复初始化防御：软导航回来时元素是新的，直接重绑
     form.onsubmit = async (e) => {
@@ -329,7 +619,7 @@ import Layout from '../layouts/Layout.astro';
           const empty = form.parentElement?.querySelector('.gb-empty');
           empty?.remove();
           const list = document.getElementById('gb-list');
-          list?.prepend(renderItem(body.message as Msg));
+          list?.prepend(renderMessage(body.message as Msg));
         } else {
           setStatus(body.error || `提交失败（${res.status}）`, 'err');
         }
