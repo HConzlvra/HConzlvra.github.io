@@ -23,7 +23,7 @@ const { title = 'HConzlvra_', description = 'HConzlvra_ 的个人主页' } = Ast
     <meta name="generator" content={Astro.generator} />
     <!-- 移动端浏览器 UI（地址栏/底栏）颜色跟随主题，与 --html-bg 同值 -->
     <meta name="theme-color" content="#efeaf5" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#17142e" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#141128" media="(prefers-color-scheme: dark)" /><!-- 与深色 --html-bg 同值 -->
     <meta name="description" content={description} />
     <title>{title}</title>
     <!-- 视图切换：页面间导航不再整页重新加载 -->
@@ -59,7 +59,7 @@ const { title = 'HConzlvra_', description = 'HConzlvra_ 的个人主页' } = Ast
       // 否则移动端浏览器地址栏颜色跟系统偏好走，和页面实际主题不一致
       const syncThemeColor = () => {
         const color =
-          document.documentElement.getAttribute('data-theme') === 'dark' ? '#17142e' : '#efeaf5';
+          document.documentElement.getAttribute('data-theme') === 'dark' ? '#141128' : '#efeaf5';
         for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
           meta.setAttribute('content', color);
           meta.removeAttribute('media');
