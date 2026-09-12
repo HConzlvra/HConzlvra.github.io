@@ -40,7 +40,7 @@ html[data-theme='dark'] {
   --nav-tint: rgba(11, 9, 32, 0.42);
   --nav-border: rgba(255, 255, 255, 0.08);
   --nav-underline: #b48cf0;
-  --heading-gradient: linear-gradient(135deg, #f093fb, #f5576c);
+  --heading-gradient: linear-gradient(135deg, #f45595, #e08ffc);
   --btn-primary-bg: #f093fb;
   --btn-primary-bg-hover: #f5576c;
   --btn-primary-text: #1a1a2e;
