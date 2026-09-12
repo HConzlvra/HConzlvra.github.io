@@ -28,8 +28,8 @@ html[data-theme='light'] {
 }
 
 html[data-theme='dark'] {
-  --page-bg: linear-gradient(135deg, #050310, #17142f, #0e0c1c);
-  --html-bg: #0a0917;
+  --page-bg: linear-gradient(135deg, #100c1c, #1b142f, #070310);
+  --html-bg: #0d0917;
   --text: #e0e0e0;
   --text-secondary: #b0b0c8;
   --accent-text: #c8b6ff;
