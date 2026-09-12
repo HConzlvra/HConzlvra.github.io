@@ -7,19 +7,19 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="留言板 | HConzlvra_">
+<Layout title="Guestbook | HConzlvra_">
   <div class="page">
     <div class="card enter-left">
-      <h1>留言板</h1>
-      <p class="subtitle">路过就留句话吧～</p>
+      <h1>Guestbook</h1>
+      <p class="subtitle">Passing by? Leave a message~</p>
 
       <!-- 提交表单 -->
       <form id="gb-form" class="gb-form">
-        <input id="gb-nickname" class="gb-input" type="text" placeholder="昵称（可选）" maxlength="48" autocomplete="off" />
-        <textarea id="gb-content" class="gb-input gb-textarea" rows="3" placeholder="说点什么…（500 字以内）" maxlength="1000"></textarea>
+        <input id="gb-nickname" class="gb-input" type="text" placeholder="Nickname (optional)" maxlength="48" autocomplete="off" />
+        <textarea id="gb-content" class="gb-input gb-textarea" rows="3" placeholder="Say something… (max 500 chars)" maxlength="1000"></textarea>
         <div class="gb-form-foot">
           <span id="gb-status" class="gb-status" role="status" aria-live="polite"></span>
-          <button type="submit" id="gb-submit" class="gb-submit">留下</button>
+          <button type="submit" id="gb-submit" class="gb-submit">Post</button>
         </div>
       </form>
 
@@ -27,7 +27,7 @@ import Layout from '../layouts/Layout.astro';
       <ul id="gb-list" class="gb-list"></ul>
 
       <div class="gb-more-wrap">
-        <button id="gb-more" class="gb-more" hidden>加载更多</button>
+        <button id="gb-more" class="gb-more" hidden>Load more</button>
       </div>
     </div>
   </div>
@@ -359,10 +359,10 @@ import Layout from '../layouts/Layout.astro';
   // 相对时间显示
   function timeAgo(ts: number): string {
     const diff = Date.now() - ts;
-    if (diff < 60_000) return '刚刚';
-    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`;
-    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`;
-    if (diff < 30 * 86_400_000) return `${Math.floor(diff / 86_400_000)} 天前`;
+    if (diff < 60_000) return 'just now';
+    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+    if (diff < 30 * 86_400_000) return `${Math.floor(diff / 86_400_000)}d ago`;
     const d = new Date(ts);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
@@ -390,11 +390,11 @@ import Layout from '../layouts/Layout.astro';
     nick.textContent = m.nickname;
     meta.append(nick);
 
-    // 回复显示"回复 @目标昵称"（同 andrewawa：所有层级都带标注）
+    // 回复显示 "→ @目标昵称"（同 andrewawa：所有层级都带标注）
     if (parentNick) {
       const to = document.createElement('span');
       to.className = 'gb-replyto';
-      to.textContent = `回复 @${parentNick}`;
+      to.textContent = `→ @${parentNick}`;
       meta.append(to);
     }
 
@@ -426,7 +426,7 @@ import Layout from '../layouts/Layout.astro';
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', 'M20 18v-2a4 4 0 0 0-4-4H4');
     svg.append(polyline, path);
-    replyBtn.append(svg, document.createTextNode('回复'));
+    replyBtn.append(svg, document.createTextNode('Reply'));
     replyBtn.addEventListener('click', () => {
       if (el.isConnected) openReplyForm(el, m);
     });
@@ -470,7 +470,7 @@ import Layout from '../layouts/Layout.astro';
     const nick = document.createElement('input');
     nick.className = 'gb-input gb-rnick';
     nick.type = 'text';
-    nick.placeholder = '昵称（可选）';
+    nick.placeholder = 'Nickname (optional)';
     nick.maxLength = 48;
     nick.autocomplete = 'off';
 
@@ -489,12 +489,12 @@ import Layout from '../layouts/Layout.astro';
     const cancel = document.createElement('button');
     cancel.type = 'button';
     cancel.className = 'gb-rcancel';
-    cancel.textContent = '取消';
+    cancel.textContent = 'Cancel';
     cancel.addEventListener('click', closeReplyForm);
     const submit = document.createElement('button');
     submit.type = 'submit';
     submit.className = 'gb-rsubmit';
-    submit.textContent = '回复';
+    submit.textContent = 'Reply';
     btns.append(cancel, submit);
     foot.append(status, btns);
 
@@ -509,12 +509,12 @@ import Layout from '../layouts/Layout.astro';
       const nickname = nick.value.trim();
       const text = content.value.trim();
       if (!text) {
-        setRStatus(form, '回复内容不能为空', 'err');
+        setRStatus(form, 'Reply cannot be empty', 'err');
         return;
       }
 
       submit.disabled = true;
-      setRStatus(form, '发送中…', '');
+      setRStatus(form, 'Sending…', '');
       try {
         const res = await fetch(`${API}/messages`, {
           method: 'POST',
@@ -529,10 +529,10 @@ import Layout from '../layouts/Layout.astro';
           box?.append(renderMessage(body.message as Msg, targetNick));
           closeReplyForm();
         } else {
-          setRStatus(form, body.error || `提交失败（${res.status}）`, 'err');
+          setRStatus(form, body.error || `Failed to post (${res.status})`, 'err');
         }
       } catch {
-        setRStatus(form, '网络错误，请稍后重试', 'err');
+        setRStatus(form, 'Network error, please try again later', 'err');
       } finally {
         submit.disabled = false;
       }
@@ -551,7 +551,7 @@ import Layout from '../layouts/Layout.astro';
     replyForm.dataset.targetId = String(m.id);
     replyForm.dataset.targetNick = m.nickname;
     const content = replyForm.querySelector('.gb-rcontent') as HTMLTextAreaElement;
-    content.placeholder = `回复 @${m.nickname}…`;
+    content.placeholder = `Reply to @${m.nickname}…`;
     content.focus();
   }
 
@@ -571,7 +571,7 @@ import Layout from '../layouts/Layout.astro';
       page = 1;
       closeReplyForm();
       list.replaceChildren();
-      setStatus('加载中…', '');
+      setStatus('Loading…', '');
     }
     more.disabled = true;
     try {
@@ -582,7 +582,7 @@ import Layout from '../layouts/Layout.astro';
       if (reset && data.messages.length === 0) {
         const empty = document.createElement('li');
         empty.className = 'gb-empty';
-        empty.textContent = '还没有留言，来当第一个吧～';
+        empty.textContent = 'No messages yet — be the first one~';
         list.appendChild(empty);
       } else {
         for (const m of data.messages) list.appendChild(renderMessage(m));
@@ -591,7 +591,7 @@ import Layout from '../layouts/Layout.astro';
       more.disabled = false;
       if (reset) setStatus('', '');
     } catch {
-      setStatus('加载失败，请稍后重试', 'err');
+      setStatus('Failed to load, please try again later', 'err');
       more.disabled = false;
     }
   }
@@ -613,11 +613,11 @@ import Layout from '../layouts/Layout.astro';
       const nickname = nickEl.value.trim();
       const content = contentEl.value.trim();
       if (!content) {
-        setStatus('留言内容不能为空', 'err');
+        setStatus('Message cannot be empty', 'err');
         return;
       }
       submit.disabled = true;
-      setStatus('发送中…', '');
+      setStatus('Sending…', '');
       try {
         const res = await fetch(`${API}/messages`, {
           method: 'POST',
@@ -627,21 +627,21 @@ import Layout from '../layouts/Layout.astro';
         const body = await res.json().catch(() => ({}));
         if (res.ok) {
           contentEl.value = '';
-          setStatus('已留下～', 'ok');
+          setStatus('Posted~', 'ok');
           // 新留言插到列表最前（清掉"还没有留言"占位）
           const empty = form.parentElement?.querySelector('.gb-empty');
           empty?.remove();
           const list = document.getElementById('gb-list');
           list?.prepend(renderMessage(body.message as Msg));
         } else {
-          setStatus(body.error || `提交失败（${res.status}）`, 'err');
+          setStatus(body.error || `Failed to post (${res.status})`, 'err');
         }
       } catch {
-        setStatus('网络错误，请稍后重试', 'err');
+        setStatus('Network error, please try again later', 'err');
       } finally {
         submit.disabled = false;
         setTimeout(() => {
-          if (document.getElementById('gb-status')?.textContent === '发送中…') setStatus('', '');
+          if (document.getElementById('gb-status')?.textContent === 'Sending…') setStatus('', '');
         }, 300);
       }
     };

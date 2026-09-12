@@ -153,35 +153,35 @@ async function createMessage(request, env, cors) {
   try {
     body = await request.json();
   } catch {
-    return json({ error: '请求体必须是合法 JSON' }, 400, cors);
+    return json({ error: 'Request body must be valid JSON' }, 400, cors);
   }
 
   // 昵称可选，缺省"匿名"
   let nickname = body.nickname == null ? '' : cleanText(body.nickname);
-  if (nickname === '') nickname = '匿名';
+  if (nickname === '') nickname = 'Anonymous';
   const content = body.content == null ? '' : cleanText(body.content);
 
   if (countPoints(nickname) > NICKNAME_MAX)
-    return json({ error: `昵称最长 ${NICKNAME_MAX} 个字符` }, 400, cors);
-  if (content === '') return json({ error: '留言内容不能为空' }, 400, cors);
+    return json({ error: `Nickname must be at most ${NICKNAME_MAX} characters` }, 400, cors);
+  if (content === '') return json({ error: 'Message cannot be empty' }, 400, cors);
   if (countPoints(content) > CONTENT_MAX)
-    return json({ error: `留言最长 ${CONTENT_MAX} 个字符` }, 400, cors);
+    return json({ error: `Message must be at most ${CONTENT_MAX} characters` }, 400, cors);
 
   // 回复目标：可选；必须是已存在的留言（顶层或任意深度的回复都可以）
   let parentId = null;
   if (body.parent_id != null) {
     parentId = Number(body.parent_id);
     if (!Number.isInteger(parentId) || parentId < 1)
-      return json({ error: '无效的回复目标' }, 400, cors);
+      return json({ error: 'Invalid reply target' }, 400, cors);
     const parent = await env.DB.prepare('SELECT id FROM messages WHERE id = ?')
       .bind(parentId)
       .first();
-    if (!parent) return json({ error: '回复的目标留言不存在' }, 404, cors);
+    if (!parent) return json({ error: 'The message you are replying to no longer exists' }, 404, cors);
   }
 
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
   if (!(await rateLimitPass(env, ip)))
-    return json({ error: '发得太快了，休息一分钟再发吧' }, 429, cors);
+    return json({ error: 'You are posting too fast — take a minute to breathe' }, 429, cors);
 
   const now = Date.now();
   const { meta } = await env.DB.prepare(
@@ -199,13 +199,13 @@ async function createMessage(request, env, cors) {
 
 async function deleteMessage(request, env, cors, idStr) {
   const id = parseInt(idStr, 10);
-  if (!Number.isInteger(id)) return json({ error: '无效的留言 ID' }, 400, cors);
+  if (!Number.isInteger(id)) return json({ error: 'Invalid message ID' }, 400, cors);
 
   const auth = request.headers.get('Authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
   // 常数时间比较，避免时序侧信道
   if (token.length !== env.ADMIN_KEY.length || token !== env.ADMIN_KEY)
-    return json({ error: '未授权' }, 401, cors);
+    return json({ error: 'Unauthorized' }, 401, cors);
 
   // 级联删除：递归 CTE 先找出该留言和它的全部子孙回复，再一并删掉
   const { meta } = await env.DB.prepare(
@@ -218,7 +218,7 @@ async function deleteMessage(request, env, cors, idStr) {
   )
     .bind(id)
     .run();
-  if (meta.changes === 0) return json({ error: '留言不存在' }, 404, cors);
+  if (meta.changes === 0) return json({ error: 'Message not found' }, 404, cors);
   return json({ ok: true }, 200, cors);
 }
 
