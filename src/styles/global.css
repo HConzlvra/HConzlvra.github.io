@@ -60,10 +60,20 @@ html[data-theme='dark'] {
   box-sizing: border-box;
 }
 
-/* html 底色兜底：移动端 overscroll 橡皮筋/滚动到边界时露出的是 html 的背景，
-   不设置的话会露出默认白色，与页面主题色割裂（渐变层 body::before 只覆盖视口内） */
+/* 页面背景直接画在 html 上（画布层），不用 fixed 伪元素：
+   fixed 层在移动端滚动/地址栏伸缩时重绘滞后，会透出底色造成
+   "背景不完整"的闪断。画在 html 上随文档一次性绘制，任何
+   视口尺寸变化都不需要重绘，滚动零闪断。
+   - background-image: 主题渐变，铺满整个文档
+   - --html-bg: 兜底纯色（渐变外区域）
+   - overscroll-behavior-y: none: 禁掉上下橡皮筋，
+     不再露出画布底色（techmc.wiki 是靠底色兜底，我们直接不露） */
 html {
   background-color: var(--html-bg);
+  background-image: var(--page-bg);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -73,16 +83,6 @@ body {
   color: var(--text);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   transition: color 0.3s ease;
-}
-
-/* 视口固定的渐变背景层：替代 background-attachment: fixed，
-   保证 backdrop-filter 在所有页面稳定生效，滚动也更流畅 */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background: var(--page-bg);
 }
 
 a {
