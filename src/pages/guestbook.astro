@@ -82,7 +82,7 @@ import Layout from '../layouts/Layout.astro';
     transition: border-color 0.2s ease;
   }
   .gb-input:focus {
-    border-color: var(--btn-primary-bg);
+    border-color: var(--accent-text);
   }
   .gb-textarea {
     resize: vertical;
@@ -100,30 +100,36 @@ import Layout from '../layouts/Layout.astro';
     min-height: 1.2em;
   }
   .gb-status.ok {
-    color: var(--btn-primary-bg);
+    color: var(--accent-text);
   }
   .gb-status.err {
-    color: var(--btn-primary-bg);
+    color: var(--accent-text);
     font-weight: 600;
   }
+  /* 提交按钮：全站统一的玻璃按钮语言（同 ThemeToggle / Footer 社交链接），
+     不再用粉色实心——那会和主页的紫调玻璃体系脱节 */
   .gb-submit {
-    border: none;
+    border: 1px solid var(--surface-border);
     border-radius: 999px;
-    background: var(--btn-primary-bg);
-    color: var(--btn-primary-text);
+    background: var(--surface);
+    backdrop-filter: blur(10px);
+    color: var(--accent-text);
     font: inherit;
     font-weight: 600;
     padding: 0.55rem 1.6rem;
     cursor: pointer;
     flex-shrink: 0;
-    transition: background 0.2s ease, opacity 0.2s ease;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
   }
   .gb-submit:hover {
-    background: var(--btn-primary-bg-hover);
+    background: var(--surface-hover);
+    border-color: var(--surface-border-hover);
+    transform: translateY(-2px);
   }
   .gb-submit:disabled {
     opacity: 0.55;
     cursor: default;
+    transform: none;
   }
 
   /* ---- 留言列表 ---- */
@@ -144,11 +150,13 @@ import Layout from '../layouts/Layout.astro';
     font: inherit;
     padding: 0.45rem 1.4rem;
     cursor: pointer;
-    transition: color 0.2s ease, border-color 0.2s ease;
+    transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
   }
+  /* hover 同主页卡片：边框加深 + 文字提亮 + 轻微上浮 */
   .gb-more:hover {
     color: var(--text);
-    border-color: var(--text-secondary);
+    border-color: var(--surface-border-hover);
+    transform: translateY(-2px);
   }
 
   @media (max-width: 640px) {
@@ -183,7 +191,6 @@ import Layout from '../layouts/Layout.astro';
   .gb-time {
     font-size: 0.78rem;
     color: var(--text-secondary);
-    opacity: 0.75;
     flex-shrink: 0;
   }
   .gb-content {
@@ -215,21 +222,22 @@ import Layout from '../layouts/Layout.astro';
     transition: color 0.2s ease;
   }
   .gb-reply-btn:hover {
-    color: var(--btn-primary-bg);
+    color: var(--accent-text);
   }
   .gb-reply-btn svg {
     width: 13px;
     height: 13px;
   }
 
-  /* ---- 内联回复表单（单例，插在目标留言下方）---- */
+  /* ---- 内联回复表单（单例，插在目标留言下方）：迷你玻璃卡，同主页卡片语言 ---- */
   .gb-rform {
     display: flex;
     flex-direction: column;
     gap: 0.55rem;
     margin-top: 0.8rem;
     padding: 0.85rem;
-    background: var(--code-bg);
+    background: var(--surface);
+    backdrop-filter: blur(10px);
     border: 1px solid var(--surface-border);
     border-radius: 12px;
     animation: gb-in 0.25s ease both;
@@ -255,27 +263,32 @@ import Layout from '../layouts/Layout.astro';
     min-height: 1.2em;
   }
   .gb-rstatus.err {
-    color: var(--btn-primary-bg);
+    color: var(--accent-text);
     font-weight: 600;
   }
+  /* 回复提交按钮：同 .gb-submit 的玻璃按钮语言 */
   .gb-rsubmit {
-    border: none;
+    border: 1px solid var(--surface-border);
     border-radius: 999px;
-    background: var(--btn-primary-bg);
-    color: var(--btn-primary-text);
+    background: var(--surface);
+    backdrop-filter: blur(10px);
+    color: var(--accent-text);
     font: inherit;
     font-weight: 600;
     font-size: 0.85rem;
     padding: 0.4rem 1.2rem;
     cursor: pointer;
-    transition: background 0.2s ease, opacity 0.2s ease;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
   }
   .gb-rsubmit:hover {
-    background: var(--btn-primary-bg-hover);
+    background: var(--surface-hover);
+    border-color: var(--surface-border-hover);
+    transform: translateY(-2px);
   }
   .gb-rsubmit:disabled {
     opacity: 0.55;
     cursor: default;
+    transform: none;
   }
   .gb-rcancel {
     border: none;
@@ -312,7 +325,7 @@ import Layout from '../layouts/Layout.astro';
   }
   .gb-replyto {
     font-size: 0.78rem;
-    color: var(--btn-primary-bg);
+    color: var(--accent-text);
     overflow-wrap: anywhere;
   }
 
