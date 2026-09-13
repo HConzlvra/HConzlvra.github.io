@@ -166,11 +166,11 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
         matchMedia('(pointer: fine)').matches &&
         !matchMedia('(prefers-reduced-motion: reduce)').matches
       ) {
-        // 紫色系随机取色（亮暗主题下都可见，取自站点的主题色族）
-        const PURPLES = ['#8b3fd1', '#9c6fe0', '#b48cf0', '#c74d86', '#e08ffc', '#6b4fa8'];
-        const MIN_DIST = 7; // 距上次撒点不足 7px 时跳过（静止抖动 / 高刷鼠标去抖）
-        const JUMP_DIST = 40; // 单次事件跳跃超过 40px（快速甩动）时沿线补点，拖尾不断线
-        const MAX_SQUARES = 140; // 同时在场的小方块上限，防极端甩动堆积
+        // 单一紫色（取自站点主题色，亮暗主题下都可见）
+        const PURPLE = '#9c6fe0';
+        const MIN_DIST = 22; // 距上次撒点不足 22px 时跳过：拖动时稀疏撒点，避免一拖一大片
+        const JUMP_DIST = 60; // 单次事件跳跃超过 60px（快速甩动）时沿线补点，间距同 MIN_DIST
+        const MAX_SQUARES = 60; // 同时在场的小方块上限
 
         // 拖尾容器：固定覆盖整屏、不拦截任何鼠标事件
         // ClientRouter 换页会换掉整个 body，这里每次撒点前确认容器还在
@@ -188,12 +188,12 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
           const box = ensureLayer();
           const el = document.createElement('div');
           el.className = 'px';
-          const size = 3 + Math.floor(Math.random() * 4); // 3~6px 像素方块
-          el.style.width = el.style.height = `${size}px`;
+          el.style.width = '7px'; // 固定大小：所有方块统一 7px
+          el.style.height = '7px';
           el.style.left = `${x + Math.random() * 6 - 3}px`;
           el.style.top = `${y + Math.random() * 6 - 3}px`;
-          el.style.background = PURPLES[(Math.random() * PURPLES.length) | 0];
-          el.style.setProperty('--life', `${(550 + Math.random() * 550).toFixed(0)}ms`);
+          el.style.background = PURPLE;
+          el.style.setProperty('--life', `${(280 + Math.random() * 170).toFixed(0)}ms`);
           el.addEventListener('animationend', () => el.remove());
           box.appendChild(el);
           while (box.children.length > MAX_SQUARES) box.firstElementChild?.remove();
@@ -217,8 +217,8 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
             const dist = Math.hypot(dx, dy);
             if (dist < MIN_DIST) return;
             if (dist > JUMP_DIST) {
-              // 快速甩动：沿两点连线补撒，保持拖尾连续
-              for (let i = JUMP_DIST; i < dist; i += 12) {
+              // 快速甩动：沿两点连线补撒（间距同 MIN_DIST），保持拖尾连续但不密
+              for (let i = JUMP_DIST; i < dist; i += MIN_DIST) {
                 spawn(lastX + (dx * i) / dist, lastY + (dy * i) / dist);
               }
             }
