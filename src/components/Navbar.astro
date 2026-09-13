@@ -8,6 +8,7 @@ const links = [
   { href: '/', label: 'Home' },
   { href: '/about', label: 'About' },
   { href: '/posts', label: 'Posts' },
+  { href: '/archive', label: 'Archive' },
   { href: '/guestbook', label: 'Guestbook' },
   { href: '/bruh', label: 'Bruh' },
   // Characters 页面保留可访问（/characters 直接访问），但不进导航栏
@@ -548,6 +549,7 @@ const isActive = (href: string) =>
   .nav-wrap.mobile-open .mobile-panel a:nth-child(3) { transition-delay: 0.08s; }
   .nav-wrap.mobile-open .mobile-panel a:nth-child(4) { transition-delay: 0.12s; }
   .nav-wrap.mobile-open .mobile-panel a:nth-child(5) { transition-delay: 0.16s; }
+  .nav-wrap.mobile-open .mobile-panel a:nth-child(6) { transition-delay: 0.2s; }
   .mobile-panel a:hover,
   .mobile-panel a.active {
     background: var(--surface);

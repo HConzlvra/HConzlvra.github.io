@@ -1,0 +1,464 @@
+---
+// Archive：全站归档 —— 站点统计（文章/字数/访客/留言）+ 访客地图 + 按年时间线。
+// 静态部分（文章列表、字数、世界地图）在构建期生成；
+// 动态部分（访客数、地图点位、/admin 发布的文章、留言数）运行时从 API 拉取，
+// 后端不可用时整页仍以静态内容正常展示
+import Layout from '../layouts/Layout.astro';
+import { getCollection } from 'astro:content';
+import DottedMap from 'dotted-map';
+
+const posts = (await getCollection('posts')).sort(
+  (a, b) => (b.data.pubDate?.valueOf() ?? 0) - (a.data.pubDate?.valueOf() ?? 0)
+);
+
+// 字数：剥掉 markdown 结构后按码点计（代码块不计入正文字数）
+function countChars(md: string): number {
+  return [
+    ...md
+      .replace(/```[\s\S]*?```/g, ' ')
+      .replace(/`[^`]*`/g, ' ')
+      .replace(/!?\[[^\]]*\]\([^)]*\)/g, ' ')
+      .replace(/[#>*_~|]+/g, ' ')
+      .replace(/\s/g, ''),
+  ].length;
+}
+const staticChars = posts.reduce((n, p) => n + countChars(p.body ?? ''), 0);
+
+// 时间线按年分组
+const byYear = new Map<number, typeof posts>();
+for (const p of posts) {
+  const y = p.data.pubDate?.getFullYear() ?? 1970;
+  if (!byYear.has(y)) byYear.set(y, []);
+  byYear.get(y)!.push(p);
+}
+const years = [...byYear.entries()].sort((a, b) => b[0] - a[0]);
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const mdDate = (d?: Date) => (d ? `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` : '');
+
+// 点阵世界地图：构建期生成一次。dots 用 currentColor 填充，
+// 颜色/透明度交给 CSS 按主题控制；访客点位由客户端脚本叠加在同名 viewBox 上
+const map = new DottedMap({ height: 60, grid: 'diagonal' });
+const worldSVG = map.getSVG({
+  shape: 'circle',
+  color: 'currentColor',
+  backgroundColor: 'transparent',
+});
+
+// 客户端复算 pin 坐标所需的投影常量（与 dotted-map 的 getPin 完全一致的
+// 椭球 Mercator + 网格吸附，构建端已对 20 万随机坐标做过比对校验）
+const mapCfg = {
+  width: map.width,
+  height: map.height,
+  ystep: map.ystep,
+  grid: 'diagonal',
+  X_MIN: map.X_MIN,
+  X_RANGE: map.X_RANGE,
+  Y_MAX: map.Y_MAX,
+  Y_RANGE: map.Y_RANGE,
+};
+---
+
+<Layout title="Archive | HConzlvra_" description="Archive — all posts, site stats and the visitor map.">
+  <section class="archive-page enter-left">
+    <h1>Archive</h1>
+    <p class="intro">全站文章按时间归档，也顺带记录这个小小站点的几个数字。</p>
+
+    <!-- 站点统计：文章/字数为静态值 + API 动态增量；访客/留言纯动态（拉不到显示 —） -->
+    <div class="stats">
+      <div class="stat-card">
+        <span class="num" id="stat-posts">{posts.length}</span>
+        <span class="label">Posts</span>
+      </div>
+      <div class="stat-card">
+        <span class="num" id="stat-chars">{staticChars.toLocaleString('en-US')}</span>
+        <span class="label">Characters</span>
+      </div>
+      <div class="stat-card">
+        <span class="num" id="stat-visits">—</span>
+        <span class="label">Visits</span>
+      </div>
+      <div class="stat-card">
+        <span class="num" id="stat-messages">—</span>
+        <span class="label">Messages</span>
+      </div>
+    </div>
+
+    <!-- 访客地图：世界点阵 + 访客点位（运行时叠加） -->
+    <div class="map-card">
+      <div class="map-head">
+        <h2>Visitor map</h2>
+        <p class="map-sub" id="map-sub">Waiting for the first pin…</p>
+      </div>
+      <div class="map-box">
+        <Fragment set:html={worldSVG} />
+        <svg class="pins" id="pins" viewBox={`0 0 ${map.width} ${map.height}`} aria-hidden="true"></svg>
+      </div>
+    </div>
+
+    <!-- 时间线：静态渲染，动态文章由脚本合并重排 -->
+    {posts.length === 0 ? (
+      <p class="empty">No posts yet.</p>
+    ) : (
+      <div class="timeline" id="timeline">
+        {years.map(([year, list]) => (
+          <section class="year-group">
+            <h2>
+              {year}
+              <span class="year-count">
+                {list.length} {list.length > 1 ? 'posts' : 'post'}
+              </span>
+            </h2>
+            <ul>
+              {list.map((post) => (
+                <li data-slug={post.id} data-title={post.data.title} data-ts={post.data.pubDate?.valueOf() ?? 0}>
+                  <time>{mdDate(post.data.pubDate)}</time>
+                  <a href={`/posts/${post.id}`}>{post.data.title}</a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    )}
+
+    <!-- 地图投影常量：服务端实例序列化，客户端 getPin 复算用（与上方地图严格同源） -->
+    <script is:inline type="application/json" id="map-cfg" set:html={JSON.stringify(mapCfg)} />
+  </section>
+</Layout>
+
+<style>
+  .archive-page {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 7rem 1.5rem 4rem;
+  }
+  .archive-page h1 {
+    background: var(--heading-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 2.2rem;
+    margin-bottom: 0.5rem;
+  }
+  .intro {
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+  }
+
+  /* ---- 统计卡 ---- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    border-radius: 16px;
+    padding: 1.3rem 1.2rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .stat-card .num {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    background: var(--heading-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .stat-card .label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  /* ---- 访客地图 ---- */
+  .map-card {
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    border-radius: 20px;
+    padding: 1.5rem 1.5rem 1.1rem;
+    margin-bottom: 3rem;
+  }
+  .map-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.6rem;
+  }
+  .map-head h2 {
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+  .map-sub {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+  .map-box {
+    position: relative;
+    /* 点阵底图：颜色随主题（fill=currentColor） */
+  }
+  .map-box > svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    color: var(--text-secondary);
+    opacity: 0.5;
+  }
+  .pins {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .pin-dot {
+    fill: var(--nav-underline);
+  }
+  .pin-glow {
+    fill: var(--nav-underline);
+    opacity: 0.15;
+  }
+
+  /* ---- 时间线 ---- */
+  .year-group {
+    margin-bottom: 2rem;
+  }
+  .year-group h2 {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+    background: var(--heading-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .year-count {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    -webkit-text-fill-color: var(--text-secondary);
+  }
+  .year-group ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .year-group li {
+    display: flex;
+    align-items: baseline;
+    gap: 1.1rem;
+    padding: 0.55rem 0.25rem;
+    border-bottom: 1px dashed var(--surface-border);
+  }
+  .year-group li:last-child {
+    border-bottom: none;
+  }
+  .year-group time {
+    flex-shrink: 0;
+    min-width: 3.4em;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+  .year-group a {
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+  }
+  .year-group a:hover {
+    color: var(--accent-text);
+  }
+  .empty {
+    color: var(--text-secondary);
+    padding: 2rem 0;
+  }
+
+  @media (max-width: 640px) {
+    .stats {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .map-card {
+      padding: 1.1rem 1rem 0.8rem;
+    }
+  }
+</style>
+
+<script>
+  // 动态部分：/api/stats（访客/留言/动态文章统计 + 地图点位）与 /api/posts（时间线合并）。
+  // 全部静默降级：后端不可用时保持静态内容
+  const API = import.meta.env.DEV ? '/api' : 'https://guestbook-9z8.pages.dev/api';
+
+  const $ = (id: string) => document.getElementById(id) as HTMLElement;
+
+  // ---- 数字滚动（尊重"减少动态效果"设置） ----
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function setNum(el: HTMLElement, to: number) {
+    const from = Number((el.dataset.v ?? el.textContent ?? '0').replace(/[^0-9]/g, '')) || 0;
+    el.dataset.v = String(to);
+    if (reduced || from === to) {
+      el.textContent = to.toLocaleString('en-US');
+      return;
+    }
+    const t0 = performance.now();
+    const dur = 700;
+    const step = (t: number) => {
+      const p = Math.min(1, (t - t0) / dur);
+      const e = 1 - Math.pow(1 - p, 3); // ease-out
+      el.textContent = Math.round(from + (to - from) * e).toLocaleString('en-US');
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  // ---- 访客地图点位 ----
+  // 与 dotted-map 库 getPin 完全一致的椭球 Mercator + 网格吸附
+  // （常量从 #map-cfg 注入，与构建期生成的底图严格同源）
+  function renderPins(points: Array<{ lat: number; lon: number; count: number; country?: string }>) {
+    const pins = document.getElementById('pins') as SVGSVGElement | null;
+    const cfgEl = document.getElementById('map-cfg');
+    if (!pins || !cfgEl || !points.length) return;
+    const cfg = JSON.parse(cfgEl.textContent || '{}');
+
+    const NS = 'http://www.w3.org/2000/svg';
+    const D2R = Math.PI / 180;
+    const A = 6378137;
+    const E = Math.sqrt((1 / 298.257223563) * (2 - 1 / 298.257223563));
+    const pin = (lat: number, lng: number) => {
+      const phi = lat * D2R;
+      const sinphi = Math.sin(phi);
+      const con = Math.pow((1 - E * sinphi) / (1 + E * sinphi), E / 2);
+      const ts = Math.tan(0.5 * (Math.PI / 2 - phi)) / con;
+      const projY = -A * Math.log(ts);
+      let rawX = (cfg.width * (A * lng * D2R - cfg.X_MIN)) / cfg.X_RANGE;
+      const rawY = (cfg.height * (cfg.Y_MAX - projY)) / cfg.Y_RANGE;
+      const y = Math.round(rawY / cfg.ystep);
+      const diag = cfg.grid === 'diagonal';
+      if (y % 2 === 0 && diag) rawX -= 0.5;
+      let localx = Math.round(rawX);
+      const localy = y * cfg.ystep;
+      if (y % 2 === 0 && diag) localx += 0.5;
+      return { x: localx, y: localy };
+    };
+
+    for (const p of points) {
+      const { x, y } = pin(p.lat, p.lon);
+      const r = 0.85 + Math.min(1.5, Math.sqrt(p.count) * 0.3);
+      const g = document.createElementNS(NS, 'g');
+      const glow = document.createElementNS(NS, 'circle');
+      glow.setAttribute('cx', String(x));
+      glow.setAttribute('cy', String(y));
+      glow.setAttribute('r', String(r * 2.4));
+      glow.setAttribute('class', 'pin-glow');
+      const dot = document.createElementNS(NS, 'circle');
+      dot.setAttribute('cx', String(x));
+      dot.setAttribute('cy', String(y));
+      dot.setAttribute('r', String(r));
+      dot.setAttribute('class', 'pin-dot');
+      const title = document.createElementNS(NS, 'title');
+      title.textContent = `${p.country || 'Somewhere on Earth'} · ${p.count} ${p.count > 1 ? 'visits' : 'visit'}`;
+      g.append(glow, dot, title);
+      pins.append(g);
+    }
+  }
+
+  // ---- 时间线合并：静态条目 + /admin 发布的动态文章，按日期降序按年重排 ----
+  function mergeTimeline(dyn: Array<{ slug: string; title: string; created_at: number }>) {
+    const timeline = document.getElementById('timeline');
+    if (!timeline) return;
+    const staticLis = [...timeline.querySelectorAll('li[data-slug]')] as HTMLElement[];
+    const staticSlugs = new Set(staticLis.map((li) => li.dataset.slug));
+    type Item = { slug: string; title: string; ts: number };
+    const items: Item[] = staticLis.map((li) => ({
+      slug: li.dataset.slug || '',
+      title: li.dataset.title || '',
+      ts: Number(li.dataset.ts) || 0,
+    }));
+    let added = false;
+    for (const p of dyn) {
+      if (staticSlugs.has(p.slug)) continue;
+      items.push({ slug: p.slug, title: p.title, ts: p.created_at });
+      added = true;
+    }
+    if (!added) return;
+    items.sort((a, b) => b.ts - a.ts);
+
+    timeline.innerHTML = '';
+    const byYear = new Map<number, Item[]>();
+    for (const it of items) {
+      const y = new Date(it.ts).getFullYear() || 1970;
+      if (!byYear.has(y)) byYear.set(y, []);
+      byYear.get(y)!.push(it);
+    }
+    const pad = (n: number) => String(n).padStart(2, '0');
+    for (const [year, list] of [...byYear.entries()].sort((a, b) => b[0] - a[0])) {
+      const sec = document.createElement('section');
+      sec.className = 'year-group';
+      const h2 = document.createElement('h2');
+      h2.append(document.createTextNode(String(year)));
+      const cnt = document.createElement('span');
+      cnt.className = 'year-count';
+      cnt.textContent = `${list.length} ${list.length > 1 ? 'posts' : 'post'}`;
+      h2.append(cnt);
+      const ul = document.createElement('ul');
+      for (const it of list) {
+        const li = document.createElement('li');
+        const d = new Date(it.ts);
+        const time = document.createElement('time');
+        time.textContent = `${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        const a = document.createElement('a');
+        a.href = `/posts/${it.slug}`;
+        a.textContent = it.title;
+        li.append(time, a);
+        ul.append(li);
+      }
+      sec.append(h2, ul);
+      timeline.append(sec);
+    }
+  }
+
+  (async () => {
+    try {
+      const [statsRes, postsRes] = await Promise.all([
+        fetch(`${API}/stats`).catch(() => null),
+        fetch(`${API}/posts`).catch(() => null),
+      ]);
+
+      if (statsRes && statsRes.ok) {
+        const s = await statsRes.json();
+        setNum($('stat-visits'), s.visits.total);
+        setNum($('stat-messages'), s.messages);
+        // 文章数/字数 = 静态基数（服务端渲染值）+ 动态增量
+        setNum($('stat-posts'), s.posts.count + Number($('stat-posts').textContent!.replace(/[^0-9]/g, '')));
+        setNum(
+          $('stat-chars'),
+          s.posts.chars + Number($('stat-chars').textContent!.replace(/[^0-9]/g, ''))
+        );
+        renderPins(s.visits.points || []);
+        $('map-sub').textContent = s.visits.total
+          ? `${s.visits.total.toLocaleString('en-US')} visits · ${s.visits.regions || 0} ${
+              s.visits.regions === 1 ? 'region' : 'regions'
+            }`
+          : 'Waiting for the first pin…';
+      }
+
+      if (postsRes && postsRes.ok) {
+        const { posts = [] } = await postsRes.json();
+        mergeTimeline(posts);
+      }
+    } catch {
+      /* 静默：保持静态内容 */
+    }
+  })();
+</script>

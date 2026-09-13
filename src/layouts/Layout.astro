@@ -156,6 +156,21 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
       // 兜底：初始加载时若 astro:page-load 已在模块执行前触发，
       // 直接调用一次（带 hash 才执行，无副作用）
       if (window.location.hash.startsWith('#q=')) scrollToSearchHit();
+
+      // 访客统计上报（/archive 页展示）：每个会话窗口（30 分钟）最多一次，
+      // sendBeacon 发空 POST 不阻塞页面；地理定位由 Cloudflare 在服务端从请求解析
+      try {
+        const VISIT_API = import.meta.env.DEV
+          ? '/api/visit'
+          : 'https://guestbook-9z8.pages.dev/api/visit';
+        const last = Number(sessionStorage.getItem('visit-ts') || 0);
+        if (Date.now() - last > 30 * 60 * 1000) {
+          sessionStorage.setItem('visit-ts', String(Date.now()));
+          navigator.sendBeacon?.(VISIT_API);
+        }
+      } catch {
+        /* 隐私模式等场景 sessionStorage 不可用：静默跳过 */
+      }
     </script>
 
     <script>

@@ -7,6 +7,8 @@
 //   GET    /api/messages?page=1&size=20   分页拉取顶层留言（replies 字段挂好嵌套回复树）
 //   POST   /api/messages                  提交留言/回复（body.parent_id 可选；同 IP 每分钟最多 3 条）
 //   DELETE /api/messages/:id              删除留言及其全部子孙回复（需 Authorization: Bearer <ADMIN_KEY>）
+//   POST   /api/visit                     访客上报（sendBeacon 空 body；定位由 request.cf 在边缘解析）
+//   GET    /api/stats                      归档页汇总：访客数 / 地图点位 / 动态文章数与字数 / 留言数
 //
 // 安全设计：
 //   - CORS 仅放行白名单站点，其余来源不带 CORS 头（浏览器自行拦截）
@@ -338,6 +340,102 @@ async function deletePost(request, env, cors, slug) {
   return json({ ok: true }, 200, cors);
 }
 
+// ---- 访客统计（/archive 页：访问计数 + 访客地图） ----
+// 隐私设计：
+//   - 地理信息来自 Cloudflare 边缘的 IP 城市级定位（request.cf），不落 IP 原文
+//   - 坐标取整到 0.1°（约 11km）后聚合存储：同城访客合并为一个点，无法还原个体
+//   - 上报走 navigator.sendBeacon（fire-and-forget，不阻塞页面、无响应读取）
+let visitTablesReady = false;
+async function ensureVisitTables(env) {
+  if (visitTablesReady) return;
+  await env.DB.batch([
+    env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS visit_points (
+         lat REAL NOT NULL,
+         lon REAL NOT NULL,
+         country TEXT NOT NULL DEFAULT '',
+         count INTEGER NOT NULL DEFAULT 1,
+         updated_at INTEGER NOT NULL,
+         PRIMARY KEY (lat, lon)
+       )`
+    ),
+    env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS visit_totals (
+         id INTEGER PRIMARY KEY CHECK (id = 1),
+         total INTEGER NOT NULL DEFAULT 0,
+         updated_at INTEGER NOT NULL DEFAULT 0
+       )`
+    ),
+  ]);
+  visitTablesReady = true;
+}
+
+// POST /api/visit：beacon 上报（body 为空，定位在服务端从 request.cf 解析）
+async function recordVisit(request, env) {
+  await ensureVisitTables(env);
+  const cf = request.cf || {};
+  const lat = Number(cf.latitude);
+  const lon = Number(cf.longitude);
+  const country = String(cf.country || '').slice(0, 2).toUpperCase();
+  const now = Date.now();
+
+  const stmts = [
+    env.DB.prepare(
+      `INSERT INTO visit_totals (id, total, updated_at) VALUES (1, 1, ?)
+       ON CONFLICT(id) DO UPDATE SET total = total + 1, updated_at = excluded.updated_at`
+    ).bind(now),
+  ];
+
+  if (Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 85) {
+    const rlat = Math.round(lat * 10) / 10;
+    const rlon = Math.round(lon * 10) / 10;
+    stmts.push(
+      env.DB.prepare(
+        `INSERT INTO visit_points (lat, lon, country, count, updated_at) VALUES (?, ?, ?, 1, ?)
+         ON CONFLICT(lat, lon) DO UPDATE SET count = count + 1, updated_at = excluded.updated_at`
+      ).bind(rlat, rlon, country, now)
+    );
+  }
+
+  await env.DB.batch(stmts);
+  return new Response(null, { status: 204 }); // beacon 不读响应体
+}
+
+// GET /api/stats：归档页一次性汇总（访客 + 动态文章 + 留言）
+async function getStats(request, env, cors) {
+  await ensureVisitTables(env);
+
+  const totalRow = await env.DB.prepare('SELECT total FROM visit_totals WHERE id = 1').first();
+  const { results: points } = await env.DB.prepare(
+    'SELECT lat, lon, country, count FROM visit_points ORDER BY count DESC LIMIT 500'
+  ).all();
+  const regions = new Set((points || []).filter((p) => p.country).map((p) => p.country)).size;
+
+  // messages 表可能在全新环境尚未初始化：拿不到就按 0
+  let messages = 0;
+  try {
+    messages = (await env.DB.prepare('SELECT COUNT(*) AS n FROM messages').first()).n;
+  } catch {
+    /* 表不存在 */
+  }
+
+  // 动态文章（/admin 发布，存 posts 表）：数量与正文字符数
+  await ensurePostsTable(env);
+  const row = await env.DB.prepare(
+    'SELECT COUNT(*) AS n, COALESCE(SUM(LENGTH(content)), 0) AS c FROM posts'
+  ).first();
+
+  return json(
+    {
+      visits: { total: totalRow ? totalRow.total : 0, regions, points: points || [] },
+      posts: { count: row.n, chars: row.c },
+      messages,
+    },
+    200,
+    cors
+  );
+}
+
 // ---- 入口（Pages _worker.js：export default 的 fetch 处理所有未命中静态资源的请求）----
 export default {
   async fetch(request, env) {
@@ -370,6 +468,15 @@ export default {
 
     if (path === '/api/admin/verify' && request.method === 'GET')
       return isAdmin(request, env) ? json({ ok: true }, 200, cors) : json({ error: 'Unauthorized' }, 401, cors);
+
+    // ---- 访客统计 ----
+    if (path === '/api/visit' && request.method === 'POST') {
+      // 只接受自家站点的 beacon（sendBeacon 跨域 POST 会带 Origin；curl 等不带 Origin 的放行计数不记点）
+      const origin = request.headers.get('Origin') || '';
+      if (origin && !ALLOWED_ORIGINS.has(origin)) return new Response(null, { status: 403 });
+      return recordVisit(request, env);
+    }
+    if (path === '/api/stats' && request.method === 'GET') return getStats(request, env, cors);
 
     return json({ error: 'Not Found' }, 404, cors);
   },
