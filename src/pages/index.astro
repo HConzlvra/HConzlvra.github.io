@@ -41,7 +41,7 @@ import DotGrid from '../components/DotGrid.astro';
     flex-direction: column;
     align-items: center;
     justify-content: center; /* 上下居中 */
-    padding: 5rem 1.5rem 3rem;
+    padding: 5rem 2.5rem 3rem;
     margin: 0 auto;
   }
 
@@ -67,6 +67,10 @@ import DotGrid from '../components/DotGrid.astro';
     font-size: 1.55em; /* ≈5.3rem，超过第一行 */
     font-weight: 800;
     letter-spacing: -0.01em;
+    /* inline-block + 大字号：行盒按 h1 的 line-height 裁切，下伸的下滑线
+       （_）会被削掉一截。给名字自己的行盒留足下伸空间 */
+    line-height: 1.25;
+    padding-bottom: 0.08em;
   }
   .hero .subtitle {
     font-size: 2.4rem;
@@ -132,6 +136,8 @@ import DotGrid from '../components/DotGrid.astro';
     /* 手机端保持原来的居中版式 */
     .container {
       text-align: center;
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
     }
     .hero h1 {
       font-size: 2.1rem;
