@@ -1,5 +1,5 @@
 ---
-// 主页交互格点背景：canvas 绘制点阵
+// 主页交互格点背景：canvas 绘制三角形点阵
 // - 海浪（微波）：宽波带沿对角线从左上涌向右下，波峰紧挨波峰持续滚动；
 //   波带扫过处格点轻微变粗、间隙轻轻张开。形变小且连续：
 //   波峰压过单个格点时位移目标平滑过渡，不存在瞬间跳变
@@ -86,16 +86,22 @@
     canvas.style.height = `${h}px`;
 
     // 移动端间距更小（点阵别太稀疏）；并按面积上限稀释，防止大屏/4K 点数爆炸
+    // （三角形格单点占面积 = 间距 × 行高 × sin60°，分母乘 sin60° 补偿行高压缩带来的密度上升）
     const isMobile = w <= 768;
     const maxDots = isMobile ? 2800 : 4500;
     const minSpacing = isMobile ? 26 : 28;
-    spacing = Math.max(minSpacing, Math.sqrt((w * h) / maxDots));
+    const SIN60 = Math.sin(Math.PI / 3);
+    spacing = Math.max(minSpacing, Math.sqrt((w * h) / (maxDots * SIN60)));
     baseR = isMobile ? 1.5 : 1.35;
     influence = Math.max(110, spacing * 4);
 
+    // 三角形点阵：行高 = 间距 × sin60°（等边三角），奇数行横向错开半个间距
     dots = [];
-    for (let y = spacing / 2; y < h; y += spacing) {
-      for (let x = spacing / 2; x < w; x += spacing) {
+    const rowH = spacing * SIN60;
+    let row = 0;
+    for (let y = spacing / 2; y < h; y += rowH, row++) {
+      const x0 = spacing / 2 + (row % 2) * (spacing / 2);
+      for (let x = x0; x < w; x += spacing) {
         dots.push({ bx: x, by: y, dx: 0, dy: 0, r: baseR });
       }
     }
