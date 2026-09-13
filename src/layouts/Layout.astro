@@ -168,9 +168,9 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
       ) {
         // 单一紫色（取自站点主题色，亮暗主题下都可见）
         const PURPLE = '#9c6fe0';
-        const MIN_DIST = 22; // 距上次撒点不足 22px 时跳过：拖动时稀疏撒点，避免一拖一大片
-        const JUMP_DIST = 60; // 单次事件跳跃超过 60px（快速甩动）时沿线补点，间距同 MIN_DIST
-        const MAX_SQUARES = 60; // 同时在场的小方块上限
+        const GAP = 3; // 沿路径每 3px 撒一个方块：相邻方块重叠，拖尾连续无空隙
+        const MAX_DIST = 90; // 离指针超过 90px 的方块立即清除：只保留紧跟指针的一小段
+        const MAX_SQUARES = 90; // 同时在场的小方块上限（兜底）
 
         // 拖尾容器：固定覆盖整屏、不拦截任何鼠标事件
         // ClientRouter 换页会换掉整个 body，这里每次撒点前确认容器还在
@@ -188,15 +188,28 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
           const box = ensureLayer();
           const el = document.createElement('div');
           el.className = 'px';
-          el.style.width = '7px'; // 固定大小：所有方块统一 7px
-          el.style.height = '7px';
+          el.style.width = '9px'; // 固定大小：所有方块统一 9px
+          el.style.height = '9px';
           el.style.left = `${x + Math.random() * 6 - 3}px`;
           el.style.top = `${y + Math.random() * 6 - 3}px`;
           el.style.background = PURPLE;
-          el.style.setProperty('--life', `${(280 + Math.random() * 170).toFixed(0)}ms`);
+          // 停住指针后 ~0.3-0.5s 尾巴自己淡出；拖动中离指针过远的会被立即清掉
+          el.style.setProperty('--life', `${(320 + Math.random() * 200).toFixed(0)}ms`);
           el.addEventListener('animationend', () => el.remove());
           box.appendChild(el);
           while (box.children.length > MAX_SQUARES) box.firstElementChild?.remove();
+        };
+
+        // 清理离指针过远的方块：无论拖多快，尾巴始终只有紧跟指针的一小段
+        const pruneFar = (x: number, y: number) => {
+          if (!layer) return;
+          const limit = MAX_DIST * MAX_DIST;
+          for (let i = layer.children.length - 1; i >= 0; i--) {
+            const el = layer.children[i] as HTMLElement;
+            const dx = parseFloat(el.style.left) - x;
+            const dy = parseFloat(el.style.top) - y;
+            if (dx * dx + dy * dy > limit) el.remove();
+          }
         };
 
         let lastX = -1;
@@ -215,14 +228,13 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
             const dx = x - lastX;
             const dy = y - lastY;
             const dist = Math.hypot(dx, dy);
-            if (dist < MIN_DIST) return;
-            if (dist > JUMP_DIST) {
-              // 快速甩动：沿两点连线补撒（间距同 MIN_DIST），保持拖尾连续但不密
-              for (let i = JUMP_DIST; i < dist; i += MIN_DIST) {
-                spawn(lastX + (dx * i) / dist, lastY + (dy * i) / dist);
-              }
+            if (dist < 1) return; // 静止抖动：忽略
+            // 沿本次移动的连线每 3px 密集补撒（方块相互重叠），快速移动也连续不断线
+            for (let i = GAP; i < dist; i += GAP) {
+              spawn(lastX + (dx * i) / dist, lastY + (dy * i) / dist);
             }
             spawn(x, y);
+            pruneFar(x, y); // 超出"一小段"范围的老方块立即清除
             lastX = x;
             lastY = y;
           },
