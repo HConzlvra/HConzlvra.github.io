@@ -213,11 +213,7 @@ async function deleteMessage(request, env, cors, idStr) {
   const id = parseInt(idStr, 10);
   if (!Number.isInteger(id)) return json({ error: 'Invalid message ID' }, 400, cors);
 
-  const auth = request.headers.get('Authorization') || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  // 常数时间比较，避免时序侧信道
-  if (token.length !== env.ADMIN_KEY.length || token !== env.ADMIN_KEY)
-    return json({ error: 'Unauthorized' }, 401, cors);
+  if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
 
   // 级联删除：递归 CTE 先找出该留言和它的全部子孙回复，再一并删掉
   const { meta } = await env.DB.prepare(
@@ -231,6 +227,114 @@ async function deleteMessage(request, env, cors, idStr) {
     .bind(id)
     .run();
   if (meta.changes === 0) return json({ error: 'Message not found' }, 404, cors);
+  return json({ ok: true }, 200, cors);
+}
+
+// ---- Posts（文章后台 API：主站为纯静态 GitHub Pages，文章存 D1，由 /admin 后台写入） ----
+const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const POST_TITLE_MAX = 120;
+const POST_DESC_MAX = 300;
+const POST_CONTENT_MAX = 100_000;
+
+// 惰性建表：首次访问 posts 路由时创建，之后直接跳过
+let postsTableReady = false;
+async function ensurePostsTable(env) {
+  if (postsTableReady) return;
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS posts (
+       slug        TEXT PRIMARY KEY,
+       title       TEXT NOT NULL,
+       description TEXT NOT NULL DEFAULT '',
+       content     TEXT NOT NULL,
+       created_at  INTEGER NOT NULL,
+       updated_at  INTEGER NOT NULL
+     )`
+  ).run();
+  postsTableReady = true;
+}
+
+// 管理员鉴权：Bearer <ADMIN_KEY>（留言删除与文章写入共用同一个密钥）
+// 常数时间比较，避免时序侧信道
+function isAdmin(request, env) {
+  const auth = request.headers.get('Authorization') || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  const key = String(env.ADMIN_KEY || '');
+  return token.length === key.length && token === key;
+}
+
+async function listPosts(env, cors) {
+  await ensurePostsTable(env);
+  const { results } = await env.DB.prepare(
+    'SELECT slug, title, description, created_at, updated_at FROM posts ORDER BY created_at DESC'
+  ).all();
+  return json({ posts: results || [] }, 200, cors);
+}
+
+async function getPost(env, cors, slug) {
+  await ensurePostsTable(env);
+  const post = await env.DB.prepare(
+    'SELECT slug, title, description, content, created_at, updated_at FROM posts WHERE slug = ?'
+  )
+    .bind(slug)
+    .first();
+  if (!post) return json({ error: 'Post not found' }, 404, cors);
+  return json({ post }, 200, cors);
+}
+
+async function savePost(request, env, cors) {
+  if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
+  await ensurePostsTable(env);
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: 'Request body must be valid JSON' }, 400, cors);
+  }
+
+  const slug = String(body.slug || '').trim();
+  const title = body.title == null ? '' : cleanText(String(body.title));
+  const description = body.description == null ? '' : cleanText(String(body.description));
+  const content = String(body.content ?? '');
+
+  if (!SLUG_RE.test(slug))
+    return json({ error: 'Slug must be lowercase letters, digits and hyphens (max 64)' }, 400, cors);
+  if (title === '') return json({ error: 'Title cannot be empty' }, 400, cors);
+  if (countPoints(title) > POST_TITLE_MAX)
+    return json({ error: `Title must be at most ${POST_TITLE_MAX} characters` }, 400, cors);
+  if (countPoints(description) > POST_DESC_MAX)
+    return json({ error: `Description must be at most ${POST_DESC_MAX} characters` }, 400, cors);
+  if (content.trim() === '') return json({ error: 'Content cannot be empty' }, 400, cors);
+  if (content.length > POST_CONTENT_MAX)
+    return json({ error: `Content must be at most ${POST_CONTENT_MAX} characters` }, 400, cors);
+
+  const now = Date.now();
+  // Upsert：同 slug 覆盖更新（created_at 保留首次发布时间）
+  await env.DB.prepare(
+    `INSERT INTO posts (slug, title, description, content, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(slug) DO UPDATE SET
+       title = excluded.title,
+       description = excluded.description,
+       content = excluded.content,
+       updated_at = excluded.updated_at`
+  )
+    .bind(slug, title, description, content, now, now)
+    .run();
+
+  const post = await env.DB.prepare(
+    'SELECT slug, title, description, created_at, updated_at FROM posts WHERE slug = ?'
+  )
+    .bind(slug)
+    .first();
+  return json({ post }, 201, cors);
+}
+
+async function deletePost(request, env, cors, slug) {
+  if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
+  await ensurePostsTable(env);
+  const { meta } = await env.DB.prepare('DELETE FROM posts WHERE slug = ?').bind(slug).run();
+  if (meta.changes === 0) return json({ error: 'Post not found' }, 404, cors);
   return json({ ok: true }, 200, cors);
 }
 
@@ -255,6 +359,17 @@ export default {
 
     const m = path.match(/^\/api\/messages\/(\d+)$/);
     if (m && request.method === 'DELETE') return deleteMessage(request, env, cors, m[1]);
+
+    // ---- 文章后台 ----
+    const pm = path.match(/^\/api\/posts\/([a-z0-9-]+)$/);
+
+    if (path === '/api/posts' && request.method === 'GET') return listPosts(env, cors);
+    if (path === '/api/posts' && request.method === 'POST') return savePost(request, env, cors);
+    if (pm && request.method === 'GET') return getPost(env, cors, pm[1]);
+    if (pm && request.method === 'DELETE') return deletePost(request, env, cors, pm[1]);
+
+    if (path === '/api/admin/verify' && request.method === 'GET')
+      return isAdmin(request, env) ? json({ ok: true }, 200, cors) : json({ error: 'Unauthorized' }, 401, cors);
 
     return json({ error: 'Not Found' }, 404, cors);
   },

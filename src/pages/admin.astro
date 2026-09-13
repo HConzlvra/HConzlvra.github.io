@@ -1,0 +1,505 @@
+---
+// 文章后台：密码（= Cloudflare ADMIN_KEY）验证后可发布/编辑/删除文章（存 D1，主站动态拉取）
+// 不进导航栏、noindex，仅自己使用
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Admin | HConzlvra_">
+  <meta slot="head" name="robots" content="noindex, nofollow" />
+  <div class="admin-page">
+    <!-- 登录视图 -->
+    <section class="card view" id="login-view">
+      <h1>Admin</h1>
+      <p class="hint">Enter the admin key to continue.</p>
+      <form id="login-form">
+        <input type="password" id="key-input" placeholder="Admin key" autocomplete="current-password" />
+        <button type="submit" class="btn primary">Log in</button>
+      </form>
+      <p class="status" id="login-status"></p>
+    </section>
+
+    <!-- 后台视图 -->
+    <section class="view" id="admin-view" hidden>
+      <div class="admin-head">
+        <h1>Posts Admin</h1>
+        <button type="button" class="btn ghost" id="logout-btn">Log out</button>
+      </div>
+
+      <div class="card editor">
+        <div class="field">
+          <label for="f-title">Title</label>
+          <input id="f-title" type="text" maxlength="120" placeholder="Post title" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="f-slug">Slug <span class="dim">(lowercase / digits / hyphens)</span></label>
+            <input id="f-slug" type="text" placeholder="my-first-post" />
+          </div>
+          <div class="field">
+            <label for="f-desc">Description <span class="dim">(optional)</span></label>
+            <input id="f-desc" type="text" maxlength="300" placeholder="One-line summary" />
+          </div>
+        </div>
+        <div class="field">
+          <div class="toolbar">
+            <label for="f-content">Content (Markdown)</label>
+            <div class="toolbar-actions">
+              <button type="button" class="btn ghost small" id="preview-btn">Preview</button>
+              <button type="button" class="btn primary small" id="publish-btn">Publish</button>
+            </div>
+          </div>
+          <textarea id="f-content" rows="16" placeholder="# Heading&#10;&#10;Write your post in Markdown…"></textarea>
+          <div class="preview prose" id="preview-box" hidden></div>
+        </div>
+        <p class="status" id="editor-status"></p>
+      </div>
+
+      <div class="card list">
+        <h2>Published posts</h2>
+        <ul id="post-list"></ul>
+        <p class="empty" id="list-empty" hidden>No posts yet.</p>
+      </div>
+    </section>
+  </div>
+</Layout>
+
+<script>
+  import { marked } from 'marked';
+
+  const API = import.meta.env.DEV ? '/api' : 'https://guestbook-9z8.pages.dev/api';
+  const KEY_STORE = 'admin_key';
+
+  const $ = (id: string) => document.getElementById(id) as HTMLElement;
+  const fields = {
+    title: $('f-title') as HTMLInputElement,
+    slug: $('f-slug') as HTMLInputElement,
+    desc: $('f-desc') as HTMLInputElement,
+    content: $('f-content') as HTMLTextAreaElement,
+  };
+
+  let adminKey = '';
+  let slugTouched = false; // 用户手动改过 slug 后，不再从标题自动生成
+  let editingSlug = ''; // 正在编辑的文章 slug（空 = 新文章）
+
+  const authHeaders = (json = false): Record<string, string> => {
+    const h: Record<string, string> = { Authorization: `Bearer ${adminKey}` };
+    if (json) h['Content-Type'] = 'application/json';
+    return h;
+  };
+
+  function showLogin(msg = '') {
+    $('login-view').hidden = false;
+    $('admin-view').hidden = true;
+    $('login-status').textContent = msg;
+  }
+
+  function showAdmin() {
+    $('login-view').hidden = true;
+    $('admin-view').hidden = false;
+    loadList();
+  }
+
+  // ---- 登录 / 登出 ----
+  $('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const key = ($('key-input') as HTMLInputElement).value;
+    if (!key) return;
+    const res = await fetch(`${API}/admin/verify`, {
+      headers: { Authorization: `Bearer ${key}` },
+    }).catch(() => null);
+    if (res && res.ok) {
+      adminKey = key;
+      sessionStorage.setItem(KEY_STORE, key);
+      showAdmin();
+    } else {
+      $('login-status').textContent = 'Wrong key or network error.';
+    }
+  });
+
+  $('logout-btn').addEventListener('click', () => {
+    adminKey = '';
+    sessionStorage.removeItem(KEY_STORE);
+    showLogin();
+  });
+
+  // 启动时若有保存的密钥则自动验证
+  const saved = sessionStorage.getItem(KEY_STORE);
+  if (saved) {
+    adminKey = saved;
+    fetch(`${API}/admin/verify`, { headers: { Authorization: `Bearer ${saved}` } })
+      .then((r) => (r.ok ? showAdmin() : showLogin()))
+      .catch(() => showLogin());
+  }
+
+  // ---- 编辑器 ----
+  // 标题 → 自动生成 slug（仅在小写字母/数字之外的部分截断）
+  fields.title.addEventListener('input', () => {
+    if (!slugTouched && !editingSlug) {
+      fields.slug.value = fields.title.value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 64);
+    }
+  });
+  fields.slug.addEventListener('input', () => {
+    slugTouched = fields.slug.value !== '';
+  });
+
+  // 预览切换
+  $('preview-btn').addEventListener('click', () => {
+    const box = $('preview-box');
+    const showing = box.hidden;
+    box.hidden = !showing;
+    fields.content.hidden = showing;
+    if (showing) box.innerHTML = marked.parse(fields.content.value) as string;
+    $('preview-btn').textContent = showing ? 'Edit' : 'Preview';
+  });
+
+  // 发布（新建或更新，upsert）
+  $('publish-btn').addEventListener('click', async () => {
+    const status = $('editor-status');
+    const slug = fields.slug.value.trim();
+    if (!fields.title.value.trim() || !slug || !fields.content.value.trim()) {
+      status.textContent = 'Title, slug and content are all required.';
+      return;
+    }
+    status.textContent = 'Publishing…';
+    $('publish-btn').setAttribute('disabled', '');
+    try {
+      const res = await fetch(`${API}/posts`, {
+        method: 'POST',
+        headers: authHeaders(true),
+        body: JSON.stringify({
+          slug,
+          title: fields.title.value,
+          description: fields.desc.value,
+          content: fields.content.value,
+        }),
+      });
+      if (res.status === 401) {
+        sessionStorage.removeItem(KEY_STORE);
+        adminKey = '';
+        showLogin('Session expired, please log in again.');
+        return;
+      }
+      const data = await res.json();
+      if (!res.ok) {
+        status.textContent = data.error || 'Publish failed.';
+        return;
+      }
+      status.textContent = editingSlug
+        ? `Updated “${data.post.title}” ✓`
+        : `Published “${data.post.title}” ✓`;
+      resetForm();
+      loadList();
+    } catch {
+      status.textContent = 'Network error — please try again.';
+    } finally {
+      $('publish-btn').removeAttribute('disabled');
+    }
+  });
+
+  function resetForm() {
+    editingSlug = '';
+    fields.title.value = '';
+    fields.slug.value = '';
+    fields.desc.value = '';
+    fields.content.value = '';
+    slugTouched = false;
+    const box = $('preview-box');
+    box.hidden = true;
+    box.innerHTML = '';
+    fields.content.hidden = false;
+    $('preview-btn').textContent = 'Preview';
+  }
+
+  // ---- 列表 ----
+  async function loadList() {
+    try {
+      const res = await fetch(`${API}/posts`);
+      if (!res.ok) return;
+      const { posts = [] } = await res.json();
+      const ul = $('post-list') as HTMLUListElement;
+      ul.innerHTML = '';
+      for (const p of posts) {
+        const li = document.createElement('li');
+        const info = document.createElement('div');
+        info.className = 'row-info';
+        const title = document.createElement('a');
+        title.href = `/posts/${p.slug}`;
+        title.className = 'row-title';
+        title.textContent = p.title;
+        const date = document.createElement('time');
+        date.className = 'row-date';
+        date.textContent = new Date(p.created_at).toLocaleDateString('zh-CN', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+        info.append(title, date);
+        const actions = document.createElement('div');
+        actions.className = 'row-actions';
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.className = 'btn ghost small';
+        editBtn.textContent = 'Edit';
+        editBtn.addEventListener('click', () => loadIntoEditor(p.slug));
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'btn ghost small danger';
+        delBtn.textContent = 'Delete';
+        delBtn.addEventListener('click', () => removePost(p.slug, p.title));
+        actions.append(editBtn, delBtn);
+        li.append(info, actions);
+        ul.append(li);
+      }
+      $('list-empty').hidden = posts.length > 0;
+    } catch {
+      /* 静默 */
+    }
+  }
+
+  async function loadIntoEditor(slug: string) {
+    try {
+      const res = await fetch(`${API}/posts/${slug}`);
+      if (!res.ok) return;
+      const { post } = await res.json();
+      editingSlug = slug;
+      fields.title.value = post.title;
+      fields.slug.value = post.slug;
+      fields.desc.value = post.description || '';
+      fields.content.value = post.content;
+      slugTouched = true;
+      $('editor-status').textContent = `Editing “${post.title}”`;
+      document.querySelector('.editor')?.scrollIntoView({ behavior: 'smooth' });
+    } catch {
+      /* 静默 */
+    }
+  }
+
+  async function removePost(slug: string, title: string) {
+    if (!confirm(`Delete “${title}”? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`${API}/posts/${slug}`, { method: 'DELETE', headers: authHeaders() });
+      if (res.status === 401) {
+        showLogin('Session expired, please log in again.');
+        return;
+      }
+      if (res.ok) loadList();
+    } catch {
+      /* 静默 */
+    }
+  }
+</script>
+
+<style>
+  .admin-page {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 7.5rem 1.5rem 4rem;
+    width: 100%;
+    min-height: 70vh;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    border-radius: 16px;
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--card-shadow);
+  }
+  .admin-page h1 {
+    background: var(--heading-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 2.2rem;
+    margin-bottom: 1rem;
+  }
+  .admin-page h2 {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+  }
+  .admin-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+  .hint,
+  .dim,
+  .status,
+  .empty {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+  .status {
+    margin-top: 0.75rem;
+    min-height: 1.2em;
+  }
+
+  /* 表单 */
+  #login-form {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+  #login-form input {
+    flex: 1;
+  }
+  input[type='text'],
+  input[type='password'],
+  textarea {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    border-radius: 10px;
+    padding: 0.6rem 0.8rem;
+    color: var(--text);
+    font: inherit;
+    transition: border-color 0.2s ease;
+  }
+  input:focus,
+  textarea:focus {
+    outline: none;
+    border-color: var(--btn-primary-bg);
+  }
+  textarea {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9rem;
+    line-height: 1.65;
+    resize: vertical;
+    min-height: 14rem;
+  }
+  .field {
+    margin-bottom: 1rem;
+    flex: 1;
+    min-width: 0;
+  }
+  .field label {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+  .field-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.4rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .toolbar label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+  .toolbar-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .preview {
+    border: 1px dashed var(--surface-border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    min-height: 14rem;
+    max-height: 32rem;
+    overflow-y: auto;
+  }
+
+  /* 按钮 */
+  .btn {
+    border: 1px solid var(--surface-border);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 0.55rem 1.1rem;
+    font: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+  }
+  .btn:hover {
+    background: var(--surface-hover);
+    border-color: var(--surface-border-hover);
+  }
+  .btn.primary {
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    border-color: transparent;
+  }
+  .btn.primary:hover {
+    background: var(--btn-primary-bg-hover);
+  }
+  .btn.small {
+    padding: 0.35rem 0.8rem;
+    font-size: 0.85rem;
+  }
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+  .btn.danger:hover {
+    border-color: #e5484d;
+    color: #e5484d;
+  }
+
+  /* 列表 */
+  #post-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  #post-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 0.25rem;
+    border-bottom: 1px solid var(--surface-border);
+    flex-wrap: wrap;
+  }
+  #post-list li:last-child {
+    border-bottom: none;
+  }
+  .row-info {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .row-title {
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s ease;
+  }
+  .row-title:hover {
+    color: var(--btn-primary-bg);
+  }
+  .row-date {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+  .row-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  @media (max-width: 640px) {
+    #post-list li {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    #login-form {
+      flex-direction: column;
+    }
+  }
+</style>

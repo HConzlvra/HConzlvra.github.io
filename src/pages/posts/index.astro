@@ -17,7 +17,12 @@ const posts = (await getCollection('posts')).sort(
       ) : (
         <ul class="post-list">
           {posts.map((post) => (
-            <li>
+            <li
+              data-slug={post.id}
+              data-title={post.data.title}
+              data-date={post.data.pubDate?.toISOString() ?? ''}
+              data-desc={post.data.description ?? ''}
+            >
               <a href={`/posts/${post.id}`} class="post-item">
                 <div class="item-top">
                   <span class="item-title">{post.data.title}</span>
@@ -116,3 +121,86 @@ const posts = (await getCollection('posts')).sort(
     line-height: 1.6;
   }
 </style>
+
+<script>
+  // 动态文章合并：静态构建的列表之外，再拉取后端（D1）里通过 /admin 发布的文章，
+  // 按 pubDate 降序混排重建列表。后端不可用或无新文章时保持静态列表原样
+  const API = import.meta.env.DEV ? '/api' : 'https://guestbook-9z8.pages.dev/api';
+
+  const fmt = (iso: string) =>
+    new Date(iso).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  function itemEl(it: { href: string; title: string; date: string; desc: string }) {
+    const li = document.createElement('li');
+    const a = document.createElement('a');
+    a.href = it.href;
+    a.className = 'post-item';
+    const top = document.createElement('div');
+    top.className = 'item-top';
+    const title = document.createElement('span');
+    title.className = 'item-title';
+    title.textContent = it.title;
+    top.append(title);
+    if (it.date) {
+      const time = document.createElement('time');
+      time.className = 'item-date';
+      time.dateTime = it.date;
+      time.textContent = fmt(it.date);
+      top.append(time);
+    }
+    a.append(top);
+    if (it.desc) {
+      const p = document.createElement('p');
+      p.className = 'item-desc';
+      p.textContent = it.desc;
+      a.append(p);
+    }
+    li.append(a);
+    return li;
+  }
+
+  (async () => {
+    try {
+      const res = await fetch(`${API}/posts`);
+      if (!res.ok) return;
+      const { posts = [] } = await res.json();
+
+      const list = document.querySelector('.post-list') as HTMLUListElement | null;
+      const staticSlugs = new Set([...(list?.children || [])].map((li) => (li as HTMLElement).dataset.slug));
+      const dynamic = posts.filter((p) => !staticSlugs.has(p.slug));
+      if (!dynamic.length) return; // 无新文章：保持静态列表
+
+      // 收集静态条目数据，与动态文章合并排序
+      const items = [...(list?.children || [])].map((el) => {
+        const li = el as HTMLElement;
+        return {
+          href: `/posts/${li.dataset.slug}`,
+          title: li.dataset.title || '',
+          date: li.dataset.date || '',
+          desc: li.dataset.desc || '',
+          ts: new Date(li.dataset.date || 0).valueOf() || 0,
+        };
+      });
+      for (const p of dynamic)
+        items.push({
+          href: `/posts/${p.slug}`,
+          title: p.title,
+          date: new Date(p.created_at).toISOString(),
+          desc: p.description || '',
+          ts: p.created_at,
+        });
+      items.sort((a, b) => b.ts - a.ts);
+
+      const ul = list ?? document.createElement('ul');
+      ul.className = 'post-list';
+      ul.innerHTML = '';
+      for (const it of items) ul.append(itemEl(it));
+      if (!list) {
+        // 原来是"暂无文章"占位：替换为列表
+        document.querySelector('.empty')?.replaceWith(ul);
+      }
+    } catch {
+      /* 后端不可用：保持静态列表 */
+    }
+  })();
+</script>

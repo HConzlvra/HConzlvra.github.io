@@ -25,6 +25,7 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
     <meta name="theme-color" content="#efeaf5" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0a0913" media="(prefers-color-scheme: dark)" /><!-- 与深色 --html-bg 同值 -->
     <meta name="description" content={description} />
+    <slot name="head" />
     <title>{title}</title>
     <!-- 视图切换：页面间导航不再整页重新加载 -->
     <ClientRouter />

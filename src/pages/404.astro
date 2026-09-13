@@ -1,0 +1,100 @@
+---
+// 404 页 + 动态文章兜底：
+// 主站是纯静态 GitHub Pages，/admin 后台发布的文章（存 D1）没有构建产物，
+// 访问 /posts/<动态slug> 会落到本页。这里检测路径并从文章 API 拉取，
+// 成功则原地渲染成文章页（URL 保持不变），失败保持 404 展示
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="404 | HConzlvra_">
+  <div class="nf" id="nf">
+    <h1>404</h1>
+    <p class="nf-text">Page not found.</p>
+    <a href="/" class="nf-link">← Back home</a>
+  </div>
+</Layout>
+
+<script>
+  import { marked } from 'marked';
+
+  const API = import.meta.env.DEV ? '/api' : 'https://guestbook-9z8.pages.dev/api';
+
+  (async () => {
+    const m = location.pathname.match(/^\/posts\/([a-z0-9][a-z0-9-]*)\/?$/);
+    if (!m) return;
+    const nf = document.getElementById('nf');
+    if (!nf) return;
+    try {
+      const res = await fetch(`${API}/posts/${m[1]}`);
+      if (!res.ok) return;
+      const { post } = await res.json();
+
+      document.title = `${post.title} | Posts`;
+      nf.classList.add('post-view');
+      nf.innerHTML = `
+        <header class="post-header">
+          <h1 class="post-title"></h1>
+          <time class="post-date"></time>
+        </header>
+        <article class="prose post-article" id="md"></article>`;
+      (nf.querySelector('.post-title') as HTMLElement).textContent = post.title;
+      const dateEl = nf.querySelector('.post-date') as HTMLElement;
+      dateEl.textContent = new Date(post.created_at).toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+      document.getElementById('md')!.innerHTML = marked.parse(post.content) as string;
+    } catch {
+      /* 网络失败：保持 404 展示 */
+    }
+  })();
+</script>
+
+<style>
+  .nf {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 8rem 1.5rem 4rem;
+    width: 100%;
+    min-height: 60vh;
+  }
+  .nf h1 {
+    background: var(--heading-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 5rem;
+    margin-bottom: 0.75rem;
+  }
+  .nf-text {
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+  }
+  .nf-link {
+    color: var(--accent-text);
+    text-decoration: none;
+  }
+  .nf-link:hover {
+    text-decoration: underline;
+  }
+
+  /* 兜底渲染动态文章时的版式（与静态文章页一致） */
+  .nf.post-view {
+    max-width: 760px;
+  }
+  .nf.post-view h1 {
+    font-size: 2.4rem;
+  }
+  .post-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--surface-border);
+  }
+  .post-date {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+</style>
