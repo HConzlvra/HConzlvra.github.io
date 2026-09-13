@@ -159,143 +159,130 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
     </script>
 
     <script>
-      // 全局鼠标拖尾 + 自绘指针：
-      // - 指针本体替换成紫色小方块（隐藏系统指针）
-      // - 指针走过的路径上每 9px 落一个小方块（相邻只搭一点点角，不重叠）
-      // - 只保留紧跟指针的一小段（约 6 个），超范围的快速淡出，残留极少
+      // 全局鼠标拖尾 + 自绘指针（经典"贪吃蛇"固定元素池方案）：
+      // - 指针本体 = 1 个紫色方块，渲染循环里每帧直贴最新鼠标坐标，零过渡零动画
+      // - 拖尾 = 固定 6 个方块：沿鼠标轨迹等距采样（每 9px 一个点），
+      //   相邻方块边贴边不重叠；元素常驻复用、永不创建销毁——
+      //   同时在场的方块数量恒定，不可能出现残影堆积，主线程开销也恒定
+      // - 静止 ~0.26s 后整条尾巴原地淡出，再移动瞬时恢复
       // 仅限精确指针设备（鼠标/触控笔）且用户未开启"减少动态效果"
       if (
         matchMedia('(pointer: fine)').matches &&
         !matchMedia('(prefers-reduced-motion: reduce)').matches
       ) {
-        const PURPLE = '#9c6fe0';
-        const SIZE = 9; // 方块边长（px）：指针与拖尾统一
-        const GAP = 9; // 每移动满 9px 落一个：与方块同尺寸，相邻只搭一点角不重叠
-        const MAX_DIST = 54; // 尾巴离指针最远 54px（≈6 个方块）：只留紧跟指针的一小段
-        const LEAVE_MS = 100; // 超范围方块淡出时长：极快，高速甩动也不留残影
-        const MAX_SQUARES = 24; // 同时在场方块上限（安全兜底，正常到不了）
+        const SIZE = 9; // 方块边长（px）
+        const GAP = 9; // 采样间距 = 方块尺寸：直线移动时相邻方块正好边贴边
+        const COUNT = 6; // 拖尾方块数（不含指针本体）
+        const STILL_MS = 260; // 静止多久后尾巴开始整体淡出
+        const FADE_MS = 220; // 尾巴淡出时长
 
         // 隐藏系统指针（改由 #cursor-dot 自绘）；类挂在 <html> 上
         const hideNativeCursor = () => document.documentElement.classList.add('cursor-none');
         hideNativeCursor();
 
-        // 指针最后已知位置：初始取视口中心——鼠标还没动时指针方块也已显示
-        let px = window.innerWidth / 2;
-        let py = window.innerHeight / 2;
+        // 鼠标最新坐标：初始取视口中心，指针方块加载即显示
+        let mx = window.innerWidth / 2;
+        let my = window.innerHeight / 2;
+        let lastMove = 0;
 
-        // 拖尾层 + 指针方块：ClientRouter 换页会换掉整个 body，
-        // 元素随旧 body 消失，每次 mousemove 前确认还在
+        // 等距采样：鼠标累计每移动满 GAP px 记一个采样点，队列只留最近 COUNT 个。
+        // 拖尾方块 i 就摆在倒数第 i+1 个采样点上——尾巴严格贴着走过的轨迹
+        let sx = -1;
+        let sy = -1;
+        let samples: { x: number; y: number }[] = [];
+
+        // 元素池（ClientRouter 换页会替换整个 body，循环里每次确认还在）
         let layer: HTMLElement | null = null;
         let dot: HTMLElement | null = null;
+        let trail: HTMLElement[] = [];
         const ensureEls = () => {
           if (!layer || !layer.isConnected) {
             layer = document.createElement('div');
             layer.id = 'cursor-trail';
+            layer.style.opacity = '0'; // 鼠标未动前尾巴隐藏，首次移动才出现
             document.body.appendChild(layer);
+            trail = [];
+          }
+          if (!trail.length) {
+            for (let i = 0; i < COUNT; i++) {
+              const el = document.createElement('div');
+              el.className = 'px';
+              layer.appendChild(el);
+              trail.push(el);
+            }
           }
           if (!dot || !dot.isConnected) {
             dot = document.createElement('div');
             dot.id = 'cursor-dot';
-            // 与拖尾方块同款：9px 紫色方块
-            dot.style.width = `${SIZE}px`;
-            dot.style.height = `${SIZE}px`;
-            dot.style.background = PURPLE;
-            dot.style.transform = `translate(${px - SIZE / 2}px, ${py - SIZE / 2}px)`;
             document.body.appendChild(dot);
           }
         };
-        // 页面一加载就创建：指针方块永远在，不等第一次移动
         ensureEls();
 
-        const spawn = (x: number, y: number) => {
-          const box = layer!;
-          const el = document.createElement('div');
-          el.className = 'px';
-          el.style.width = `${SIZE}px`;
-          el.style.height = `${SIZE}px`;
-          // 方块以 (x,y) 为中心
-          el.style.left = `${x - SIZE / 2}px`;
-          el.style.top = `${y - SIZE / 2}px`;
-          el.style.background = PURPLE;
-          // 停住指针后 ~0.24-0.36s 尾巴自己淡出；拖动中超范围的走更快的 px-leave
-          el.style.setProperty('--life', `${(240 + Math.random() * 120).toFixed(0)}ms`);
-          el.addEventListener('animationend', () => el.remove());
-          box.appendChild(el);
-          while (box.children.length > MAX_SQUARES) box.firstElementChild?.remove();
-        };
-
-        // 超范围方块的快速淡出；标记 leaving 防止每次移动重复重启动画
-        const fadeOut = (el: HTMLElement) => {
-          if (el.dataset.leaving) return;
-          el.dataset.leaving = '1';
-          el.style.animation = `px-leave ${LEAVE_MS}ms steps(2, end) forwards`;
-        };
-
-        // 离指针过远的方块触发快速淡出：无论拖多快，只留紧跟指针的一小段
-        const pruneFar = (x: number, y: number) => {
-          if (!layer) return;
-          const limit = MAX_DIST * MAX_DIST;
-          for (let i = layer.children.length - 1; i >= 0; i--) {
-            const el = layer.children[i] as HTMLElement;
-            const dx = parseFloat(el.style.left) + SIZE / 2 - x;
-            const dy = parseFloat(el.style.top) + SIZE / 2 - y;
-            if (dx * dx + dy * dy > limit) fadeOut(el);
-          }
-        };
-
-        // 软导航后 <html> 属性会被新页面覆盖、body 被整体替换：
-        // 重新隐藏系统指针并立即重建指针方块（沿用最后位置），换页后不等移动就有指针
-        document.addEventListener('astro:after-swap', () => {
-          hideNativeCursor();
-          layer = null;
-          dot = null;
-          ensureEls();
-        });
-
-        let sx = -1; // 上一次落点：每累计满 9px 才落一个，不足的距离留到下次累计
-        let sy = -1;
         window.addEventListener(
           'mousemove',
           (e) => {
-            ensureEls();
-            const x = e.clientX;
-            const y = e.clientY;
-            px = x;
-            py = y;
-            // 指针方块本体：每个事件同步贴住真实指针位置，无任何过渡/缓动，零滞后
-            dot!.style.transform = `translate(${x - SIZE / 2}px, ${y - SIZE / 2}px)`;
-
+            mx = e.clientX;
+            my = e.clientY;
+            lastMove = performance.now();
+            // 尾巴从淡出态恢复：瞬时变实（无过渡），最跟手
+            if (layer && layer.style.opacity !== '1') {
+              layer.style.transition = 'none';
+              layer.style.opacity = '1';
+            }
             if (sx < 0) {
-              sx = x;
-              sy = y;
+              sx = mx;
+              sy = my;
               return;
             }
-            let dx = x - sx;
-            let dy = y - sy;
+            // 沿本次移动的连线每满 GAP px 落一个采样点：
+            // 间距恒定，慢速密、快速疏不会断，也绝不会重叠
+            let dx = mx - sx;
+            let dy = my - sy;
             let dist = Math.hypot(dx, dy);
-            // 跨窗口跳入等超大跨度：超过尾巴长度的部分没有意义，
-            // 直接把落点截到距新位置 MAX_DIST 处，保证一次最多落 ~6 个
-            if (dist > MAX_DIST) {
-              const t = (dist - MAX_DIST) / dist;
-              sx += dx * t;
-              sy += dy * t;
-              dx = x - sx;
-              dy = y - sy;
-              dist = MAX_DIST;
-            }
             while (dist >= GAP) {
               const t = GAP / dist;
               sx += dx * t;
               sy += dy * t;
-              spawn(sx, sy);
-              dx = x - sx;
-              dy = y - sy;
+              samples.push({ x: sx, y: sy });
+              if (samples.length > COUNT) samples.shift();
+              dx = mx - sx;
+              dy = my - sy;
               dist = Math.hypot(dx, dy);
             }
-            pruneFar(x, y);
           },
           { passive: true }
         );
+
+        // 软导航后 <html> 属性会被新页面覆盖、body 被整体替换：
+        // 重新隐藏系统指针、重建元素池并重置采样
+        document.addEventListener('astro:after-swap', () => {
+          hideNativeCursor();
+          layer = null;
+          dot = null;
+          trail = [];
+          sx = -1;
+          sy = -1;
+          samples = [];
+          ensureEls();
+        });
+
+        // 常驻渲染循环：指针每帧直贴鼠标；拖尾方块摆到各自采样点；
+        // 静止超时后整层尾巴原地淡出（一条 transition，无逐块动画）
+        const tick = () => {
+          ensureEls();
+          dot!.style.transform = `translate(${mx - SIZE / 2}px, ${my - SIZE / 2}px)`;
+          for (let i = 0; i < COUNT; i++) {
+            const s = samples[samples.length - 1 - i];
+            if (s) trail[i].style.transform = `translate(${s.x - SIZE / 2}px, ${s.y - SIZE / 2}px)`;
+          }
+          if (layer!.style.opacity !== '0' && performance.now() - lastMove > STILL_MS) {
+            layer!.style.transition = `opacity ${FADE_MS}ms ease-out`;
+            layer!.style.opacity = '0';
+          }
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
       }
     </script>
   </head>
