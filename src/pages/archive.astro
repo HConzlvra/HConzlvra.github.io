@@ -22,7 +22,11 @@ function countChars(md: string): number {
       .replace(/\s/g, ''),
   ].length;
 }
-const staticChars = posts.reduce((n, p) => n + countChars(p.body ?? ''), 0);
+// 全站字数 = posts 文章 + pages 集合的独立页（bruh、characters 等）
+const pages = await getCollection('pages');
+const staticChars =
+  posts.reduce((n, p) => n + countChars(p.body ?? ''), 0) +
+  pages.reduce((n, p) => n + countChars(p.body ?? ''), 0);
 
 // 时间线按年分组
 const byYear = new Map<number, typeof posts>();
