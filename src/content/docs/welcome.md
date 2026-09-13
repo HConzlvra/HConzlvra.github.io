@@ -1,36 +1,36 @@
 ---
 title: Welcome to Docs
-description: 这个栏目是什么，以及怎么往里面加新文章。
+description: What this section is, and how to add new articles to it.
 category: Guide
 pubDate: 2026-09-13
 order: 1
 ---
 
-这里是 Docs —— 放我整理的、写得比较正经的文章和资料。和 Posts 里的随笔分开，这里讲究一点结构。
+This is Docs — where I keep the articles I've actually sat down and organized, as opposed to the casual stuff over in Posts.
 
-目前是刚搭好的框架，内容会慢慢补。
+It's a freshly built skeleton for now; content will fill in over time.
 
-## 怎么加一篇新文档
+## How to add a new doc
 
-1. 在 `src/content/docs/` 下新建一个 `.md` 文件
-2. 写好 frontmatter：
+1. Create a `.md` file under `src/content/docs/`
+2. Write the frontmatter:
 
 ````md
 ---
-title: 文档标题
-description: 一句话简介
-category: 分类名
+title: Doc title
+description: One-line summary
+category: Category name
 pubDate: 2026-01-01
 order: 1
 ---
 
-正文……
+Body…
 ````
 
-3. `category` 相同的文档会自动归到同一组，首页的分类筛选按钮也是按它生成的
-4. `order` 越小排越前（默认 0），同 `order` 的按日期新的在前
+3. Docs sharing the same `category` are grouped together automatically — the filter chips on this page are generated from it too
+4. Smaller `order` comes first (default 0); ties break by newer date first
 
-## 约定
+## Conventions
 
-- 一篇文档只讲一件事，尽量讲清楚
-- 正文以中文为主，代码和专有名词除外
+- One doc, one topic — keep it focused
+- Write however you like, just keep it readable

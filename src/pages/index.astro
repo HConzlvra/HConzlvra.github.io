@@ -3,7 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import DotGrid from '../components/DotGrid.astro';
 import { getCollection } from 'astro:content';
 
-// 最新文章：静态取最新 3 篇（运行时再与 /admin 发布的动态文章合并重排）
+// Latest posts: static top 3 at build time (merged with /admin posts at runtime)
 const posts = (await getCollection('posts'))
   .sort((a, b) => (b.data.pubDate?.valueOf() ?? 0) - (a.data.pubDate?.valueOf() ?? 0))
   .slice(0, 3);
@@ -15,8 +15,8 @@ const dateLabel = (d?: Date) =>
 
 <Layout title="HConzlvra_'s Site">
   <DotGrid />
+  <!-- First screen: gradient background + dot grid visible, centered in viewport -->
   <div class="container">
-    <!-- 第一屏：Hero + 三张卡片，在视口内垂直居中 -->
     <div class="hero-screen">
       <section class="hero enter-left">
         <h1>HI, HERE IS<br /><span class="name">HCONZLVRA_</span></h1>
@@ -39,9 +39,11 @@ const dateLabel = (d?: Date) =>
         </div>
       </section>
     </div>
+  </div>
 
-    <!-- 首屏以下：最新文章 + 全站入口 -->
-    <section class="home-lower">
+  <!-- Below the fold: solid footer-style background — no gradient, no dot grid -->
+  <section class="home-lower">
+    <div class="lower-inner">
       <div class="section-head">
         <h2>Latest posts</h2>
         <a class="more-link" href="/posts">All posts →</a>
@@ -65,32 +67,32 @@ const dateLabel = (d?: Date) =>
       <div class="quick-grid">
         <a class="quick-card" href="/about">
           <span class="qc-title">About</span>
-          <span class="qc-desc">关于我这个人物</span>
+          <span class="qc-desc">The person behind this site</span>
         </a>
         <a class="quick-card" href="/docs">
           <span class="qc-title">Docs</span>
-          <span class="qc-desc">整理出来的正经文章</span>
+          <span class="qc-desc">Articles &amp; notes, properly organized</span>
         </a>
         <a class="quick-card" href="/archive">
           <span class="qc-title">Archive</span>
-          <span class="qc-desc">站点统计与访客地图</span>
+          <span class="qc-desc">Site stats &amp; the visitor map</span>
         </a>
         <a class="quick-card" href="/guestbook">
           <span class="qc-title">Guestbook</span>
-          <span class="qc-desc">路过的话，留条消息再走</span>
+          <span class="qc-desc">Passing by? Leave a message</span>
         </a>
         <a class="quick-card" href="/bruh">
           <span class="qc-title">Bruh</span>
-          <span class="qc-desc">……自己看吧</span>
+          <span class="qc-desc">…just go see for yourself</span>
         </a>
       </div>
-    </section>
-  </div>
+    </div>
+  </section>
 </Layout>
 
 <script>
-  // 最新文章合并：拉取 /admin 发布的动态文章，与静态列表合并重排取前 3；
-  // 后端不可用或无动态文章时保持静态列表原样
+  // Latest posts merge: pull /admin-published posts and re-rank with the static list, top 3;
+  // keep the static list as-is when the backend is down or has nothing new
   const API = import.meta.env.DEV ? '/api' : 'https://guestbook-9z8.pages.dev/api';
 
   const fmt = (ts: number) => {
@@ -101,7 +103,7 @@ const dateLabel = (d?: Date) =>
 
   const mergeLatest = async () => {
     const list = document.getElementById('latest-list');
-    if (!list) return; // 不在主页
+    if (!list) return; // not on the homepage
     try {
       const res = await fetch(`${API}/posts`);
       if (!res.ok) return;
@@ -125,7 +127,7 @@ const dateLabel = (d?: Date) =>
       list.innerHTML = '';
       for (const it of items.slice(0, 3)) {
         const li = document.createElement('li');
-        // 保留 data 属性：软导航后再执行合并时保持幂等
+        // keep data attrs so re-running the merge after soft nav stays idempotent
         li.dataset.slug = it.slug;
         li.dataset.title = it.title;
         li.dataset.ts = String(it.ts);
@@ -142,20 +144,20 @@ const dateLabel = (d?: Date) =>
         list.append(li);
       }
     } catch {
-      /* 静默：保持静态列表 */
+      /* silent: keep static list */
     }
   };
 
-  // ClientRouter 软导航回到主页时重新合并（首次加载也会触发一次）
+  // Re-merge on soft-nav back to the homepage (also fires on first load)
   document.addEventListener('astro:page-load', mergeLatest);
   mergeLatest();
 </script>
 
 <style>
   .container {
-    max-width: 1360px; /* 比导航/页脚更宽：hero 大标题在 19px 档需要更长单行空间 */
+    max-width: 1360px; /* wider than nav/footer: the hero headline needs the room */
     width: 100%;
-    text-align: left; /* 电脑端文字居左（手机端在下方媒体查询里恢复居中） */
+    text-align: left; /* desktop: left aligned (mobile restores centering below) */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -163,7 +165,8 @@ const dateLabel = (d?: Date) =>
     margin: 0 auto;
   }
 
-  /* 第一屏：hero + 卡片在视口内垂直居中（减去容器上下 padding，正好占满首屏） */
+  /* First screen: hero + cards centered within the viewport
+     (container vertical padding = 8rem, so this fills exactly 100vh) */
   .hero-screen {
     width: 100%;
     min-height: calc(100vh - 8rem);
@@ -173,15 +176,15 @@ const dateLabel = (d?: Date) =>
     justify-content: center;
   }
 
-  /* Hero 区域 */
+  /* Hero */
   .hero {
     width: 100%;
     margin-bottom: 3.5rem;
   }
   .hero h1 {
-    font-size: 3.4rem; /* 第一行（HI, HERE IS） */
+    font-size: 3.4rem; /* first line (HI, HERE IS) */
     font-weight: 600;
-    width: fit-content; /* 渐变随文字宽度收缩：标题短也能展开完整渐变 */
+    width: fit-content; /* shrink the gradient to text width so short titles still show all of it */
     background: var(--heading-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -190,14 +193,14 @@ const dateLabel = (d?: Date) =>
     letter-spacing: -0.02em;
     line-height: 1.15;
   }
-  /* 名字部分：比第一行更大更重，独占第二行（换行由 HTML 里的 <br> 决定） */
+  /* The name: bigger and heavier than line one, on its own line (break comes from <br>) */
   .hero h1 .name {
     display: inline-block;
-    font-size: 1.55em; /* ≈5.3rem，超过第一行 */
+    font-size: 1.55em; /* ≈5.3rem, larger than line one */
     font-weight: 800;
     letter-spacing: -0.01em;
-    /* inline-block + 大字号：行盒按 h1 的 line-height 裁切，下伸的下滑线
-       （_）会被削掉一截。给名字自己的行盒留足下伸空间 */
+    /* inline-block + large font: the h1 line box would clip the descending
+       underscore. Give the name its own roomy line box */
     line-height: 1.25;
     padding-bottom: 0.08em;
   }
@@ -214,7 +217,7 @@ const dateLabel = (d?: Date) =>
     white-space: nowrap;
   }
 
-  /* Features 区域：三张卡片始终并排 */
+  /* Features: three cards side by side */
   .features {
     width: 100%;
     display: grid;
@@ -235,11 +238,11 @@ const dateLabel = (d?: Date) =>
     border-color: var(--surface-border-hover);
     box-shadow: var(--card-shadow);
   }
-  /* 三张卡片从下往上依次淡入（轻微错开） */
+  /* staggered fade-in */
   .features .card:nth-child(2) { animation-delay: 0.08s; }
   .features .card:nth-child(3) { animation-delay: 0.16s; }
   .features .card h3 {
-    width: fit-content; /* 渐变随文字宽度收缩：短标题也能展开完整渐变 */
+    width: fit-content; /* shrink gradient to text width */
     font-size: 1.65rem;
     font-weight: 600;
     margin-bottom: 0.75rem;
@@ -254,19 +257,25 @@ const dateLabel = (d?: Date) =>
     font-size: 1.08rem;
   }
 
-  /* ---- 首屏以下：最新文章 + 全站入口 ---- */
+  /* ---- Below the fold: same background logic as the footer ----
+     Solid --footer-bg paints over the html gradient AND the fixed dot-grid
+     canvas (z-index -1 sits below normal-flow backgrounds) */
   .home-lower {
-    width: 100%;
-    max-width: 1080px;
-    margin: 1.5rem auto 0;
+    background: var(--footer-bg);
+    border-top: 1px solid var(--surface-border);
+    padding: 2rem 2.5rem 4.5rem;
     text-align: left;
+  }
+  .lower-inner {
+    max-width: 1080px;
+    margin: 0 auto;
   }
   .section-head {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: 1rem;
-    margin: 2.75rem 0 0.6rem;
+    margin: 2.5rem 0 0.6rem;
   }
   .section-head h2 {
     font-size: 1.45rem;
@@ -326,7 +335,6 @@ const dateLabel = (d?: Date) =>
     gap: 0.45rem;
     padding: 1.35rem 1.2rem;
     background: var(--surface);
-    backdrop-filter: blur(10px);
     border: 1px solid var(--surface-border);
     border-radius: 18px;
     text-decoration: none;
@@ -353,16 +361,15 @@ const dateLabel = (d?: Date) =>
     line-height: 1.5;
   }
 
-  /* 窄视口：标语允许换行（nowrap 单行约需 830px+，769~900px 区间会横向溢出） */
+  /* narrow viewports: let the tagline wrap (nowrap needs ~830px+) */
   @media (max-width: 900px) {
     .hero .tagline {
       white-space: normal;
     }
   }
 
-  /* 响应式 */
+  /* mobile */
   @media (max-width: 768px) {
-    /* 手机端保持原来的居中版式 */
     .container {
       text-align: center;
       padding-left: 1.5rem;
@@ -370,7 +377,7 @@ const dateLabel = (d?: Date) =>
     }
     .hero h1 {
       font-size: 2.1rem;
-      margin-inline: auto; /* width: fit-content 后保持块级居中 */
+      margin-inline: auto; /* stay centered now that width is fit-content */
     }
     .hero .subtitle {
       font-size: 1.6rem;
@@ -381,12 +388,11 @@ const dateLabel = (d?: Date) =>
     .features {
       grid-template-columns: 1fr;
     }
-    /* 下方区域保持左对齐可读性；快捷卡片两列 */
     .home-lower {
-      text-align: left;
+      padding: 1.5rem 1.5rem 3.5rem;
     }
     .section-head {
-      margin-top: 2rem;
+      margin-top: 1.75rem;
     }
     .quick-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -1,34 +1,34 @@
 ---
-title: Markdown 语法速查
-description: 写文档时常用的 Markdown 语法，备查。
+title: Markdown Cheat Sheet
+description: The Markdown syntax I use when writing docs, for quick reference.
 category: Reference
 pubDate: 2026-09-13
 order: 1
 ---
 
-常用的 Markdown 语法一览，写文档的时候备查。
+A quick reference of the Markdown syntax used across these docs.
 
-## 标题
+## Headings
 
-`#` 到 `######` 依次是一到六级标题。
+`#` through `######` are headings one to six.
 
-## 行内格式
+## Inline styles
 
-| 写法 | 效果 |
+| Syntax | Result |
 | --- | --- |
-| `**加粗**` | **加粗** |
-| `*斜体*` | *斜体* |
-| `~~删除线~~` | ~~删除线~~ |
+| `**bold**` | **bold** |
+| `*italic*` | *italic* |
+| `~~strikethrough~~` | ~~strikethrough~~ |
 
-行内代码用一对反引号包起来，比如 `` `code` ``。
+Inline code goes between backticks, like `` `code` ``.
 
-## 列表
+## Lists
 
-- 无序列表：`- 项目` 或 `* 项目`
-1. 有序列表：`1. 项目`
-- 嵌套：缩进两个空格
+- Unordered: `- item` or `* item`
+1. Ordered: `1. item`
+- Nest with two spaces of indentation
 
-## 代码块
+## Code blocks
 
 ````md
 ```js
@@ -36,13 +36,13 @@ console.log('Hello, docs!');
 ```
 ````
 
-## 引用与分割线
+## Quotes and dividers
 
-> 引用一段话：万物皆有裂痕，那是光照进来的地方。
+> Quote a line: there is a crack in everything; that's how the light gets in.
 
 ---
 
-## 链接与图片
+## Links and images
 
-- 链接：`[文字](https://hconzlvra.top)`
-- 图片：`![描述](/favicon.svg)`
+- Link: `[text](https://hconzlvra.top)`
+- Image: `![alt](/favicon.svg)`

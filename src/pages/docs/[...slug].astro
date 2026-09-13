@@ -24,7 +24,7 @@ const { Content } = await render(doc);
       {
         doc.data.pubDate && (
           <time class="doc-date" datetime={doc.data.pubDate.toISOString()}>
-            {doc.data.pubDate.toLocaleDateString('zh-CN', {
+            {doc.data.pubDate.toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'long',
               day: 'numeric',
