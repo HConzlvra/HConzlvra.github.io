@@ -282,3 +282,30 @@ mark.search-hit {
     animation: none !important;
   }
 }
+
+/* ============================================
+   鼠标拖尾（全局）：紫色像素小方块
+   由 Layout.astro 的脚本在 mousemove 时撒点，
+   每个 .px 原地停留 ~1/3 生命周期后以像素感的
+   离散阶跃淡出（steps），动画结束由脚本移除节点
+   ============================================ */
+#cursor-trail {
+  position: fixed;
+  inset: 0;
+  pointer-events: none; /* 不拦截任何鼠标事件 */
+  z-index: 9999;
+  overflow: hidden;
+}
+#cursor-trail .px {
+  position: absolute;
+  animation: px-fade var(--life, 900ms) steps(3, end) forwards;
+}
+@keyframes px-fade {
+  0%,
+  32% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

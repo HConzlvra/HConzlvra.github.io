@@ -157,6 +157,79 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
       // 直接调用一次（带 hash 才执行，无副作用）
       if (window.location.hash.startsWith('#q=')) scrollToSearchHit();
     </script>
+
+    <script>
+      // 全局鼠标拖尾：指针走过的路径上撒紫色像素小方块，
+      // 每个方块停留片刻后原地淡出消失（不跟随、不留垃圾 DOM）。
+      // 仅限精确指针设备（鼠标/触控笔）且用户未开启"减少动态效果"
+      if (
+        matchMedia('(pointer: fine)').matches &&
+        !matchMedia('(prefers-reduced-motion: reduce)').matches
+      ) {
+        // 紫色系随机取色（亮暗主题下都可见，取自站点的主题色族）
+        const PURPLES = ['#8b3fd1', '#9c6fe0', '#b48cf0', '#c74d86', '#e08ffc', '#6b4fa8'];
+        const MIN_DIST = 7; // 距上次撒点不足 7px 时跳过（静止抖动 / 高刷鼠标去抖）
+        const JUMP_DIST = 40; // 单次事件跳跃超过 40px（快速甩动）时沿线补点，拖尾不断线
+        const MAX_SQUARES = 140; // 同时在场的小方块上限，防极端甩动堆积
+
+        // 拖尾容器：固定覆盖整屏、不拦截任何鼠标事件
+        // ClientRouter 换页会换掉整个 body，这里每次撒点前确认容器还在
+        let layer: HTMLElement | null = null;
+        const ensureLayer = () => {
+          if (!layer || !layer.isConnected) {
+            layer = document.createElement('div');
+            layer.id = 'cursor-trail';
+            document.body.appendChild(layer);
+          }
+          return layer;
+        };
+
+        const spawn = (x: number, y: number) => {
+          const box = ensureLayer();
+          const el = document.createElement('div');
+          el.className = 'px';
+          const size = 3 + Math.floor(Math.random() * 4); // 3~6px 像素方块
+          el.style.width = el.style.height = `${size}px`;
+          el.style.left = `${x + Math.random() * 6 - 3}px`;
+          el.style.top = `${y + Math.random() * 6 - 3}px`;
+          el.style.background = PURPLES[(Math.random() * PURPLES.length) | 0];
+          el.style.setProperty('--life', `${(550 + Math.random() * 550).toFixed(0)}ms`);
+          el.addEventListener('animationend', () => el.remove());
+          box.appendChild(el);
+          while (box.children.length > MAX_SQUARES) box.firstElementChild?.remove();
+        };
+
+        let lastX = -1;
+        let lastY = -1;
+        window.addEventListener(
+          'mousemove',
+          (e) => {
+            const x = e.clientX;
+            const y = e.clientY;
+            if (lastX < 0) {
+              spawn(x, y);
+              lastX = x;
+              lastY = y;
+              return;
+            }
+            const dx = x - lastX;
+            const dy = y - lastY;
+            const dist = Math.hypot(dx, dy);
+            if (dist < MIN_DIST) return;
+            if (dist > JUMP_DIST) {
+              // 快速甩动：沿两点连线补撒，保持拖尾连续
+              for (let i = JUMP_DIST; i < dist; i += 12) {
+                spawn(lastX + (dx * i) / dist, lastY + (dy * i) / dist);
+              }
+            }
+            spawn(x, y);
+            lastX = x;
+            lastY = y;
+          },
+          { passive: true }
+        );
+      }
+    </script>
   </head>
   <body>
     <Navbar />
