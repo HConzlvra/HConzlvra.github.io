@@ -179,6 +179,10 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
         const hideNativeCursor = () => document.documentElement.classList.add('cursor-none');
         hideNativeCursor();
 
+        // 指针最后已知位置：初始取视口中心——鼠标还没动时指针方块也已显示
+        let px = window.innerWidth / 2;
+        let py = window.innerHeight / 2;
+
         // 拖尾层 + 指针方块：ClientRouter 换页会换掉整个 body，
         // 元素随旧 body 消失，每次 mousemove 前确认还在
         let layer: HTMLElement | null = null;
@@ -192,9 +196,16 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
           if (!dot || !dot.isConnected) {
             dot = document.createElement('div');
             dot.id = 'cursor-dot';
+            // 与拖尾方块同款：9px 紫色方块
+            dot.style.width = `${SIZE}px`;
+            dot.style.height = `${SIZE}px`;
+            dot.style.background = PURPLE;
+            dot.style.transform = `translate(${px - SIZE / 2}px, ${py - SIZE / 2}px)`;
             document.body.appendChild(dot);
           }
         };
+        // 页面一加载就创建：指针方块永远在，不等第一次移动
+        ensureEls();
 
         const spawn = (x: number, y: number) => {
           const box = layer!;
@@ -233,11 +244,12 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
         };
 
         // 软导航后 <html> 属性会被新页面覆盖、body 被整体替换：
-        // 重新隐藏系统指针并作废元素引用，下次移动时重建
+        // 重新隐藏系统指针并立即重建指针方块（沿用最后位置），换页后不等移动就有指针
         document.addEventListener('astro:after-swap', () => {
           hideNativeCursor();
           layer = null;
           dot = null;
+          ensureEls();
         });
 
         let sx = -1; // 上一次落点：每累计满 9px 才落一个，不足的距离留到下次累计
@@ -248,7 +260,9 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
             ensureEls();
             const x = e.clientX;
             const y = e.clientY;
-            // 指针方块本体：即时贴住指针（transform 免布局开销）
+            px = x;
+            py = y;
+            // 指针方块本体：每个事件同步贴住真实指针位置，无任何过渡/缓动，零滞后
             dot!.style.transform = `translate(${x - SIZE / 2}px, ${y - SIZE / 2}px)`;
 
             if (sx < 0) {

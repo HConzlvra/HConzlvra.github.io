@@ -332,4 +332,5 @@ html.cursor-none * {
   top: 0;
   pointer-events: none;
   z-index: 10000; /* 压在拖尾层之上 */
+  will-change: transform; /* 常驻合成层：指针贴得最紧 */
 }
