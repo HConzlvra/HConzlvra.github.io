@@ -168,8 +168,9 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
       ) {
         // 单一紫色（取自站点主题色，亮暗主题下都可见）
         const PURPLE = '#9c6fe0';
-        const GAP = 3; // 沿路径每 3px 撒一个方块：相邻方块重叠，拖尾连续无空隙
-        const MAX_DIST = 90; // 离指针超过 90px 的方块立即清除：只保留紧跟指针的一小段
+        const GAP = 7; // 沿路径每 7px 撒一个方块：相邻方块轻微搭边，连续但不堆叠
+        const MAX_DIST = 90; // 离指针超过 90px 的方块触发快速淡出：只保留紧跟指针的一小段
+        const LEAVE_MS = 160; // 超范围方块的淡出时长：够快，快速甩动也不残留一大片
         const MAX_SQUARES = 90; // 同时在场的小方块上限（兜底）
 
         // 拖尾容器：固定覆盖整屏、不拦截任何鼠标事件
@@ -200,7 +201,14 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
           while (box.children.length > MAX_SQUARES) box.firstElementChild?.remove();
         };
 
-        // 清理离指针过远的方块：无论拖多快，尾巴始终只有紧跟指针的一小段
+        // 超范围方块的快速淡出（不瞬间消失）；标记 leaving 防止每次移动重复重启动画
+        const fadeOut = (el: HTMLElement) => {
+          if (el.dataset.leaving) return;
+          el.dataset.leaving = '1';
+          el.style.animation = `px-leave ${LEAVE_MS}ms steps(2, end) forwards`;
+        };
+
+        // 离指针过远的方块改为快速淡出：无论拖多快，都只留紧跟指针的一小段
         const pruneFar = (x: number, y: number) => {
           if (!layer) return;
           const limit = MAX_DIST * MAX_DIST;
@@ -208,7 +216,7 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
             const el = layer.children[i] as HTMLElement;
             const dx = parseFloat(el.style.left) - x;
             const dy = parseFloat(el.style.top) - y;
-            if (dx * dx + dy * dy > limit) el.remove();
+            if (dx * dx + dy * dy > limit) fadeOut(el);
           }
         };
 

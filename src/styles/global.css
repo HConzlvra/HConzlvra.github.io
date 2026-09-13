@@ -309,3 +309,13 @@ mark.search-hit {
     opacity: 0;
   }
 }
+/* 超出指针范围（>90px）的方块：改走这条更快的淡出，
+   快速甩动时也不至于身后残留一大片 */
+@keyframes px-leave {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
