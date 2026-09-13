@@ -20,4 +20,16 @@ const posts = defineCollection({
   }),
 });
 
-export const collections = { pages, posts };
+// 文档：整理类正经文章（/docs），按 category 分组展示，/docs/[...slug].astro 渲染
+const docs = defineCollection({
+  loader: glob({ base: './src/content/docs', pattern: '**/*.md' }),
+  schema: z.object({
+    title: z.string(),
+    description: z.string().optional(),
+    category: z.string().default('Uncategorized'),
+    pubDate: z.coerce.date().optional(),
+    order: z.number().default(0), // 同分类内的排序：越小越前
+  }),
+});
+
+export const collections = { pages, posts, docs };

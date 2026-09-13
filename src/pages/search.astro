@@ -18,6 +18,7 @@ import Layout from '../layouts/Layout.astro';
     min-height: 70vh;
   }
   .search-page h1 {
+    width: fit-content; /* 渐变随文字宽度收缩：短标题也能显示完整渐变 */
     background: var(--heading-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -154,7 +155,7 @@ import Layout from '../layouts/Layout.astro';
         const hash = idx >= 0 ? `#q=${encodeURIComponent(query)}` : '';
         return `<li>
           <a class="result-item" href="${doc.url}${hash}">
-            <span class="result-type">${doc.type === 'post' ? 'Post' : 'Page'}</span>
+            <span class="result-type">${doc.type === 'post' ? 'Post' : doc.type === 'doc' ? 'Doc' : 'Page'}</span>
             <div class="result-title">${highlight(doc.title, query)}</div>
             <div class="result-snippet">${highlight(snippet, query)}</div>
           </a>

@@ -1,48 +1,176 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import DotGrid from '../components/DotGrid.astro';
+import { getCollection } from 'astro:content';
+
+// 最新文章：静态取最新 3 篇（运行时再与 /admin 发布的动态文章合并重排）
+const posts = (await getCollection('posts'))
+  .sort((a, b) => (b.data.pubDate?.valueOf() ?? 0) - (a.data.pubDate?.valueOf() ?? 0))
+  .slice(0, 3);
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const dateLabel = (d?: Date) =>
+  d ? `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` : '';
 ---
 
 <Layout title="HConzlvra_'s Site">
   <DotGrid />
   <div class="container">
-    <!-- Hero -->
-    <section class="hero enter-left">
-      <h1>HI, HERE IS<br /><span class="name">HCONZLVRA_</span></h1>
-      <p class="subtitle">Welcome to my site.</p>
-      <p class="tagline">「There's a crack in everything. That's how the light gets in.」</p>
-    </section>
+    <!-- 第一屏：Hero + 三张卡片，在视口内垂直居中 -->
+    <div class="hero-screen">
+      <section class="hero enter-left">
+        <h1>HI, HERE IS<br /><span class="name">HCONZLVRA_</span></h1>
+        <p class="subtitle">Welcome to my site.</p>
+        <p class="tagline">「There's a crack in everything. That's how the light gets in.」</p>
+      </section>
 
-    <!-- Features -->
-    <section class="features">
-      <div class="card enter-up">
-        <h3>Powered by Astro</h3>
-        <p>I donno.</p>
+      <section class="features">
+        <div class="card enter-up">
+          <h3>Powered by Astro</h3>
+          <p>I donno.</p>
+        </div>
+        <div class="card enter-up">
+          <h3>A Person</h3>
+          <p>Who's named HConzlvra_.</p>
+        </div>
+        <div class="card enter-up">
+          <h3>HC@Official</h3>
+          <p>Harold_Conzlvra, HConzlvra_, HC.</p>
+        </div>
+      </section>
+    </div>
+
+    <!-- 首屏以下：最新文章 + 全站入口 -->
+    <section class="home-lower">
+      <div class="section-head">
+        <h2>Latest posts</h2>
+        <a class="more-link" href="/posts">All posts →</a>
       </div>
-      <div class="card enter-up">
-        <h3>A Person</h3>
-        <p>Who's named HConzlvra_.</p>
+      <ul class="latest-list" id="latest-list">
+        {
+          posts.map((p) => (
+            <li data-slug={p.id} data-title={p.data.title} data-ts={p.data.pubDate?.valueOf() ?? 0}>
+              <a href={`/posts/${p.id}`} class="latest-item">
+                <span class="latest-title">{p.data.title}</span>
+                <time>{dateLabel(p.data.pubDate)}</time>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+
+      <div class="section-head">
+        <h2>Explore</h2>
       </div>
-      <div class="card enter-up">
-        <h3>HC@Official</h3>
-        <p>Harold_Conzlvra, HConzlvra_, HC.</p>
+      <div class="quick-grid">
+        <a class="quick-card" href="/about">
+          <span class="qc-title">About</span>
+          <span class="qc-desc">关于我这个人物</span>
+        </a>
+        <a class="quick-card" href="/docs">
+          <span class="qc-title">Docs</span>
+          <span class="qc-desc">整理出来的正经文章</span>
+        </a>
+        <a class="quick-card" href="/archive">
+          <span class="qc-title">Archive</span>
+          <span class="qc-desc">站点统计与访客地图</span>
+        </a>
+        <a class="quick-card" href="/guestbook">
+          <span class="qc-title">Guestbook</span>
+          <span class="qc-desc">路过的话，留条消息再走</span>
+        </a>
+        <a class="quick-card" href="/bruh">
+          <span class="qc-title">Bruh</span>
+          <span class="qc-desc">……自己看吧</span>
+        </a>
       </div>
     </section>
   </div>
 </Layout>
+
+<script>
+  // 最新文章合并：拉取 /admin 发布的动态文章，与静态列表合并重排取前 3；
+  // 后端不可用或无动态文章时保持静态列表原样
+  const API = import.meta.env.DEV ? '/api' : 'https://guestbook-9z8.pages.dev/api';
+
+  const fmt = (ts: number) => {
+    const d = new Date(ts);
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  };
+
+  const mergeLatest = async () => {
+    const list = document.getElementById('latest-list');
+    if (!list) return; // 不在主页
+    try {
+      const res = await fetch(`${API}/posts`);
+      if (!res.ok) return;
+      const { posts = [] } = await res.json();
+      const staticSlugs = new Set([...list.children].map((li) => (li as HTMLElement).dataset.slug));
+      if (!posts.some((p) => !staticSlugs.has(p.slug))) return;
+
+      type Item = { slug: string; title: string; ts: number };
+      const items: Item[] = [...list.children].map((el) => {
+        const li = el as HTMLElement;
+        return {
+          slug: li.dataset.slug || '',
+          title: li.dataset.title || '',
+          ts: Number(li.dataset.ts) || 0,
+        };
+      });
+      for (const p of posts)
+        if (!staticSlugs.has(p.slug)) items.push({ slug: p.slug, title: p.title, ts: p.created_at });
+      items.sort((a, b) => b.ts - a.ts);
+
+      list.innerHTML = '';
+      for (const it of items.slice(0, 3)) {
+        const li = document.createElement('li');
+        // 保留 data 属性：软导航后再执行合并时保持幂等
+        li.dataset.slug = it.slug;
+        li.dataset.title = it.title;
+        li.dataset.ts = String(it.ts);
+        const a = document.createElement('a');
+        a.className = 'latest-item';
+        a.href = `/posts/${it.slug}`;
+        const t = document.createElement('span');
+        t.className = 'latest-title';
+        t.textContent = it.title;
+        const time = document.createElement('time');
+        time.textContent = fmt(it.ts);
+        a.append(t, time);
+        li.append(a);
+        list.append(li);
+      }
+    } catch {
+      /* 静默：保持静态列表 */
+    }
+  };
+
+  // ClientRouter 软导航回到主页时重新合并（首次加载也会触发一次）
+  document.addEventListener('astro:page-load', mergeLatest);
+  mergeLatest();
+</script>
 
 <style>
   .container {
     max-width: 1360px; /* 比导航/页脚更宽：hero 大标题在 19px 档需要更长单行空间 */
     width: 100%;
     text-align: left; /* 电脑端文字居左（手机端在下方媒体查询里恢复居中） */
-    min-height: 100vh; /* 撑满首屏，把页脚推到视口外 */
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center; /* 上下居中 */
     padding: 5rem 2.5rem 3rem;
     margin: 0 auto;
+  }
+
+  /* 第一屏：hero + 卡片在视口内垂直居中（减去容器上下 padding，正好占满首屏） */
+  .hero-screen {
+    width: 100%;
+    min-height: calc(100vh - 8rem);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
   }
 
   /* Hero 区域 */
@@ -53,6 +181,7 @@ import DotGrid from '../components/DotGrid.astro';
   .hero h1 {
     font-size: 3.4rem; /* 第一行（HI, HERE IS） */
     font-weight: 600;
+    width: fit-content; /* 渐变随文字宽度收缩：标题短也能展开完整渐变 */
     background: var(--heading-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -110,6 +239,7 @@ import DotGrid from '../components/DotGrid.astro';
   .features .card:nth-child(2) { animation-delay: 0.08s; }
   .features .card:nth-child(3) { animation-delay: 0.16s; }
   .features .card h3 {
+    width: fit-content; /* 渐变随文字宽度收缩：短标题也能展开完整渐变 */
     font-size: 1.65rem;
     font-weight: 600;
     margin-bottom: 0.75rem;
@@ -122,6 +252,105 @@ import DotGrid from '../components/DotGrid.astro';
     color: var(--text-secondary);
     line-height: 1.6;
     font-size: 1.08rem;
+  }
+
+  /* ---- 首屏以下：最新文章 + 全站入口 ---- */
+  .home-lower {
+    width: 100%;
+    max-width: 1080px;
+    margin: 1.5rem auto 0;
+    text-align: left;
+  }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 2.75rem 0 0.6rem;
+  }
+  .section-head h2 {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .more-link {
+    font-size: 0.9rem;
+    color: var(--accent-text);
+    text-decoration: none;
+  }
+  .more-link:hover {
+    text-decoration: underline;
+  }
+
+  .latest-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .latest-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.05rem 0.5rem;
+    border-bottom: 1px dashed var(--surface-border);
+    text-decoration: none;
+  }
+  .latest-list li:last-child .latest-item {
+    border-bottom: none;
+  }
+  .latest-title {
+    color: var(--text);
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: color 0.2s ease;
+  }
+  .latest-item:hover .latest-title {
+    color: var(--accent-text);
+  }
+  .latest-item time {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .quick-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1rem;
+  }
+  .quick-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 1.35rem 1.2rem;
+    background: var(--surface);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--surface-border);
+    border-radius: 18px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+  }
+  .quick-card:hover {
+    transform: translateY(-4px);
+    background: var(--surface-hover);
+    border-color: var(--surface-border-hover);
+    box-shadow: var(--card-shadow);
+  }
+  .qc-title {
+    font-size: 1.12rem;
+    font-weight: 700;
+    color: var(--text);
+    transition: color 0.2s ease;
+  }
+  .quick-card:hover .qc-title {
+    color: var(--accent-text);
+  }
+  .qc-desc {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
   }
 
   /* 窄视口：标语允许换行（nowrap 单行约需 830px+，769~900px 区间会横向溢出） */
@@ -141,6 +370,7 @@ import DotGrid from '../components/DotGrid.astro';
     }
     .hero h1 {
       font-size: 2.1rem;
+      margin-inline: auto; /* width: fit-content 后保持块级居中 */
     }
     .hero .subtitle {
       font-size: 1.6rem;
@@ -150,6 +380,19 @@ import DotGrid from '../components/DotGrid.astro';
     }
     .features {
       grid-template-columns: 1fr;
+    }
+    /* 下方区域保持左对齐可读性；快捷卡片两列 */
+    .home-lower {
+      text-align: left;
+    }
+    .section-head {
+      margin-top: 2rem;
+    }
+    .quick-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .latest-item {
+      padding: 0.9rem 0.25rem;
     }
   }
 </style>

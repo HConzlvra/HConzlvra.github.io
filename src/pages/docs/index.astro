@@ -1,0 +1,206 @@
+---
+// Docs 首页：整理类正经文章的目录，按分类分组 + 分类筛选
+import Layout from '../../layouts/Layout.astro';
+import { getCollection } from 'astro:content';
+
+// 分类 > 文档 两级结构；分类按名称排序，分类内 order 升序、再按日期降序
+const docs = await getCollection('docs');
+const byCategory = new Map<string, typeof docs>();
+for (const d of docs) {
+  const c = d.data.category;
+  if (!byCategory.has(c)) byCategory.set(c, []);
+  byCategory.get(c)!.push(d);
+}
+const sortDocs = (list: typeof docs) =>
+  [...list].sort((a, b) => {
+    const oa = a.data.order ?? 0;
+    const ob = b.data.order ?? 0;
+    if (oa !== ob) return oa - ob;
+    return (b.data.pubDate?.valueOf() ?? 0) - (a.data.pubDate?.valueOf() ?? 0);
+  });
+const categories = [...byCategory.entries()]
+  .sort((a, b) => a[0].localeCompare(b[0]))
+  .map(([name, list]) => ({ name, docs: sortDocs(list) }));
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const dateLabel = (d?: Date) =>
+  d ? `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` : '';
+---
+
+<Layout title="Docs | HConzlvra_" description="Docs — 整理的正经文章与资料，按分类归档。">
+  <section class="docs-page enter-left">
+    <h1>Docs</h1>
+    <p class="intro">我整理的、写得比较正经的文章和资料。</p>
+
+    <!-- 分类筛选：点击只显示对应分类 -->
+    <div class="chips" id="chips" role="group" aria-label="Filter by category">
+      <button class="chip active" data-cat="all" type="button">All</button>
+      {categories.map(({ name }) => (
+        <button class="chip" data-cat={name} type="button">{name}</button>
+      ))}
+    </div>
+
+    {
+      categories.map(({ name, docs: list }) => (
+        <section class="cat-group" data-cat={name}>
+          <h2>
+            {name}
+            <span class="cat-count">
+              {list.length} {list.length > 1 ? 'docs' : 'doc'}
+            </span>
+          </h2>
+          <ul>
+            {list.map((d) => (
+              <li>
+                <time>{dateLabel(d.data.pubDate)}</time>
+                <div class="doc-info">
+                  <a href={`/docs/${d.id}`}>{d.data.title}</a>
+                  {d.data.description && <p>{d.data.description}</p>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))
+    }
+
+    {docs.length === 0 && <p class="empty">No docs yet.</p>}
+  </section>
+</Layout>
+
+<style>
+  .docs-page {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 7rem 1.5rem 4rem;
+  }
+  .docs-page h1 {
+    width: fit-content;
+    background: var(--heading-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 2.2rem;
+    margin-bottom: 0.5rem;
+  }
+  .intro {
+    color: var(--text-secondary);
+    margin-bottom: 1.75rem;
+  }
+
+  /* ---- 分类筛选 ---- */
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-bottom: 2.25rem;
+  }
+  .chip {
+    padding: 0.42rem 1.05rem;
+    border-radius: 999px;
+    border: 1px solid var(--surface-border);
+    background: var(--surface);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .chip:hover {
+    color: var(--text);
+    border-color: var(--surface-border-hover);
+  }
+  .chip.active {
+    background: var(--btn-primary-bg);
+    border-color: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+  }
+
+  /* ---- 分类分组 ---- */
+  .cat-group {
+    margin-bottom: 2rem;
+  }
+  .cat-group h2 {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    width: fit-content;
+    background: var(--heading-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .cat-count {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    -webkit-text-fill-color: var(--text-secondary);
+  }
+  .cat-group ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .cat-group li {
+    display: flex;
+    align-items: baseline;
+    gap: 1.1rem;
+    padding: 0.85rem 0.25rem;
+    border-bottom: 1px dashed var(--surface-border);
+  }
+  .cat-group li:last-child {
+    border-bottom: none;
+  }
+  .cat-group time {
+    flex-shrink: 0;
+    min-width: 5.2em;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+  .doc-info a {
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1.08rem;
+    transition: color 0.2s ease;
+  }
+  .doc-info a:hover {
+    color: var(--accent-text);
+  }
+  .doc-info p {
+    margin: 0.25rem 0 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+  .empty {
+    color: var(--text-secondary);
+    padding: 2rem 0;
+  }
+
+  @media (max-width: 640px) {
+    .cat-group li {
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+  }
+</style>
+
+<script>
+  // 分类筛选（document 级事件委托：ClientRouter 软导航后无需重新绑定）
+  document.addEventListener('click', (e) => {
+    const btn = e.target instanceof Element ? e.target.closest('#chips .chip') : null;
+    if (!btn) return;
+    const chips = btn.closest('#chips')!;
+    chips.querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', c === btn));
+    const cat = (btn as HTMLElement).dataset.cat;
+    document.querySelectorAll('.cat-group').forEach((g) => {
+      (g as HTMLElement).style.display =
+        cat === 'all' || g.dataset.cat === cat ? '' : 'none';
+    });
+  });
+</script>

@@ -39,6 +39,7 @@ import Layout from '../layouts/Layout.astro';
     line-height: 1.7;
   }
   .card h1 {
+    width: fit-content; /* 渐变随文字宽度收缩：短标题也能显示完整渐变 */
     background: var(--heading-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;

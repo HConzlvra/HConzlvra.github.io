@@ -22,11 +22,13 @@ function countChars(md: string): number {
       .replace(/\s/g, ''),
   ].length;
 }
-// 全站字数 = posts 文章 + pages 集合的独立页（bruh、characters 等）
+// 全站字数 = posts 文章 + pages 集合的独立页（bruh、characters 等）+ docs 文档
 const pages = await getCollection('pages');
+const docsCol = await getCollection('docs');
 const staticChars =
   posts.reduce((n, p) => n + countChars(p.body ?? ''), 0) +
-  pages.reduce((n, p) => n + countChars(p.body ?? ''), 0);
+  pages.reduce((n, p) => n + countChars(p.body ?? ''), 0) +
+  docsCol.reduce((n, d) => n + countChars(d.body ?? ''), 0);
 
 // 时间线按年分组
 const byYear = new Map<number, typeof posts>();
@@ -138,6 +140,7 @@ const mapCfg = {
     padding: 7rem 1.5rem 4rem;
   }
   .archive-page h1 {
+    width: fit-content; /* 渐变随文字宽度收缩：短标题也能显示完整渐变 */
     background: var(--heading-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -171,6 +174,7 @@ const mapCfg = {
     font-weight: 800;
     line-height: 1.1;
     font-variant-numeric: tabular-nums;
+    width: fit-content; /* 渐变随文字宽度收缩：数字也能显示完整渐变 */
     background: var(--heading-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -242,6 +246,7 @@ const mapCfg = {
     font-size: 1.5rem;
     font-weight: 700;
     margin-bottom: 0.6rem;
+    width: fit-content; /* 渐变随文字宽度收缩：短标题也能显示完整渐变 */
     background: var(--heading-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;

@@ -1,0 +1,74 @@
+---
+// 单篇文档页：/docs/<slug>
+import { getCollection, render } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+
+export async function getStaticPaths() {
+  const docs = await getCollection('docs');
+  return docs.map((doc) => ({
+    params: { slug: doc.id },
+    props: { doc },
+  }));
+}
+
+const { doc } = Astro.props;
+const { Content } = await render(doc);
+---
+
+<Layout title={`${doc.data.title} | Docs`} description={doc.data.description}>
+  <article class="doc-page prose enter-left">
+    <a href="/docs" class="doc-back">← All docs</a>
+    <header class="doc-header">
+      <span class="doc-cat">{doc.data.category}</span>
+      <h1>{doc.data.title}</h1>
+      {
+        doc.data.pubDate && (
+          <time class="doc-date" datetime={doc.data.pubDate.toISOString()}>
+            {doc.data.pubDate.toLocaleDateString('zh-CN', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </time>
+        )
+      }
+    </header>
+    <Content />
+  </article>
+</Layout>
+
+<style>
+  .doc-page {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 7rem 1.5rem 4rem;
+  }
+  .doc-back {
+    color: var(--accent-text);
+    text-decoration: none;
+    font-size: 0.9rem;
+  }
+  .doc-back:hover {
+    text-decoration: underline;
+  }
+  .doc-header {
+    margin: 0.75rem 0 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--surface-border);
+  }
+  .doc-cat {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--btn-primary-bg);
+    margin-bottom: 0.4rem;
+  }
+  .doc-date {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+</style>

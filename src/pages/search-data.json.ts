@@ -5,7 +5,7 @@ interface SearchDoc {
   title: string;
   description: string;
   url: string;
-  type: 'page' | 'post';
+  type: 'page' | 'post' | 'doc';
   content: string;
 }
 
@@ -45,6 +45,16 @@ export const GET: APIRoute = async () => {
       url: `/posts/${post.id}`,
       type: 'post',
       content: post.body ?? '',
+    });
+  }
+
+  for (const doc of await getCollection('docs')) {
+    docs.push({
+      title: doc.data.title,
+      description: doc.data.description ?? '',
+      url: `/docs/${doc.id}`,
+      type: 'doc',
+      content: `${doc.data.category}\n${doc.body ?? ''}`,
     });
   }
 
