@@ -164,7 +164,9 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
       // - 拖尾 = 固定 6 个方块：沿鼠标轨迹等距采样（每 9px 一个点），
       //   相邻方块边贴边不重叠；元素常驻复用、永不创建销毁——
       //   同时在场的方块数量恒定，不可能出现残影堆积，主线程开销也恒定
-      // - 静止 ~0.26s 后整条尾巴原地淡出，再移动瞬时恢复
+      // - 每个采样点带出生时间戳和随机寿命：停住后方块按各自寿命
+      //   从尾巴末端向指针依次淡出（不是整条一起消失）；移动中寿命未到
+      //   的照常跟随，寿命到了也会就地化掉
       // 仅限精确指针设备（鼠标/触控笔）且用户未开启"减少动态效果"
       if (
         matchMedia('(pointer: fine)').matches &&
@@ -173,8 +175,9 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
         const SIZE = 9; // 方块边长（px）
         const GAP = 9; // 采样间距 = 方块尺寸：直线移动时相邻方块正好边贴边
         const COUNT = 6; // 拖尾方块数（不含指针本体）
-        const STILL_MS = 260; // 静止多久后尾巴开始整体淡出
-        const FADE_MS = 220; // 尾巴淡出时长
+        const LIFE_MIN = 420; // 单个方块寿命下限（ms）
+        const LIFE_MAX = 560; // 单个方块寿命上限（ms）：随机错开，淡出才依次
+        const FADE_MS = 160; // 单个方块的淡出时长
 
         // 隐藏系统指针（改由 #cursor-dot 自绘）；类挂在 <html> 上
         const hideNativeCursor = () => document.documentElement.classList.add('cursor-none');
@@ -183,13 +186,12 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
         // 鼠标最新坐标：初始取视口中心，指针方块加载即显示
         let mx = window.innerWidth / 2;
         let my = window.innerHeight / 2;
-        let lastMove = 0;
 
         // 等距采样：鼠标累计每移动满 GAP px 记一个采样点，队列只留最近 COUNT 个。
         // 拖尾方块 i 就摆在倒数第 i+1 个采样点上——尾巴严格贴着走过的轨迹
         let sx = -1;
         let sy = -1;
-        let samples: { x: number; y: number }[] = [];
+        let samples: { x: number; y: number; t: number; life: number }[] = [];
 
         // 元素池（ClientRouter 换页会替换整个 body，循环里每次确认还在）
         let layer: HTMLElement | null = null;
@@ -199,7 +201,6 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
           if (!layer || !layer.isConnected) {
             layer = document.createElement('div');
             layer.id = 'cursor-trail';
-            layer.style.opacity = '0'; // 鼠标未动前尾巴隐藏，首次移动才出现
             document.body.appendChild(layer);
             trail = [];
           }
@@ -207,6 +208,7 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
             for (let i = 0; i < COUNT; i++) {
               const el = document.createElement('div');
               el.className = 'px';
+              el.style.opacity = '0'; // 初始隐藏：有采样点才逐个亮起
               layer.appendChild(el);
               trail.push(el);
             }
@@ -224,12 +226,6 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
           (e) => {
             mx = e.clientX;
             my = e.clientY;
-            lastMove = performance.now();
-            // 尾巴从淡出态恢复：瞬时变实（无过渡），最跟手
-            if (layer && layer.style.opacity !== '1') {
-              layer.style.transition = 'none';
-              layer.style.opacity = '1';
-            }
             if (sx < 0) {
               sx = mx;
               sy = my;
@@ -244,7 +240,12 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
               const t = GAP / dist;
               sx += dx * t;
               sy += dy * t;
-              samples.push({ x: sx, y: sy });
+              samples.push({
+                x: sx,
+                y: sy,
+                t: performance.now(),
+                life: LIFE_MIN + Math.random() * (LIFE_MAX - LIFE_MIN),
+              });
               if (samples.length > COUNT) samples.shift();
               dx = mx - sx;
               dy = my - sy;
@@ -267,18 +268,28 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
           ensureEls();
         });
 
-        // 常驻渲染循环：指针每帧直贴鼠标；拖尾方块摆到各自采样点；
-        // 静止超时后整层尾巴原地淡出（一条 transition，无逐块动画）
+        // 常驻渲染循环：指针每帧直贴鼠标；拖尾方块摆到各自采样点，
+        // 并按"采样点年龄 vs 寿命"控制透明度——寿命到了就地淡出（依次），
+        // 新采样点瞬时点亮（transition 置 none，最跟手）
         const tick = () => {
           ensureEls();
+          const now = performance.now();
           dot!.style.transform = `translate(${mx - SIZE / 2}px, ${my - SIZE / 2}px)`;
           for (let i = 0; i < COUNT; i++) {
+            const el = trail[i];
             const s = samples[samples.length - 1 - i];
-            if (s) trail[i].style.transform = `translate(${s.x - SIZE / 2}px, ${s.y - SIZE / 2}px)`;
-          }
-          if (layer!.style.opacity !== '0' && performance.now() - lastMove > STILL_MS) {
-            layer!.style.transition = `opacity ${FADE_MS}ms ease-out`;
-            layer!.style.opacity = '0';
+            if (!s) {
+              if (el.style.opacity !== '0') el.style.opacity = '0';
+              continue;
+            }
+            el.style.transform = `translate(${s.x - SIZE / 2}px, ${s.y - SIZE / 2}px)`;
+            const alive = now - s.t < s.life;
+            const target = alive ? '1' : '0';
+            if (el.style.opacity !== target) {
+              // 亮起瞬时、化掉带 160ms 过渡：停住后从尾端依次消失
+              el.style.transition = alive ? 'none' : `opacity ${FADE_MS}ms ease-out`;
+              el.style.opacity = target;
+            }
           }
           requestAnimationFrame(tick);
         };
