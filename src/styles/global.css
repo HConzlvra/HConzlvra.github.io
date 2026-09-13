@@ -309,7 +309,7 @@ mark.search-hit {
     opacity: 0;
   }
 }
-/* 超出指针范围（>90px）的方块：改走这条更快的淡出，
+/* 超出指针范围（>54px）的方块：改走这条更快的淡出，
    快速甩动时也不至于身后残留一大片 */
 @keyframes px-leave {
   from {
@@ -318,4 +318,18 @@ mark.search-hit {
   to {
     opacity: 0;
   }
+}
+
+/* 自绘指针：指针本体替换成同款紫色小方块（尺寸/颜色由脚本内联设定），
+   cursor-none 类由脚本仅在"精确指针 + 未开启减少动态"时挂到 <html> */
+html.cursor-none,
+html.cursor-none * {
+  cursor: none !important;
+}
+#cursor-dot {
+  position: fixed;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 10000; /* 压在拖尾层之上 */
 }

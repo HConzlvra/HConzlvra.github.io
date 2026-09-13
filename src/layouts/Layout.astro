@@ -159,92 +159,126 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
     </script>
 
     <script>
-      // 全局鼠标拖尾：指针走过的路径上撒紫色像素小方块，
-      // 每个方块停留片刻后原地淡出消失（不跟随、不留垃圾 DOM）。
+      // 全局鼠标拖尾 + 自绘指针：
+      // - 指针本体替换成紫色小方块（隐藏系统指针）
+      // - 指针走过的路径上每 9px 落一个小方块（相邻只搭一点点角，不重叠）
+      // - 只保留紧跟指针的一小段（约 6 个），超范围的快速淡出，残留极少
       // 仅限精确指针设备（鼠标/触控笔）且用户未开启"减少动态效果"
       if (
         matchMedia('(pointer: fine)').matches &&
         !matchMedia('(prefers-reduced-motion: reduce)').matches
       ) {
-        // 单一紫色（取自站点主题色，亮暗主题下都可见）
         const PURPLE = '#9c6fe0';
-        const GAP = 7; // 沿路径每 7px 撒一个方块：相邻方块轻微搭边，连续但不堆叠
-        const MAX_DIST = 90; // 离指针超过 90px 的方块触发快速淡出：只保留紧跟指针的一小段
-        const LEAVE_MS = 160; // 超范围方块的淡出时长：够快，快速甩动也不残留一大片
-        const MAX_SQUARES = 90; // 同时在场的小方块上限（兜底）
+        const SIZE = 9; // 方块边长（px）：指针与拖尾统一
+        const GAP = 9; // 每移动满 9px 落一个：与方块同尺寸，相邻只搭一点角不重叠
+        const MAX_DIST = 54; // 尾巴离指针最远 54px（≈6 个方块）：只留紧跟指针的一小段
+        const LEAVE_MS = 100; // 超范围方块淡出时长：极快，高速甩动也不留残影
+        const MAX_SQUARES = 24; // 同时在场方块上限（安全兜底，正常到不了）
 
-        // 拖尾容器：固定覆盖整屏、不拦截任何鼠标事件
-        // ClientRouter 换页会换掉整个 body，这里每次撒点前确认容器还在
+        // 隐藏系统指针（改由 #cursor-dot 自绘）；类挂在 <html> 上
+        const hideNativeCursor = () => document.documentElement.classList.add('cursor-none');
+        hideNativeCursor();
+
+        // 拖尾层 + 指针方块：ClientRouter 换页会换掉整个 body，
+        // 元素随旧 body 消失，每次 mousemove 前确认还在
         let layer: HTMLElement | null = null;
-        const ensureLayer = () => {
+        let dot: HTMLElement | null = null;
+        const ensureEls = () => {
           if (!layer || !layer.isConnected) {
             layer = document.createElement('div');
             layer.id = 'cursor-trail';
             document.body.appendChild(layer);
           }
-          return layer;
+          if (!dot || !dot.isConnected) {
+            dot = document.createElement('div');
+            dot.id = 'cursor-dot';
+            document.body.appendChild(dot);
+          }
         };
 
         const spawn = (x: number, y: number) => {
-          const box = ensureLayer();
+          const box = layer!;
           const el = document.createElement('div');
           el.className = 'px';
-          el.style.width = '9px'; // 固定大小：所有方块统一 9px
-          el.style.height = '9px';
-          el.style.left = `${x + Math.random() * 6 - 3}px`;
-          el.style.top = `${y + Math.random() * 6 - 3}px`;
+          el.style.width = `${SIZE}px`;
+          el.style.height = `${SIZE}px`;
+          // 方块以 (x,y) 为中心
+          el.style.left = `${x - SIZE / 2}px`;
+          el.style.top = `${y - SIZE / 2}px`;
           el.style.background = PURPLE;
-          // 停住指针后 ~0.3-0.5s 尾巴自己淡出；拖动中离指针过远的会被立即清掉
-          el.style.setProperty('--life', `${(320 + Math.random() * 200).toFixed(0)}ms`);
+          // 停住指针后 ~0.24-0.36s 尾巴自己淡出；拖动中超范围的走更快的 px-leave
+          el.style.setProperty('--life', `${(240 + Math.random() * 120).toFixed(0)}ms`);
           el.addEventListener('animationend', () => el.remove());
           box.appendChild(el);
           while (box.children.length > MAX_SQUARES) box.firstElementChild?.remove();
         };
 
-        // 超范围方块的快速淡出（不瞬间消失）；标记 leaving 防止每次移动重复重启动画
+        // 超范围方块的快速淡出；标记 leaving 防止每次移动重复重启动画
         const fadeOut = (el: HTMLElement) => {
           if (el.dataset.leaving) return;
           el.dataset.leaving = '1';
           el.style.animation = `px-leave ${LEAVE_MS}ms steps(2, end) forwards`;
         };
 
-        // 离指针过远的方块改为快速淡出：无论拖多快，都只留紧跟指针的一小段
+        // 离指针过远的方块触发快速淡出：无论拖多快，只留紧跟指针的一小段
         const pruneFar = (x: number, y: number) => {
           if (!layer) return;
           const limit = MAX_DIST * MAX_DIST;
           for (let i = layer.children.length - 1; i >= 0; i--) {
             const el = layer.children[i] as HTMLElement;
-            const dx = parseFloat(el.style.left) - x;
-            const dy = parseFloat(el.style.top) - y;
+            const dx = parseFloat(el.style.left) + SIZE / 2 - x;
+            const dy = parseFloat(el.style.top) + SIZE / 2 - y;
             if (dx * dx + dy * dy > limit) fadeOut(el);
           }
         };
 
-        let lastX = -1;
-        let lastY = -1;
+        // 软导航后 <html> 属性会被新页面覆盖、body 被整体替换：
+        // 重新隐藏系统指针并作废元素引用，下次移动时重建
+        document.addEventListener('astro:after-swap', () => {
+          hideNativeCursor();
+          layer = null;
+          dot = null;
+        });
+
+        let sx = -1; // 上一次落点：每累计满 9px 才落一个，不足的距离留到下次累计
+        let sy = -1;
         window.addEventListener(
           'mousemove',
           (e) => {
+            ensureEls();
             const x = e.clientX;
             const y = e.clientY;
-            if (lastX < 0) {
-              spawn(x, y);
-              lastX = x;
-              lastY = y;
+            // 指针方块本体：即时贴住指针（transform 免布局开销）
+            dot!.style.transform = `translate(${x - SIZE / 2}px, ${y - SIZE / 2}px)`;
+
+            if (sx < 0) {
+              sx = x;
+              sy = y;
               return;
             }
-            const dx = x - lastX;
-            const dy = y - lastY;
-            const dist = Math.hypot(dx, dy);
-            if (dist < 1) return; // 静止抖动：忽略
-            // 沿本次移动的连线每 3px 密集补撒（方块相互重叠），快速移动也连续不断线
-            for (let i = GAP; i < dist; i += GAP) {
-              spawn(lastX + (dx * i) / dist, lastY + (dy * i) / dist);
+            let dx = x - sx;
+            let dy = y - sy;
+            let dist = Math.hypot(dx, dy);
+            // 跨窗口跳入等超大跨度：超过尾巴长度的部分没有意义，
+            // 直接把落点截到距新位置 MAX_DIST 处，保证一次最多落 ~6 个
+            if (dist > MAX_DIST) {
+              const t = (dist - MAX_DIST) / dist;
+              sx += dx * t;
+              sy += dy * t;
+              dx = x - sx;
+              dy = y - sy;
+              dist = MAX_DIST;
             }
-            spawn(x, y);
-            pruneFar(x, y); // 超出"一小段"范围的老方块立即清除
-            lastX = x;
-            lastY = y;
+            while (dist >= GAP) {
+              const t = GAP / dist;
+              sx += dx * t;
+              sy += dy * t;
+              spawn(sx, sy);
+              dx = x - sx;
+              dy = y - sy;
+              dist = Math.hypot(dx, dy);
+            }
+            pruneFar(x, y);
           },
           { passive: true }
         );
