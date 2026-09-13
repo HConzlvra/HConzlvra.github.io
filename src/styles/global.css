@@ -74,6 +74,30 @@ html {
   background-size: 100% 100%;
   background-repeat: no-repeat;
   overscroll-behavior-y: none;
+  /* 站点全响应式，永远不需要横向滚动；个别浏览器会把 fixed 画布/滚动槽
+    计入 scrollWidth 产生幽灵横向滚动条，这里直接禁掉 */
+  overflow-x: hidden;
+}
+
+/* 大屏整体放大：全站 rem 都以 html 字号为基准，提升它 = 文字/间距
+   按比例同步变大（配合各容器 max-width 放宽），笔记本到 4K 逐级过渡；
+   小屏与手机端（≤768px）不受影响。首档 1200 而非 1280：
+   部分浏览器媒体查询按含滚动条的视口计算，1280 窗口实际约 1265，
+   卡阈值会导致时触发时不触发 */
+@media (min-width: 1200px) {
+  html {
+    font-size: 17px;
+  }
+}
+@media (min-width: 1536px) {
+  html {
+    font-size: 18px;
+  }
+}
+@media (min-width: 1920px) {
+  html {
+    font-size: 19px;
+  }
 }
 
 /* 手机端：把视窗对准背景中部。
@@ -144,7 +168,7 @@ mark.search-hit {
    Markdown 正文排版（.prose）
    ============================================ */
 .prose {
-  max-width: 760px;
+  max-width: 820px;
   margin: 0 auto;
   padding: 2.5rem 1.5rem 4rem;
   line-height: 1.8;

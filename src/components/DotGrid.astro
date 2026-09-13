@@ -77,7 +77,10 @@
   // ---------- 尺寸与点阵 ----------
   const resize = () => {
     if (!canvas || !ctx) return;
-    const w = window.innerWidth;
+    // 用 CSS 视口（clientWidth，不含滚动条）而非 innerWidth：
+    // 有纵向滚动条时 innerWidth 比 CSS 视口宽一条滚动条，
+    // canvas 撑出视口会造成横向滚动区域（部分浏览器把 fixed 元素计入 scrollWidth）
+    const w = document.documentElement.clientWidth;
     const h = window.innerHeight;
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = w * dpr;
