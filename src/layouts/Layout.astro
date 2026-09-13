@@ -159,14 +159,12 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
     </script>
 
     <script>
-      // 全局鼠标拖尾 + 自绘指针（经典"贪吃蛇"固定元素池方案）：
+      // 全局鼠标拖尾 + 自绘指针（固定元素池 + 粒子寿命方案）：
       // - 指针本体 = 1 个紫色方块，渲染循环里每帧直贴最新鼠标坐标，零过渡零动画
-      // - 拖尾 = 固定 6 个方块：沿鼠标轨迹等距采样（每 9px 一个点），
-      //   相邻方块边贴边不重叠；元素常驻复用、永不创建销毁——
-      //   同时在场的方块数量恒定，不可能出现残影堆积，主线程开销也恒定
-      // - 每个采样点带出生时间戳和随机寿命：停住后方块按各自寿命
-      //   从尾巴末端向指针依次淡出（不是整条一起消失）；移动中寿命未到
-      //   的照常跟随，寿命到了也会就地化掉
+      // - 拖尾 = 固定 6 个方块 = 6 个"粒子"：沿鼠标轨迹等距采样（每 9px 一个点）
+      // - 粒子从诞生的那一瞬就开始线性溶解（透明度 = 剩余寿命比例，每帧直写）：
+      //   移动中就是渐隐的彗尾；停住时不需要任何等待，各自按出生顺序继续化完
+      // - 元素常驻复用、永不创建销毁：数量恒定、无残影堆积、开销恒定
       // 仅限精确指针设备（鼠标/触控笔）且用户未开启"减少动态效果"
       if (
         matchMedia('(pointer: fine)').matches &&
@@ -175,9 +173,8 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
         const SIZE = 9; // 方块边长（px）
         const GAP = 9; // 采样间距 = 方块尺寸：直线移动时相邻方块正好边贴边
         const COUNT = 6; // 拖尾方块数（不含指针本体）
-        const LIFE_MIN = 420; // 单个方块寿命下限（ms）
-        const LIFE_MAX = 560; // 单个方块寿命上限（ms）：随机错开，淡出才依次
-        const FADE_MS = 160; // 单个方块的淡出时长
+        const LIFE_MIN = 300; // 单个粒子寿命下限（ms）：从诞生持续溶解到 0
+        const LIFE_MAX = 380; // 单个粒子寿命上限（ms）：随机微差让淡出更自然
 
         // 隐藏系统指针（改由 #cursor-dot 自绘）；类挂在 <html> 上
         const hideNativeCursor = () => document.documentElement.classList.add('cursor-none');
@@ -268,9 +265,9 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
           ensureEls();
         });
 
-        // 常驻渲染循环：指针每帧直贴鼠标；拖尾方块摆到各自采样点，
-        // 并按"采样点年龄 vs 寿命"控制透明度——寿命到了就地淡出（依次），
-        // 新采样点瞬时点亮（transition 置 none，最跟手）
+        // 常驻渲染循环：指针每帧直贴鼠标；拖尾粒子摆到各自采样点，
+        // 透明度直接按"剩余寿命"每帧重算——粒子从出生就在溶解，
+        // 停下时无需任何等待/切换，各自顺着剩余进度继续化掉
         const tick = () => {
           ensureEls();
           const now = performance.now();
@@ -283,13 +280,8 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
               continue;
             }
             el.style.transform = `translate(${s.x - SIZE / 2}px, ${s.y - SIZE / 2}px)`;
-            const alive = now - s.t < s.life;
-            const target = alive ? '1' : '0';
-            if (el.style.opacity !== target) {
-              // 亮起瞬时、化掉带 160ms 过渡：停住后从尾端依次消失
-              el.style.transition = alive ? 'none' : `opacity ${FADE_MS}ms ease-out`;
-              el.style.opacity = target;
-            }
+            const p = Math.min(1, (now - s.t) / s.life);
+            el.style.opacity = (1 - p).toFixed(3);
           }
           requestAnimationFrame(tick);
         };
