@@ -66,7 +66,7 @@ html[data-theme='dark'] {
    视口尺寸变化都不需要重绘，滚动零闪断。
    - background-image: 主题渐变，铺满整个文档
    - --html-bg: 兜底纯色（渐变外区域）
-   - overscroll-behavior-y: none: 禁掉上下橡皮筋，
+   - overscroll-behavior: none: 禁掉上下/左右橡皮筋，
      不再露出画布底色（techmc.wiki 是靠底色兜底，我们直接不露） */
 html {
   background-color: var(--html-bg);
@@ -74,11 +74,22 @@ html {
   background-size: 100% 100%;
   background-repeat: no-repeat;
   overscroll-behavior-y: none;
+  overscroll-behavior-x: none;
   /* 站点全响应式，永远不需要横向滚动；个别浏览器会把 fixed 画布/滚动槽
     计入 scrollWidth 产生幽灵横向滚动条，这里直接禁掉。
     clip 连编程/手势滚动都彻底禁死，不支持 clip 的旧浏览器回退 hidden */
   overflow-x: hidden;
   overflow-x: clip;
+}
+
+/* 锁死移动端"能左右划一点再弹回"（iOS 橡皮筋）：
+   overflow-x: clip 管不了它——那是内容无溢出时 iOS 仍允许的整页弹性拖动。
+   touch-action 从手势层禁横向平移（touchstart/move 监听不受影响，
+   粒子拖尾照常），纵向滚动与双指缩放保留。html+body 都写：老 iOS
+   只认其一。需要横滑的元素（.prose pre）自己恢复 */
+html,
+body {
+  touch-action: pan-y pinch-zoom;
 }
 
 /* 大屏整体放大：全站 rem 都以 html 字号为基准，提升它 = 文字/间距
@@ -217,6 +228,9 @@ mark.search-hit {
 
 .prose pre {
   overflow-x: auto;
+  /* html/body 已全局禁横向手势（touch-action: pan-y），代码块需要横滑看长代码，
+     这里自己恢复——touch-action 交集只算到最近的可滚祖先（pre 自身），不受全局限制影响 */
+  touch-action: pan-x pan-y;
   padding: 1rem;
   border: 1px solid var(--surface-border);
   border-radius: 8px;
