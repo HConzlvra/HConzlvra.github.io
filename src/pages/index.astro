@@ -22,9 +22,9 @@ const dateLabel = (d?: Date) =>
          the cards start below the fold -->
     <div class="hero-screen">
       <section class="hero enter-left">
-        <h1>HI, THIS IS<br /><span class="name">HCONZLVRA_</span></h1>
+        <h1>HI,<br class="br-mobile" /> THIS IS<br /><span class="name">HCONZLVRA_</span></h1>
         <p class="subtitle">Welcome to my site.</p>
-        <p class="tagline">「There is a crack in everything. That's how the light gets in.」</p>
+        <p class="tagline">「There is a crack in everything. <br class="br-mobile" />That's how the light gets in.」</p>
       </section>
     </div>
 
@@ -362,6 +362,12 @@ const dateLabel = (d?: Date) =>
     line-height: 1.5;
   }
 
+  /* 移动端专用换行：桌面 display:none 彻底隐藏（渲染与不存在时一致），
+     ≤768px 恢复 inline（= br 默认行为）才产生换行 */
+  .br-mobile {
+    display: none;
+  }
+
   /* narrow viewports: let the tagline wrap (nowrap needs ~830px+) */
   @media (max-width: 900px) {
     .hero .tagline {
@@ -371,6 +377,9 @@ const dateLabel = (d?: Date) =>
 
   /* mobile */
   @media (max-width: 768px) {
+    .br-mobile {
+      display: inline; /* HI,↵THIS IS 与 tagline 两句各占一行（桌面隐藏） */
+    }
     .container {
       text-align: left; /* 与桌面端一致：左对齐 */
       padding-left: 1.25rem; /* 略收边距，给放大后的字让位 */
