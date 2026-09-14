@@ -437,7 +437,7 @@ const dateLabel = (d?: Date) =>
        vertically centered on screen and the cards fall below the fold */
     .hero-screen {
       min-height: calc(100vh - 5rem); /* fallback for older browsers */
-      min-height: calc(100svh - 5rem); /* initial viewport (URL bar shown) */
+      min-height: calc(100lvh - 5rem); /* 最大视口：地址栏收起后可视高度变大，卡片起点始终压在折线之下 */
       display: flex;
       flex-direction: column;
       justify-content: flex-start; /* 整体靠上：贴着导航栏，下方空间留白 */
@@ -476,7 +476,7 @@ const dateLabel = (d?: Date) =>
       font-weight: 900; /* 800 → 900：加粗一点点 */
       letter-spacing: -0.02em;
       line-height: 1.15;
-      margin-top: 0.34em; /* 行距均衡：上方拉伸放大的间隙 vs 此处盒外 margin（不被拉伸） */
+      margin-top: 0.59em; /* 补偿 scaleY 双向外溢（盒间距≠视觉间距），让 THIS IS 回到上下两行正中 */
       transform: scaleY(1.7); /* 比 .lines-hi 的 1.5 更长（同步拉长的大胆档） */
       background: var(--heading-gradient);
       -webkit-background-clip: text;
