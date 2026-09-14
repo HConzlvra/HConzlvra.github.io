@@ -63,30 +63,34 @@
   const WAVE_INTERVAL = WAVE_BAND / WAVE_SPEED;
   let waves: Wave[] = [];
   let waveTimer = 0.4; // 距下一波出生的倒计时：首波 0.4s 后涌来
+  let vw = 0; // 当前画布 CSS 宽（resize 时记录，draw/波浪用）
+  let vh = 0; // 当前画布 CSS 高
   const advanceWaves = (dt: number) => {
     waveTimer -= dt;
     if (waveTimer <= 0) {
       waves.push({ pos: -WAVE_BAND }); // 从画面左上角外淡入，避免突兀
       waveTimer += WAVE_INTERVAL;
     }
-    const maxP = (window.innerWidth + window.innerHeight) * SQRT1_2; // 右下角投影
+    const maxP = (vw + vh) * SQRT1_2; // 右下角投影
     for (const w of waves) w.pos += WAVE_SPEED * dt;
     waves = waves.filter((w) => w.pos < maxP + WAVE_BAND); // 完全驶出后回收
   };
 
   // ---------- 尺寸与点阵 ----------
+  // 画布尺寸完全交给 CSS（.dot-grid 的 inset:0 + 100% 永远满视口，地址栏
+  // 伸缩也实时跟随）。这里只读取实际渲染尺寸同步像素缓冲与点阵——
+  // 不用 JS 钉死 style 宽高：innerHeight 在地址栏收起时偏小，且 iOS Safari
+  // 收起地址栏不触发 resize，钉死会让画布底部露出一段无格点的空隙
   const resize = () => {
     if (!canvas || !ctx) return;
-    // 用 CSS 视口（clientWidth，不含滚动条）而非 innerWidth：
-    // 有纵向滚动条时 innerWidth 比 CSS 视口宽一条滚动条，
-    // canvas 撑出视口会造成横向滚动区域（部分浏览器把 fixed 元素计入 scrollWidth）
-    const w = document.documentElement.clientWidth;
-    const h = window.innerHeight;
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    if (!w || !h) return;
+    vw = w;
+    vh = h;
     dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    canvas.style.width = `${w}px`;
-    canvas.style.height = `${h}px`;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
 
     // 移动端间距更小（点阵别太稀疏）；并按面积上限稀释，防止大屏/4K 点数爆炸
     // （三角形格单点占面积 = 间距 × 行高 × sin60°，分母乘 sin60° 补偿行高压缩带来的密度上升）
@@ -120,7 +124,7 @@
   const draw = () => {
     if (!ctx || !canvas) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    ctx.clearRect(0, 0, vw, vh);
     ctx.fillStyle = dotColor;
 
     const PUSH = 14; // 光标最大位移距离（轻微挤压）
@@ -177,6 +181,11 @@
     if (!canvas || !canvas.isConnected) {
       running = false;
       return;
+    }
+    // 地址栏伸缩（iOS Safari 不触发 resize）等场景：每帧对比实际渲染
+    // 尺寸与像素缓冲，不一致就重同步——画布永远满屏，底部不露空隙
+    if (canvas.clientWidth * dpr !== canvas.width || canvas.clientHeight * dpr !== canvas.height) {
+      resize();
     }
     if (reduced.matches) {
       waves.length = 0; // 减少动态：不出海浪

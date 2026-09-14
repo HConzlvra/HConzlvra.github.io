@@ -385,16 +385,27 @@ const dateLabel = (d?: Date) =>
       display: flex;
       flex-direction: column;
       justify-content: center;
+      padding-bottom: 8vh; /* 几何正中在视觉上偏下，整体上移一点更舒服 */
     }
     .hero h1 {
       font-size: 2.1rem;
       margin-inline: auto; /* stay centered now that width is fit-content */
+      max-width: 100%; /* 窄屏防御 */
+      line-height: 1.3; /* 移动端行距略放开，两行大字更透气 */
+    }
+    /* 名字一行在窄屏约 86% 视口宽：字号跟随视口收缩，
+       防止 10 字符的名字把文档撑出横向滚动 */
+    .hero h1 .name {
+      font-size: min(1.55em, 12vw);
+      line-height: 1.38;
     }
     .hero .subtitle {
       font-size: 1.6rem;
+      margin-bottom: 0.9rem;
     }
     .hero .tagline {
       font-size: 1.1rem;
+      line-height: 1.75;
     }
     .features {
       margin-top: 5rem; /* clear separation from the first screen */

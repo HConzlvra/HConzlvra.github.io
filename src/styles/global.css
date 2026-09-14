@@ -75,8 +75,10 @@ html {
   background-repeat: no-repeat;
   overscroll-behavior-y: none;
   /* 站点全响应式，永远不需要横向滚动；个别浏览器会把 fixed 画布/滚动槽
-    计入 scrollWidth 产生幽灵横向滚动条，这里直接禁掉 */
+    计入 scrollWidth 产生幽灵横向滚动条，这里直接禁掉。
+    clip 连编程/手势滚动都彻底禁死，不支持 clip 的旧浏览器回退 hidden */
   overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* 大屏整体放大：全站 rem 都以 html 字号为基准，提升它 = 文字/间距
@@ -295,6 +297,7 @@ mark.search-hit {
   inset: 0;
   pointer-events: none; /* 不拦截任何鼠标事件 */
   z-index: 9999;
+  overflow: hidden; /* 手指划到屏幕边缘时粒子会被推出视口，这里裁掉出界部分，避免撑出横向滚动 */
 }
 #cursor-trail .px {
   position: absolute;
