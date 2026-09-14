@@ -174,38 +174,41 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
     </script>
 
     <script>
-      // 全局鼠标拖尾 + 自绘指针（固定元素池 + 粒子寿命方案）：
-      // - 指针本体 = 1 个紫色方块，渲染循环里每帧直贴最新鼠标坐标，零过渡零动画
-      // - 拖尾 = 固定 6 个方块 = 6 个"粒子"：沿鼠标轨迹等距采样（每 9px 一个点）
-      // - 粒子从诞生的那一瞬就开始线性溶解（透明度 = 剩余寿命比例，每帧直写）：
-      //   移动中就是渐隐的彗尾；停住时不需要任何等待，各自按出生顺序继续化完
-      // - 元素常驻复用、永不创建销毁：数量恒定、无残影堆积、开销恒定
-      // 仅限精确指针设备（鼠标/触控笔）且用户未开启"减少动态效果"
-      if (
-        matchMedia('(pointer: fine)').matches &&
-        !matchMedia('(prefers-reduced-motion: reduce)').matches
-      ) {
-        const SIZE = 9; // 方块边长（px）
-        const GAP = 9; // 采样间距 = 方块尺寸：直线移动时相邻方块正好边贴边
-        const COUNT = 6; // 拖尾方块数（不含指针本体）
-        const LIFE_MIN = 300; // 单个粒子寿命下限（ms）：从诞生持续溶解到 0
-        const LIFE_MAX = 380; // 单个粒子寿命上限（ms）：随机微差让淡出更自然
+      // Global pointer trail + custom cursor (fixed element pool + particle lifetime):
+      // - pointer body = one purple square, snapped to the latest pointer coords every frame
+      // - trail = six squares = six "particles": evenly sampled along the pointer path
+      // - particles dissolve from the moment they're born (opacity = remaining life),
+      //   so on touch release each keeps fading out on its own — no waiting, in order
+      // Desktop (fine pointer): native cursor hidden, dot always visible, mousemove driven.
+      // Touch: the finger is the pointer — dot lights up while touching and fades out
+      //        via CSS transition after release; the render loop idles out once everything
+      //        has dissolved (saves battery on phones).
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const FINE = matchMedia('(pointer: fine)').matches;
+        // Touch-only devices (phones): no mouse will ever show up, so the dot
+        // shows only while a finger is down. Hybrid laptops keep desktop behavior.
+        const TOUCH_ONLY = matchMedia('(pointer: coarse)').matches && !FINE;
+        const SIZE = 9; // square size (px)
+        const GAP = 9; // sampling distance = size: adjacent squares touch edge to edge
+        const COUNT = 6; // trail squares (excluding the pointer body)
+        const LIFE_MIN = 300; // particle lifetime lower bound (ms)
+        const LIFE_MAX = 380; // particle lifetime upper bound (ms): slight jitter
 
-        // 隐藏系统指针（改由 #cursor-dot 自绘）；类挂在 <html> 上
+        // Hide the native cursor only for real pointers (touch devices have none)
         const hideNativeCursor = () => document.documentElement.classList.add('cursor-none');
-        hideNativeCursor();
+        if (FINE) hideNativeCursor();
 
-        // 鼠标最新坐标：初始取视口中心，指针方块加载即显示
+        // Latest pointer coords: desktop starts centered so the dot shows on load
         let mx = window.innerWidth / 2;
         let my = window.innerHeight / 2;
 
-        // 等距采样：鼠标累计每移动满 GAP px 记一个采样点，队列只留最近 COUNT 个。
-        // 拖尾方块 i 就摆在倒数第 i+1 个采样点上——尾巴严格贴着走过的轨迹
+        // Evenly spaced sampling: accumulate GAP px of movement per sample point,
+        // keep only the most recent COUNT. Trail square i sits on sample i+1 from the end
         let sx = -1;
         let sy = -1;
         let samples: { x: number; y: number; t: number; life: number }[] = [];
 
-        // 元素池（ClientRouter 换页会替换整个 body，循环里每次确认还在）
+        // Element pool (ClientRouter swaps the whole body; re-check every loop)
         let layer: HTMLElement | null = null;
         let dot: HTMLElement | null = null;
         let trail: HTMLElement[] = [];
@@ -220,7 +223,7 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
             for (let i = 0; i < COUNT; i++) {
               const el = document.createElement('div');
               el.className = 'px';
-              el.style.opacity = '0'; // 初始隐藏：有采样点才逐个亮起
+              el.style.opacity = '0'; // hidden until it has a sample
               layer.appendChild(el);
               trail.push(el);
             }
@@ -228,64 +231,53 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
           if (!dot || !dot.isConnected) {
             dot = document.createElement('div');
             dot.id = 'cursor-dot';
+            // Desktop: always visible. Touch-only: hidden until first touch
+            dot.style.opacity = FINE ? '1' : '0';
             document.body.appendChild(dot);
           }
         };
         ensureEls();
 
-        window.addEventListener(
-          'mousemove',
-          (e) => {
-            mx = e.clientX;
-            my = e.clientY;
-            if (sx < 0) {
-              sx = mx;
-              sy = my;
-              return;
-            }
-            // 沿本次移动的连线每满 GAP px 落一个采样点：
-            // 间距恒定，慢速密、快速疏不会断，也绝不会重叠
-            let dx = mx - sx;
-            let dy = my - sy;
-            let dist = Math.hypot(dx, dy);
-            while (dist >= GAP) {
-              const t = GAP / dist;
-              sx += dx * t;
-              sy += dy * t;
-              samples.push({
-                x: sx,
-                y: sy,
-                t: performance.now(),
-                life: LIFE_MIN + Math.random() * (LIFE_MAX - LIFE_MIN),
-              });
-              if (samples.length > COUNT) samples.shift();
-              dx = mx - sx;
-              dy = my - sy;
-              dist = Math.hypot(dx, dy);
-            }
-          },
-          { passive: true }
-        );
+        // Core sampling: called by mouse and touch handlers alike
+        const moveTo = (x: number, y: number) => {
+          mx = x;
+          my = y;
+          if (sx < 0) {
+            sx = mx;
+            sy = my;
+            return;
+          }
+          // Drop one sample point per GAP px along this movement:
+          // constant spacing — never breaks up, never overlaps
+          let dx = mx - sx;
+          let dy = my - sy;
+          let dist = Math.hypot(dx, dy);
+          while (dist >= GAP) {
+            const t = GAP / dist;
+            sx += dx * t;
+            sy += dy * t;
+            samples.push({
+              x: sx,
+              y: sy,
+              t: performance.now(),
+              life: LIFE_MIN + Math.random() * (LIFE_MAX - LIFE_MIN),
+            });
+            if (samples.length > COUNT) samples.shift();
+            dx = mx - sx;
+            dy = my - sy;
+            dist = Math.hypot(dx, dy);
+          }
+        };
 
-        // 软导航后 <html> 属性会被新页面覆盖、body 被整体替换：
-        // 重新隐藏系统指针、重建元素池并重置采样
-        document.addEventListener('astro:after-swap', () => {
-          hideNativeCursor();
-          layer = null;
-          dot = null;
-          trail = [];
-          sx = -1;
-          sy = -1;
-          samples = [];
-          ensureEls();
-        });
-
-        // 常驻渲染循环：指针每帧直贴鼠标；拖尾粒子摆到各自采样点，
-        // 透明度直接按"剩余寿命"每帧重算——粒子从出生就在溶解，
-        // 停下时无需任何等待/切换，各自顺着剩余进度继续化掉
+        // Render loop with idle: touch-only devices stop the loop once the trail
+        // has fully dissolved and the dot is hidden; desktop runs permanently
+        let dotVisible = FINE; // tracks the dot's target opacity
+        let rafOn = false;
         const tick = () => {
           ensureEls();
           const now = performance.now();
+          // Retire fully dissolved samples so "empty" is detectable
+          while (samples.length && now - samples[0].t > samples[0].life) samples.shift();
           dot!.style.transform = `translate(${mx - SIZE / 2}px, ${my - SIZE / 2}px)`;
           for (let i = 0; i < COUNT; i++) {
             const el = trail[i];
@@ -298,9 +290,75 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
             const p = Math.min(1, (now - s.t) / s.life);
             el.style.opacity = (1 - p).toFixed(3);
           }
+          if (TOUCH_ONLY && !dotVisible && !samples.length) {
+            rafOn = false; // nothing left to animate — idle out
+            return;
+          }
           requestAnimationFrame(tick);
         };
-        requestAnimationFrame(tick);
+        const wake = () => {
+          if (!rafOn) {
+            rafOn = true;
+            requestAnimationFrame(tick);
+          }
+        };
+        wake(); // desktop keeps it alive; touch-only idles out immediately
+
+        if (FINE) {
+          window.addEventListener(
+            'mousemove',
+            (e) => {
+              moveTo(e.clientX, e.clientY);
+              wake();
+            },
+            { passive: true }
+          );
+        }
+
+        // Touch: the finger becomes the pointer. passive listeners —
+        // scrolling stays untouched, the trail simply follows the finger
+        const onTouch = (e: TouchEvent) => {
+          const t = e.touches[0];
+          if (!t) return;
+          if (TOUCH_ONLY && !dotVisible) {
+            dotVisible = true;
+            dot!.style.opacity = '1';
+          }
+          moveTo(t.clientX, t.clientY);
+          wake();
+        };
+        window.addEventListener('touchstart', onTouch, { passive: true });
+        window.addEventListener('touchmove', onTouch, { passive: true });
+        window.addEventListener(
+          'touchend',
+          () => {
+            // Release: the dot fades out (CSS transition) and each trail particle
+            // keeps dissolving on its remaining lifetime — in birth order
+            if (TOUCH_ONLY && dotVisible) {
+              dotVisible = false;
+              dot!.style.opacity = '0';
+            }
+          },
+          { passive: true }
+        );
+
+        // After a soft navigation the <html> attributes get overwritten and the
+        // body replaced: re-hide the cursor, rebuild the pool, reset sampling
+        document.addEventListener('astro:after-swap', () => {
+          if (FINE) hideNativeCursor();
+          layer = null;
+          dot = null;
+          trail = [];
+          sx = -1;
+          sy = -1;
+          samples = [];
+          ensureEls();
+          if (TOUCH_ONLY) {
+            dotVisible = false;
+            dot!.style.opacity = '0';
+          }
+          wake();
+        });
       }
     </script>
   </head>

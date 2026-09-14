@@ -17,28 +17,31 @@ const dateLabel = (d?: Date) =>
   <DotGrid />
   <!-- First screen: gradient background + dot grid visible, centered in viewport -->
   <div class="container">
+    <!-- Desktop: hero + cards centered as one group (container handles it).
+         Mobile: hero-screen fills the whole first screen with just the headline,
+         the cards start below the fold -->
     <div class="hero-screen">
       <section class="hero enter-left">
         <h1>HI, THIS IS<br /><span class="name">HCONZLVRA_</span></h1>
         <p class="subtitle">Welcome to my site.</p>
         <p class="tagline">「There is a crack in everything. That's how the light gets in.」</p>
       </section>
-
-      <section class="features">
-        <div class="card enter-up">
-          <h3>A Soul</h3>
-          <p>Harold_Conzlvra, HConzlvra_, HC.</p>
-        </div>
-        <div class="card enter-up">
-          <h3>A Thought</h3>
-          <p>to share ideas and life.</p>
-        </div>
-        <div class="card enter-up">
-          <h3>A Site</h3>
-          <p>Powered by Astro, and a deep mind.</p>
-        </div>
-      </section>
     </div>
+
+    <section class="features">
+      <div class="card enter-up">
+        <h3>A Soul</h3>
+        <p>Harold_Conzlvra, HConzlvra_, HC.</p>
+      </div>
+      <div class="card enter-up">
+        <h3>A Thought</h3>
+        <p>to share ideas and life.</p>
+      </div>
+      <div class="card enter-up">
+        <h3>A Site</h3>
+        <p>Powered by Astro, and a deep mind.</p>
+      </div>
+    </section>
   </div>
 
   <!-- Below the fold: solid footer-style background — no gradient, no dot grid -->
@@ -157,29 +160,26 @@ const dateLabel = (d?: Date) =>
   .container {
     max-width: 1360px; /* wider than nav/footer: the hero headline needs the room */
     width: 100%;
+    min-height: 100vh; /* first screen exactly: vertical padding counts in (border-box) */
+    box-sizing: border-box;
     text-align: left; /* desktop: left aligned (mobile restores centering below) */
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center; /* hero + cards centered as one group (= previous look) */
     padding: 5rem 2.5rem 3rem;
     margin: 0 auto;
   }
 
-  /* First screen: hero + cards centered within the viewport
-     (container vertical padding = 8rem, so this fills exactly 100vh) */
+  /* Desktop: a plain wrapper (centering is the container's job).
+     Mobile: overridden below — fills the first screen with just the headline */
   .hero-screen {
     width: 100%;
-    min-height: calc(100vh - 8rem);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
   }
 
   /* Hero */
   .hero {
     width: 100%;
-    margin-bottom: 3.5rem;
   }
   .hero h1 {
     font-size: 3.4rem; /* first line (HI, HERE IS) */
@@ -220,6 +220,7 @@ const dateLabel = (d?: Date) =>
   /* Features: three cards side by side */
   .features {
     width: 100%;
+    margin-top: 3.5rem; /* hero ↔ cards gap (mobile: separates them by a screen anyway) */
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 2rem;
@@ -375,6 +376,16 @@ const dateLabel = (d?: Date) =>
       padding-left: 1.5rem;
       padding-right: 1.5rem;
     }
+    /* First screen = headline only: hero-screen fills everything below the
+       fixed navbar (= the container's 5rem top padding), so the headline is
+       vertically centered on screen and the cards fall below the fold */
+    .hero-screen {
+      min-height: calc(100vh - 5rem); /* fallback for older browsers */
+      min-height: calc(100svh - 5rem); /* initial viewport (URL bar shown) */
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
     .hero h1 {
       font-size: 2.1rem;
       margin-inline: auto; /* stay centered now that width is fit-content */
@@ -386,6 +397,7 @@ const dateLabel = (d?: Date) =>
       font-size: 1.1rem;
     }
     .features {
+      margin-top: 5rem; /* clear separation from the first screen */
       grid-template-columns: 1fr;
     }
     .home-lower {

@@ -319,6 +319,7 @@ html.cursor-none * {
   height: 9px;
   background: #9c6fe0;
   pointer-events: none;
-  z-index: 10000; /* 压在拖尾层之上 */
-  will-change: transform; /* 常驻合成层：指针贴得最紧 */
+  z-index: 10000; /* sits above the trail layer */
+  will-change: transform; /* permanent compositor layer: snappiest tracking */
+  transition: opacity 0.3s ease; /* touch devices: fade out after finger release */
 }
