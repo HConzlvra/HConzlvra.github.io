@@ -456,7 +456,7 @@ const dateLabel = (d?: Date) =>
       display: inline-block;
       font-size: min(3.2rem, 12.4vw); /* 放大一档：41→48px（390 宽） */
       font-weight: 800; /* 粗度与 HCONZLVRA_ 同档 */
-      line-height: 1.18;
+      line-height: 1.02; /* scaleY(1.3) 连行距一起拉伸：收紧到 1.02，拉伸后 ≈1.03 的观感 */
       transform: scaleY(1.3); /* 纵向拉长（不夸张） */
       background: var(--heading-gradient);
       -webkit-background-clip: text;
@@ -471,7 +471,7 @@ const dateLabel = (d?: Date) =>
       font-weight: 900; /* 800 → 900：加粗一点点 */
       letter-spacing: -0.02em;
       line-height: 1.15;
-      margin-top: 0.12em; /* 与 THIS IS 的行间距（1.5 倍拉伸所需的最小预留） */
+      margin-top: 0.34em; /* 行距均衡：上方拉伸放大的间隙 vs 此处盒外 margin（不被拉伸） */
       transform: scaleY(1.5); /* 比 .lines-hi 的 1.3 更长 */
       background: var(--heading-gradient);
       -webkit-background-clip: text;
