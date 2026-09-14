@@ -478,13 +478,14 @@ const dateLabel = (d?: Date) =>
       font-size: min(1.4rem, 5.2vw); /* 每句一行仍是硬约束，vw 封顶 */
       line-height: 1.6;
     }
-    /* 按钮：并排平分屏宽，承担"填住下方"的视觉重量 */
+    /* 按钮：各占一整行、横向填满屏宽 */
     .hero-actions {
       margin-top: 1.9rem;
       gap: 0.9rem;
+      flex-direction: column; /* 第二个按钮换行独占一行 */
     }
     .hero-actions .btn {
-      flex: 1; /* 两个按钮平分一整行 */
+      width: 100%; /* 横向填满 */
       padding: 0.9rem 0.8rem;
       font-size: 1.05rem;
     }
