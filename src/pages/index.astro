@@ -25,6 +25,10 @@ const dateLabel = (d?: Date) =>
         <h1>HI,<br class="br-mobile" /> THIS IS<br /><span class="name">HCONZLVRA_</span></h1>
         <p class="subtitle">Welcome to my site.</p>
         <p class="tagline">「There is a crack in everything. <br class="br-mobile" />That's how the light gets in.」</p>
+        <div class="hero-actions">
+          <a class="btn btn-solid" href="/about">About me</a>
+          <a class="btn btn-outline" href="/guestbook">Guestbook</a>
+        </div>
       </section>
     </div>
 
@@ -217,6 +221,49 @@ const dateLabel = (d?: Date) =>
     white-space: nowrap;
   }
 
+  /* Hero 按钮：紫色主题（实心 + 描边），桌面/移动通用 */
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.8rem 1.9rem;
+    border-radius: 12px;
+    font-size: 1.08rem;
+    font-weight: 600;
+    text-decoration: none;
+    letter-spacing: 0.01em;
+    transition: all 0.25s ease;
+  }
+  .btn-solid {
+    background: #8b3fd1; /* 主题紫（渐变深端），双主题下都够沉 */
+    color: #ffffff;
+    box-shadow: 0 6px 20px rgba(139, 63, 209, 0.35);
+  }
+  .btn-solid:hover {
+    background: #7a2fc0;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(139, 63, 209, 0.45);
+  }
+  .btn-outline {
+    border: 1.5px solid #9c6fe0; /* 主题紫（导航下划线同源） */
+    color: #8b3fd1;
+    background: transparent;
+  }
+  .btn-outline:hover {
+    background: rgba(139, 63, 209, 0.1);
+    transform: translateY(-2px);
+  }
+  /* 深色主题：描边按钮换浅紫字，避免紫底上对比不足 */
+  html[data-theme='dark'] .btn-outline {
+    color: #c8b6ff;
+  }
+
   /* Features: three cards side by side */
   .features {
     width: 100%;
@@ -393,25 +440,25 @@ const dateLabel = (d?: Date) =>
       min-height: calc(100svh - 5rem); /* initial viewport (URL bar shown) */
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      padding-bottom: 4.5vh; /* 反馈仍偏下：大字块整体再上提一档 */
+      justify-content: flex-start; /* 整体靠上：贴着导航栏，下方空间留白 */
+      padding-top: 5vh; /* 与导航栏只隔一点点 */
     }
     .hero h1 {
-      font-size: min(4.6rem, 18.5vw); /* HI, / THIS IS 大写两行撑起纵向主体 */
+      font-size: min(2.7rem, 10.5vw); /* 拉小：名字才是最大的一行（层次恢复） */
       margin-inline: 0; /* 覆盖桌面的 fit-content 居中，左对齐 */
       max-width: 100%; /* 窄屏防御 */
-      line-height: 1.42; /* 行距铺开：大写区纵向占据更多首屏，配合放大的字撑满上下 */
+      line-height: 1.18; /* 行距收紧，三行大字成为一个紧凑字块 */
     }
     /* 10 字符的名字宽度已顶满屏宽，字号加不动——纵向拉长（scaleY）填充：
-       比例控制在 1.45 不算夸张，视觉高度≈大写两行的字面。
+       比例 1.25 不夸张，视觉高度与大写行拉开层次。
        注意：span 加 transform 后会脱离 h1 的 background-clip:text 绘制层，
        h1 的渐变透不进被变换的字形——必须自带渐变自包含绘制，否则隐形 */
     .hero h1 .name {
       font-size: min(1.8em, 12.4vw);
       letter-spacing: -0.02em;
       line-height: 1.15;
-      margin-block: 0.32em; /* 给拉伸后的字形预留纵向空间，不压相邻行 */
-      transform: scaleY(1.45);
+      margin-block: 0.1em; /* 行距收紧：只留拉伸所需的最小空间 */
+      transform: scaleY(1.25);
       background: var(--heading-gradient);
       -webkit-background-clip: text;
       background-clip: text;
@@ -424,12 +471,22 @@ const dateLabel = (d?: Date) =>
       }
     }
     .hero .subtitle {
-      font-size: min(2.3rem, 8.8vw); /* 同步放大，vw 收口防窄屏溢出 */
+      font-size: min(2rem, 7.6vw); /* 名字为主，副标题退一档 */
       margin-bottom: 0.9rem;
     }
     .hero .tagline {
       font-size: min(1.4rem, 5.2vw); /* 每句一行仍是硬约束，vw 封顶 */
       line-height: 1.6;
+    }
+    /* 按钮：并排平分屏宽，承担"填住下方"的视觉重量 */
+    .hero-actions {
+      margin-top: 1.9rem;
+      gap: 0.9rem;
+    }
+    .hero-actions .btn {
+      flex: 1; /* 两个按钮平分一整行 */
+      padding: 0.9rem 0.8rem;
+      font-size: 1.05rem;
     }
     .features {
       margin-top: 5rem; /* clear separation from the first screen */
