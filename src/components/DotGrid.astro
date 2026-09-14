@@ -290,11 +290,24 @@
     }
   });
 
-  // 主题切换时重读颜色（观察 data-theme 属性变化）
+  // 主题切换时：--dot-color 已注册为 <color>（global.css @property），
+  // CSS 过渡期间它的计算值逐帧插值——起一个短 rAF 窗口每帧重读，
+  // 点阵颜色就与页面其余部分同步渐变（Apple 式交叉淡化）
+  let colorFollowId = 0;
+  const followColor = (until: number) => {
+    if (colorFollowId) cancelAnimationFrame(colorFollowId);
+    const step = () => {
+      readColor();
+      if (performance.now() < until) colorFollowId = requestAnimationFrame(step);
+      else colorFollowId = 0;
+    };
+    colorFollowId = requestAnimationFrame(step);
+  };
   new MutationObserver(() => {
     if (canvas?.isConnected) {
       readColor();
       kick();
+      followColor(performance.now() + 550);
     }
   }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 

@@ -1,10 +1,53 @@
 /* ============================================
+   渐变面的"色标变量"注册（Apple 式主题交叉淡化的关键）：
+   background-image 本身不可动画，但把渐变的每个色站
+   注册成 <color> 型自定义属性后就能被 transition 插值，
+   于是页面背景渐变、标题渐变文字在切主题时逐帧变色。
+   --dot-color 同理：canvas JS 每帧读它的计算值，注册后
+   计算值在过渡期间插值，点阵得以与页面同步渐变。
+   不支持 @property 的旧浏览器优雅降级为瞬间切换。
+   ============================================ */
+@property --page-bg-1 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f5f2fb;
+}
+@property --page-bg-2 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #e9e4f7;
+}
+@property --page-bg-3 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f0e9f4;
+}
+@property --grad-a {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #c74d86;
+}
+@property --grad-b {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #8b3fd1;
+}
+@property --dot-color {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgba(42, 36, 64, 0.08);
+}
+
+/* ============================================
    Design Tokens — 深浅双主题设计令牌
    切换方式：html[data-theme="light" | "dark"]
    ============================================ */
 :root,
 html[data-theme='light'] {
-  --page-bg: linear-gradient(135deg, #f5f2fb, #e9e4f7, #f0e9f4);
+  --page-bg-1: #f5f2fb;
+  --page-bg-2: #e9e4f7;
+  --page-bg-3: #f0e9f4;
+  --page-bg: linear-gradient(135deg, var(--page-bg-1), var(--page-bg-2), var(--page-bg-3));
   --html-bg: #efeaf5;
   --text: #2a2440;
   --text-secondary: #5a5470;
@@ -16,7 +59,9 @@ html[data-theme='light'] {
   --nav-tint: rgba(255, 255, 255, 0.42);
   --nav-border: rgba(42, 36, 64, 0.08);
   --nav-underline: #9c6fe0;
-  --heading-gradient: linear-gradient(135deg, #c74d86, #8b3fd1);
+  --grad-a: #c74d86;
+  --grad-b: #8b3fd1;
+  --heading-gradient: linear-gradient(135deg, var(--grad-a), var(--grad-b));
   --btn-primary-bg: #d64d8a;
   --btn-primary-bg-hover: #c73e6e;
   --btn-primary-text: #ffffff;
@@ -28,7 +73,10 @@ html[data-theme='light'] {
 }
 
 html[data-theme='dark'] {
-  --page-bg: linear-gradient(135deg, #05030d, #171428, #0e0c18);
+  --page-bg-1: #05030d;
+  --page-bg-2: #171428;
+  --page-bg-3: #0e0c18;
+  --page-bg: linear-gradient(135deg, var(--page-bg-1), var(--page-bg-2), var(--page-bg-3));
   --html-bg: #0a0913;
   --text: #e0e0e0;
   --text-secondary: #b0b0c8;
@@ -40,7 +88,9 @@ html[data-theme='dark'] {
   --nav-tint: rgba(11, 9, 32, 0.42);
   --nav-border: rgba(255, 255, 255, 0.08);
   --nav-underline: #b48cf0;
-  --heading-gradient: linear-gradient(135deg, #f45595, #e08ffc);
+  --grad-a: #f45595;
+  --grad-b: #e08ffc;
+  --heading-gradient: linear-gradient(135deg, var(--grad-a), var(--grad-b));
   --btn-primary-bg: #f093fb;
   --btn-primary-bg-hover: #f5576c;
   --btn-primary-text: #1a1a2e;
@@ -80,6 +130,41 @@ html {
     clip 连编程/手势滚动都彻底禁死，不支持 clip 的旧浏览器回退 hidden */
   overflow-x: hidden;
   overflow-x: clip;
+}
+
+/* ============================================
+   主题交叉淡化（Apple 式）：ThemeToggle 切换时给 <html>
+   挂 .theme-anim 约 0.5s，期间——
+   1. html 本体：兜底色 + 页面渐变的色标变量（@property 注册过）
+      逐帧插值，背景整片平滑换色（含 canvas 点阵读的 --dot-color）
+   2. 所有元素：背景/文字/边框/阴影等颜色属性统一 0.45s 过渡，
+      色彩计算值变了就自动动画，与换主题的变量无关
+   !important 保证盖过组件自己的 hover 过渡声明（窗口极短，
+   仅此期间 hover 位移动画临时变瞬时，肉眼不可察）
+   ============================================ */
+html.theme-anim {
+  transition:
+    background-color 0.45s ease,
+    --page-bg-1 0.45s ease,
+    --page-bg-2 0.45s ease,
+    --page-bg-3 0.45s ease,
+    --grad-a 0.45s ease,
+    --grad-b 0.45s ease,
+    --dot-color 0.45s ease;
+}
+html.theme-anim *,
+html.theme-anim *::before,
+html.theme-anim *::after {
+  transition:
+    background-color 0.45s ease,
+    color 0.45s ease,
+    border-color 0.45s ease,
+    fill 0.45s ease,
+    stroke 0.45s ease,
+    box-shadow 0.45s ease,
+    outline-color 0.45s ease,
+    text-decoration-color 0.45s ease,
+    caret-color 0.45s ease !important;
 }
 
 /* 锁死移动端"能左右划一点再弹回"（iOS 橡皮筋）：
