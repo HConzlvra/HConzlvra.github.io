@@ -394,20 +394,28 @@ const dateLabel = (d?: Date) =>
       display: flex;
       flex-direction: column;
       justify-content: center;
-      padding-bottom: 3vh; /* 字块显著变大后自身重心上移，补偿减到很小 */
+      padding-bottom: 4.5vh; /* 反馈仍偏下：大字块整体再上提一档 */
     }
     .hero h1 {
-      font-size: 2.4rem;
+      font-size: min(4.6rem, 18.5vw); /* HI, / THIS IS 大写两行撑起纵向主体 */
       margin-inline: 0; /* 覆盖桌面的 fit-content 居中，左对齐 */
       max-width: 100%; /* 窄屏防御 */
-      line-height: 1.24; /* 字大了行距适度收紧，字为主体 */
+      line-height: 1.42; /* 行距铺开：大写区纵向占据更多首屏，配合放大的字撑满上下 */
     }
-    /* 10 字符的名字已接近撑满屏宽：轻收字距 + vw 字号，
-       在不撑出横向滚动的前提下放到最大 */
+    /* 10 字符的名字宽度已顶满屏宽，字号加不动——纵向拉长（scaleY）填充：
+       比例控制在 1.45 不算夸张，视觉高度≈大写两行的字面。
+       注意：span 加 transform 后会脱离 h1 的 background-clip:text 绘制层，
+       h1 的渐变透不进被变换的字形——必须自带渐变自包含绘制，否则隐形 */
     .hero h1 .name {
       font-size: min(1.8em, 12.4vw);
       letter-spacing: -0.02em;
-      line-height: 1.3;
+      line-height: 1.15;
+      margin-block: 0.32em; /* 给拉伸后的字形预留纵向空间，不压相邻行 */
+      transform: scaleY(1.45);
+      background: var(--heading-gradient);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
     /* 更窄的手机（≤359px）：padding 占比更高，vw 再收一档防止名字顶到边距 */
     @media (max-width: 359px) {
@@ -416,12 +424,12 @@ const dateLabel = (d?: Date) =>
       }
     }
     .hero .subtitle {
-      font-size: 1.85rem;
-      margin-bottom: 0.7rem;
+      font-size: min(2.3rem, 8.8vw); /* 同步放大，vw 收口防窄屏溢出 */
+      margin-bottom: 0.9rem;
     }
     .hero .tagline {
-      font-size: 1.22rem;
-      line-height: 1.62;
+      font-size: min(1.4rem, 5.2vw); /* 每句一行仍是硬约束，vw 封顶 */
+      line-height: 1.6;
     }
     .features {
       margin-top: 5rem; /* clear separation from the first screen */
