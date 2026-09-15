@@ -219,6 +219,13 @@ body {
   transition: color 0.3s ease;
 }
 
+/* 内容少时把页脚推出首屏：main 至少占满整个视口。
+   悬浮导航栏是 fixed 不占文档流，main 从视口顶开始，
+   占满 100vh 后页脚顶部正好贴住视口底沿 */
+main {
+  min-height: 100vh;
+}
+
 a {
   color: inherit;
 }
