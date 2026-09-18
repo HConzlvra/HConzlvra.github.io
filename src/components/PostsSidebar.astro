@@ -117,10 +117,12 @@ const posts = (await getCollection('posts')).sort(
 </style>
 
 <script>
+  import { API_BASE } from '../lib/api';
+
   // 动态文章合并（与 posts/index.astro 同源逻辑）：侧边栏目录是静态构建的，
   // 这里运行时拉后端（D1）里 /admin 发布的文章，按日期降序混入。
   // 后端不可用或无新文章时保持静态目录原样
-  const API = import.meta.env.DEV ? '/api' : 'https://guestbook-9z8.pages.dev/api';
+  const API = API_BASE;
 
   const fmt = (ts: number) =>
     new Date(ts).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' });

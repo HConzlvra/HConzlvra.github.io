@@ -132,9 +132,11 @@ const posts = (await getCollection('posts')).sort(
 </style>
 
 <script>
+  import { API_BASE } from '../../lib/api';
+
   // 动态文章合并：静态构建的列表之外，再拉取后端（D1）里通过 /admin 发布的文章，
   // 按更新时间降序混排重建列表。后端不可用或无新文章时保持静态列表原样
-  const API = import.meta.env.DEV ? '/api' : 'https://guestbook-9z8.pages.dev/api';
+  const API = API_BASE;
 
   const fmt = (iso: string) =>
     new Date(iso).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });

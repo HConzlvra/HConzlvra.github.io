@@ -305,9 +305,11 @@ const mapCfg = {
 </style>
 
 <script>
+  import { API_BASE } from '../lib/api';
+
   // 动态部分：/api/stats（访客/留言/动态文章统计 + 地图点位）与 /api/posts（时间线合并）。
   // 全部静默降级：后端不可用时保持静态内容
-  const API = import.meta.env.DEV ? '/api' : 'https://guestbook-9z8.pages.dev/api';
+  const API = API_BASE;
 
   const $ = (id: string) => document.getElementById(id) as HTMLElement;
 

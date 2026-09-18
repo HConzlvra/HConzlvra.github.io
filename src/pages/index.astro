@@ -98,9 +98,11 @@ const dateLabel = (d?: Date) =>
 </Layout>
 
 <script>
+  import { API_BASE } from '../lib/api';
+
   // Latest posts merge: pull /admin-published posts and re-rank with the static list, top 3;
   // keep the static list as-is when the backend is down or has nothing new
-  const API = import.meta.env.DEV ? '/api' : 'https://guestbook-9z8.pages.dev/api';
+  const API = API_BASE;
 
   const fmt = (ts: number) => {
     const d = new Date(ts);

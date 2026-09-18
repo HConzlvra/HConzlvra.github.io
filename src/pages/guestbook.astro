@@ -350,10 +350,12 @@ import Layout from '../layouts/Layout.astro';
 </style>
 
 <script>
+  import { API_BASE } from '../lib/api';
+
   // 留言板客户端：模块脚本只执行一次，astro:page-load 时重新初始化
   // API 部署在 Cloudflare Pages（Pages _worker.js + D1），主站跨域调用，CORS 白名单放行
   // 开发时走 astro dev 的同源代理（astro.config.mjs 把 /api 转发到本地 wrangler），构建后用线上 API
-  const API = import.meta.env.DEV ? '/api' : 'https://guestbook-9z8.pages.dev/api';
+  const API = API_BASE;
   const SIZE = 20;
   let page = 1;
 

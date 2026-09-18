@@ -16,8 +16,9 @@ import Layout from '../layouts/Layout.astro';
 
 <script>
   import { marked } from 'marked';
+  import { API_BASE } from '../lib/api';
 
-  const API = import.meta.env.DEV ? '/api' : 'https://guestbook-9z8.pages.dev/api';
+  const API = API_BASE;
 
   (async () => {
     const m = location.pathname.match(/^\/posts\/([a-z0-9][a-z0-9-]*)\/?$/);

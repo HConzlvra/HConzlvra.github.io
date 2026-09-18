@@ -65,8 +65,9 @@ import Layout from '../layouts/Layout.astro';
 
 <script>
   import { marked } from 'marked';
+  import { API_BASE } from '../lib/api';
 
-  const API = import.meta.env.DEV ? '/api' : 'https://guestbook-9z8.pages.dev/api';
+  const API = API_BASE;
   const KEY_STORE = 'admin_key';
 
   const $ = (id: string) => document.getElementById(id) as HTMLElement;
