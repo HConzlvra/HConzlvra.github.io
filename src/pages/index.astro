@@ -24,7 +24,7 @@ const dateLabel = (d?: Date) =>
       <section class="hero enter-left">
         <h1><span class="lines-hi">HI,<br class="br-mobile" /> THIS IS</span><br /><span class="name">HCONZLVRA_</span></h1>
         <p class="subtitle">Welcome to my site.</p>
-        <p class="tagline">「There is a crack in everything. <br class="br-mobile" />That's how the light gets in.」</p>
+        <p class="tagline">There is a crack in everything. <br class="br-mobile" />That's how the light gets in.</p>
         <div class="hero-actions">
           <a class="btn btn-solid" href="/about">About me</a>
           <a class="btn btn-outline" href="/guestbook">Guestbook</a>
@@ -217,10 +217,14 @@ const dateLabel = (d?: Date) =>
     margin-bottom: 0.75rem;
   }
   .hero .tagline {
-    font-size: 1.55rem;
+    font-size: 1.4rem;
     color: var(--text-secondary);
-    line-height: 1.6;
+    line-height: 1.7;
     white-space: nowrap;
+    border-left: 3px solid var(--btn-primary-bg);
+    padding-left: 1rem;
+    margin: 1.2rem 0 0;
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
   }
 
   /* Hero 按钮：紫色主题（实心 + 描边），桌面/移动通用 */
@@ -234,36 +238,50 @@ const dateLabel = (d?: Date) =>
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.8rem 1.9rem;
-    border-radius: 12px;
-    font-size: 1.08rem;
-    font-weight: 600;
+    padding: 0.9rem 1.8rem;
+    border-radius: 0;
+    border: 2px solid var(--btn-primary-bg);
+    box-shadow: 4px 4px 0 rgba(146, 103, 215, 0.28);
+    font-size: 0.98rem;
+    font-weight: 700;
     text-decoration: none;
-    letter-spacing: 0.01em;
-    transition: all 0.25s ease;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+    position: relative;
+    isolation: isolate;
+  }
+  .btn::before {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    pointer-events: none;
   }
   .btn-solid {
-    background: #8b3fd1; /* 主题紫（渐变深端），双主题下都够沉 */
-    color: #ffffff;
-    box-shadow: 0 6px 20px rgba(139, 63, 209, 0.35);
+    background: linear-gradient(180deg, #9a58e7 0%, #7f3fc9 100%);
+    color: #fff;
+    box-shadow: 6px 6px 0 rgba(123, 78, 190, 0.8), inset 0 0 0 1px rgba(255,255,255,0.18);
   }
   .btn-solid:hover {
-    background: #7a2fc0;
-    transform: translateY(-2px);
-    box-shadow: 0 10px 28px rgba(139, 63, 209, 0.45);
+    transform: translate(-2px, -2px);
+    box-shadow: 8px 8px 0 rgba(123, 78, 190, 0.9), inset 0 0 0 1px rgba(255,255,255,0.2);
+    filter: brightness(1.05);
   }
   .btn-outline {
-    border: 1.5px solid #9c6fe0; /* 主题紫（导航下划线同源） */
-    color: #8b3fd1;
-    background: transparent;
+    border-color: rgba(151, 109, 220, 0.9);
+    color: var(--accent-text);
+    background: rgba(146, 103, 215, 0.04);
+    box-shadow: 4px 4px 0 rgba(146, 103, 215, 0.18);
   }
   .btn-outline:hover {
-    background: rgba(139, 63, 209, 0.1);
-    transform: translateY(-2px);
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 rgba(146, 103, 215, 0.3);
+    background: rgba(146, 103, 215, 0.08);
   }
-  /* 深色主题：描边按钮换浅紫字，避免紫底上对比不足 */
   html[data-theme='dark'] .btn-outline {
-    color: #c8b6ff;
+    color: #d9c9ff;
   }
 
   /* Features: three cards side by side */
@@ -293,18 +311,23 @@ const dateLabel = (d?: Date) =>
   .features .card:nth-child(3) { animation-delay: 0.16s; }
   .features .card h3 {
     width: fit-content; /* shrink gradient to text width */
-    font-size: 1.65rem;
-    font-weight: 600;
+    font-size: 1.45rem;
+    font-weight: 700;
     margin-bottom: 0.75rem;
     background: var(--heading-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
   .features .card p {
     color: var(--text-secondary);
-    line-height: 1.6;
-    font-size: 1.08rem;
+    line-height: 1.7;
+    font-size: 1rem;
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    letter-spacing: 0.02em;
   }
 
   /* ---- Below the fold: same background logic as the footer ----

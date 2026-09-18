@@ -6,10 +6,11 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "dev": "node scripts/sync-dynamic-posts.mjs && astro dev --host 0.0.0.0",
+    "build": "node scripts/sync-dynamic-posts.mjs && astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "sync:posts": "node scripts/sync-dynamic-posts.mjs"
   },
   "dependencies": {
     "astro": "^7.3.1",
