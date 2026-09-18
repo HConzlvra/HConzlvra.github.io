@@ -125,58 +125,68 @@ const posts = (await getCollection('posts')).sort(
   const fmt = (ts: number) =>
     new Date(ts).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' });
 
-  (async () => {
-    try {
-      const res = await fetch(`${API}/posts`);
-      if (!res.ok) return;
-      const { posts = [] } = await res.json();
+  function mergeSidebarPosts() {
+    fetch(`${API}/posts`)
+      .then((res) => {
+        if (!res.ok) return;
+        return res.json();
+      })
+      .then((payload) => {
+        const posts = Array.isArray(payload?.posts) ? payload.posts : [];
+        const nav = document.querySelector('.sidebar-links') as HTMLElement | null;
+        const dynamic = posts.filter((p) => p?.slug);
+        if (!dynamic.length) return;
 
-      const nav = document.querySelector('.sidebar-links') as HTMLElement | null;
-      const dynamic = posts.filter((p) => p.slug);
-      if (!dynamic.length) return;
+        let holder = nav;
+        if (!holder) {
+          const empty = document.querySelector('.sidebar-empty');
+          if (!empty) return;
+          holder = document.createElement('nav');
+          holder.className = 'sidebar-links';
+          empty.replaceWith(holder);
+        }
 
-      // 静态集合为空时的"暂无文章"占位：换成空目录
-      let holder = nav;
-      if (!holder) {
-        const empty = document.querySelector('.sidebar-empty');
-        if (!empty) return;
-        holder = document.createElement('nav');
-        holder.className = 'sidebar-links';
-        empty.replaceWith(holder);
-      }
+        const items = [...holder.querySelectorAll<HTMLAnchorElement>('.sidebar-link')].map((a) => ({
+          slug: a.dataset.slug || '',
+          title: a.dataset.title || '',
+          ts: Number(new Date(a.dataset.date || 0).valueOf()) || 0,
+          el: a,
+        }));
 
-      // 收集静态条目（data-* 在构建时渲染好），与动态文章合并
-      const items = [...holder.querySelectorAll<HTMLAnchorElement>('.sidebar-link')].map((a) => ({
-        slug: a.dataset.slug || '',
-        title: a.dataset.title || '',
-        ts: new Date(a.dataset.date || 0).valueOf() || 0,
-        el: a,
-      }));
-      for (const p of dynamic) items.push({ slug: p.slug, title: p.title, ts: p.created_at, el: null });
-      items.sort((a, b) => b.ts - a.ts);
+        for (const p of dynamic) {
+          const slug = p.slug;
+          if (!slug || items.some((it) => it.slug === slug)) continue;
+          items.push({ slug, title: p.title || slug, ts: Number(p.created_at) || 0, el: null });
+        }
 
-      // 逐个插到正确位置：新元素用 <a> 克隆静态条目的结构
-      const proto = holder.querySelector('.sidebar-link');
-      for (const it of items) {
-        if (it.el) continue;
-        const a = (proto?.cloneNode(true) || document.createElement('a')) as HTMLAnchorElement;
-        a.href = `/posts/${it.slug}`;
-        a.removeAttribute('aria-current');
-        a.classList.remove('active');
-        a.dataset.slug = it.slug;
-        a.dataset.title = it.title;
-        a.dataset.date = new Date(it.ts).toISOString();
-        const title = a.querySelector('.link-title');
-        if (title) title.textContent = it.title;
-        if (!title) a.textContent = it.title;
-        const date = a.querySelector('.link-date');
-        if (date) date.textContent = fmt(it.ts);
-        it.el = a;
-      }
-      holder.innerHTML = '';
-      for (const it of items) holder.append(it.el!);
-    } catch {
-      /* 后端不可用：保持静态目录 */
-    }
-  })();
+        items.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
+        const proto = holder.querySelector('.sidebar-link');
+        for (const it of items) {
+          if (it.el) continue;
+          const a = (proto?.cloneNode(true) || document.createElement('a')) as HTMLAnchorElement;
+          a.href = `/posts/${it.slug}`;
+          a.removeAttribute('aria-current');
+          a.classList.remove('active');
+          a.dataset.slug = it.slug;
+          a.dataset.title = it.title;
+          a.dataset.date = new Date(it.ts).toISOString();
+          const title = a.querySelector('.link-title');
+          if (title) title.textContent = it.title;
+          if (!title) a.textContent = it.title;
+          const date = a.querySelector('.link-date');
+          if (date) date.textContent = fmt(it.ts);
+          it.el = a;
+        }
+
+        holder.innerHTML = '';
+        for (const it of items) holder.append(it.el!);
+      })
+      .catch(() => {
+        // 后端不可用：保持静态目录
+      });
+  }
+
+  document.addEventListener('astro:page-load', mergeSidebarPosts);
+  mergeSidebarPosts();
 </script>

@@ -9,7 +9,7 @@ const posts = (await getCollection('posts')).sort(
 
 <PostsLayout title="Posts | HConzlvra_" description="HConzlvra_ 的所有文章">
   <section class="posts-page enter-left">
-    <h1>Here's my posts<span class="intro-zh">这里存有我的文字。</span></h1>
+    <h1>Here are my posts<span class="intro-zh">这里存有我的文字。</span></h1>
     <p class="intro">Learn, Realize, Insight</p>
     {
       posts.length === 0 ? (
@@ -133,7 +133,7 @@ const posts = (await getCollection('posts')).sort(
 
 <script>
   // 动态文章合并：静态构建的列表之外，再拉取后端（D1）里通过 /admin 发布的文章，
-  // 按 pubDate 降序混排重建列表。后端不可用或无新文章时保持静态列表原样
+  // 按更新时间降序混排重建列表。后端不可用或无新文章时保持静态列表原样
   const API = import.meta.env.DEV ? '/api' : 'https://guestbook-9z8.pages.dev/api';
 
   const fmt = (iso: string) =>
@@ -168,48 +168,56 @@ const posts = (await getCollection('posts')).sort(
     return li;
   }
 
-  (async () => {
-    try {
-      const res = await fetch(`${API}/posts`);
-      if (!res.ok) return;
-      const { posts = [] } = await res.json();
+  function mergeDynamicPosts() {
+    const list = document.querySelector('.post-list') as HTMLUListElement | null;
+    const empty = document.querySelector('.empty') as HTMLElement | null;
 
-      const list = document.querySelector('.post-list') as HTMLUListElement | null;
-      const staticSlugs = new Set([...(list?.children || [])].map((li) => (li as HTMLElement).dataset.slug));
-      const dynamic = posts.filter((p) => !staticSlugs.has(p.slug));
-      if (!dynamic.length) return; // 无新文章：保持静态列表
+    fetch(`${API}/posts`)
+      .then((res) => {
+        if (!res.ok) return;
+        return res.json();
+      })
+      .then((payload) => {
+        const posts = Array.isArray(payload?.posts) ? payload.posts : [];
+        const staticSlugs = new Set([...(list?.children || [])].map((li) => (li as HTMLElement).dataset.slug || ''));
+        const dynamic = posts.filter((p) => p?.slug && !staticSlugs.has(p.slug));
+        if (!dynamic.length) return;
 
-      // 收集静态条目数据，与动态文章合并排序
-      const items = [...(list?.children || [])].map((el) => {
-        const li = el as HTMLElement;
-        return {
-          href: `/posts/${li.dataset.slug}`,
-          title: li.dataset.title || '',
-          date: li.dataset.date || '',
-          desc: li.dataset.desc || '',
-          ts: new Date(li.dataset.date || 0).valueOf() || 0,
-        };
-      });
-      for (const p of dynamic)
-        items.push({
-          href: `/posts/${p.slug}`,
-          title: p.title,
-          date: new Date(p.created_at).toISOString(),
-          desc: p.description || '',
-          ts: p.created_at,
+        const items = [...(list?.children || [])].map((el) => {
+          const li = el as HTMLElement;
+          return {
+            href: `/posts/${li.dataset.slug}`,
+            title: li.dataset.title || '',
+            date: li.dataset.date || '',
+            desc: li.dataset.desc || '',
+            ts: Number(new Date(li.dataset.date || 0).valueOf()) || 0,
+          };
         });
-      items.sort((a, b) => b.ts - a.ts);
 
-      const ul = list ?? document.createElement('ul');
-      ul.className = 'post-list';
-      ul.innerHTML = '';
-      for (const it of items) ul.append(itemEl(it));
-      if (!list) {
-        // 原来是"暂无文章"占位：替换为列表
-        document.querySelector('.empty')?.replaceWith(ul);
-      }
-    } catch {
-      /* 后端不可用：保持静态列表 */
-    }
-  })();
+        for (const p of dynamic) {
+          const date = p.created_at ? new Date(p.created_at).toISOString() : '';
+          items.push({
+            href: `/posts/${p.slug}`,
+            title: p.title || p.slug,
+            date,
+            desc: p.description || '',
+            ts: Number(p.created_at) || 0,
+          });
+        }
+
+        items.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
+        const ul = list ?? document.createElement('ul');
+        ul.className = 'post-list';
+        ul.innerHTML = '';
+        for (const it of items) ul.append(itemEl(it));
+        if (!list) empty?.replaceWith(ul);
+      })
+      .catch(() => {
+        // 后端不可用：保持静态列表
+      });
+  }
+
+  document.addEventListener('astro:page-load', mergeDynamicPosts);
+  mergeDynamicPosts();
 </script>
