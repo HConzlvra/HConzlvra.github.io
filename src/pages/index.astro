@@ -474,13 +474,13 @@ const dateLabel = (d?: Date) =>
       max-width: 100%; /* 窄屏防御 */
       line-height: 1.18; /* 行距收紧，三行大字成为一个紧凑字块 */
     }
-    /* 恢复到最初的未拉长版 hero 字体：不再使用 scale/transform 硬拉伸 */
+    /* 恢复到最初的移动端 hero 字体：不再做额外拉伸 */
     .hero h1 .lines-hi {
       display: inline-block;
-      font-size: min(2.8rem, 11vw);
+      font-size: min(3.4rem, 12.8vw);
       font-weight: 800;
-      line-height: 1.12;
-      letter-spacing: -0.04em;
+      line-height: 1;
+      transform: scaleY(1.5);
       background-image: var(--heading-gradient), var(--heading-gradient);
       background-size: 100% 52%;
       background-position: 0 0, 0 100%;
@@ -491,11 +491,12 @@ const dateLabel = (d?: Date) =>
     }
     .hero h1 .name {
       display: block;
-      font-size: min(1.75em, 11.8vw);
+      font-size: min(1.8em, 12.6vw);
       font-weight: 900;
       letter-spacing: -0.02em;
-      line-height: 1.16;
-      margin-top: 0.5em;
+      line-height: 1.15;
+      margin-top: 0.59em;
+      transform: scaleY(1.7);
       background: var(--heading-gradient);
       -webkit-background-clip: text;
       background-clip: text;
