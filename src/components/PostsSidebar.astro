@@ -27,7 +27,7 @@ const posts = (await getCollection('posts')).sort(
   </svg>
 </button>
 
-<!-- 侧栏面板：grid 第二列（电脑端 push），移动端 fixed overlay -->
+<!-- 侧栏面板：grid 第二列（电脑端 push），移动端全高贴边抽屉 -->
 <aside class="posts-sidebar">
   <div class="sidebar-panel" id="posts-sidebar-panel">
     <div class="sidebar-header">
@@ -118,7 +118,7 @@ const posts = (await getCollection('posts')).sort(
   .sidebar-panel {
     width: 240px;
     display: grid;
-    gap: 0.75rem;
+    gap: 0.5rem;
     opacity: 0;
     transform: translateX(-8px);
     transition: opacity 0.22s ease, transform 0.22s ease;
@@ -133,7 +133,7 @@ const posts = (await getCollection('posts')).sort(
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-bottom: 0.5rem;
+    padding-bottom: 0.35rem;
     border-bottom: 1px solid var(--surface-border);
   }
   .sidebar-title {
@@ -150,9 +150,9 @@ const posts = (await getCollection('posts')).sort(
   .sidebar-link {
     position: relative;
     display: grid;
-    gap: 0.12rem;
-    padding: 0.55rem 0.75rem 0.65rem;
-    border-radius: 10px;
+    gap: 0.1rem;
+    padding: 0.35rem 0.65rem 0.45rem;
+    border-radius: 8px;
     text-decoration: none;
     color: var(--text);
     transition: background 0.2s ease, color 0.2s ease;
@@ -160,9 +160,9 @@ const posts = (await getCollection('posts')).sort(
   .sidebar-link::after {
     content: '';
     position: absolute;
-    left: 0.75rem;
-    right: 0.75rem;
-    bottom: 0.18rem;
+    left: 0.65rem;
+    right: 0.65rem;
+    bottom: 0.1rem;
     height: 2px;
     border-radius: 1px;
     background: var(--btn-primary-bg);
@@ -199,9 +199,10 @@ const posts = (await getCollection('posts')).sort(
     display: none;
   }
 
-  /* ============ 移动端：overlay 半遮 ============ */
+  /* ============ 移动端：全高贴边抽屉 ============ */
   @media (max-width: 768px) {
-    /* 按钮固定在左上（导航栏下方），开合时永不位移 */
+    /* 按钮固定在左上（导航栏下方），开合时永不位移；
+       展开后浮在抽屉上方充当关闭钮，与"Posts"头部行同高对齐 */
     .sidebar-toggle {
       position: fixed;
       top: 5rem;
@@ -209,7 +210,7 @@ const posts = (await getCollection('posts')).sort(
       margin-right: 0;
       z-index: 95;
     }
-    /* 侧栏脱离 grid，fixed 从左滑入，半透明模糊背景半遮右侧文章 */
+    /* 侧栏脱离 grid，fixed 全高贴左边缘，从左滑入 */
     .posts-sidebar {
       position: static;
       overflow: visible;
@@ -218,62 +219,71 @@ const posts = (await getCollection('posts')).sort(
     }
     .sidebar-panel {
       position: fixed;
-      top: 5rem;
+      top: 0;
       left: 0;
       width: min(82vw, 19rem);
-      height: calc(100dvh - 6rem);
-      max-height: calc(100dvh - 6rem);
-      padding: 1.1rem 0.9rem 1rem;
+      height: 100dvh;
+      max-height: 100dvh;
+      padding: 5rem 1rem 1.2rem;
       overflow-y: auto;
-      gap: 0.6rem;
+      overscroll-behavior: contain;
+      gap: 0.45rem;
       opacity: 0;
       transform: translateX(-104%);
       pointer-events: none;
       transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.22s ease;
       z-index: 90;
       border-right: 1px solid var(--surface-border);
-      border-radius: 0 18px 18px 0;
       backdrop-filter: blur(22px) saturate(1.2);
       -webkit-backdrop-filter: blur(22px) saturate(1.2);
     }
     :global(html[data-theme='light']) .sidebar-panel {
-      background: rgba(245, 242, 251, 0.82);
-      box-shadow: 18px 0 48px rgba(42, 36, 64, 0.14);
+      background: rgba(245, 242, 251, 0.94);
     }
     :global(html[data-theme='dark']) .sidebar-panel {
-      background: rgba(14, 12, 24, 0.86);
-      box-shadow: 18px 0 48px rgba(0, 0, 0, 0.42);
+      background: rgba(14, 12, 24, 0.96);
     }
     :global(.posts-layout[data-open='true']) .sidebar-panel {
       transform: translateX(0);
       opacity: 1;
       pointer-events: auto;
     }
+    /* 头部行：与固定开关按钮同行，标题给按钮让位 */
     .sidebar-header {
-      padding-bottom: 0.45rem;
+      min-height: 2.4rem;
+      padding: 0 0 0.4rem 2.9rem;
     }
+    /* 紧凑列表：单行条目，日期右对齐，去掉卡片底/描边 */
     .sidebar-links {
-      gap: 0.45rem;
+      gap: 0.1rem;
     }
     .sidebar-link {
-      padding: 0.65rem 0.7rem 0.8rem;
-      background: var(--surface);
-      border: 1px solid var(--surface-border);
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      padding: 0.45rem 0.55rem 0.55rem;
+    }
+    .sidebar-link::after {
+      left: 0.55rem;
+      right: 0.55rem;
+      bottom: 0.12rem;
     }
     .link-title {
+      min-width: 0;
       font-size: 0.84rem;
     }
     .link-date {
+      margin-left: auto;
+      flex-shrink: 0;
       font-size: 0.68rem;
     }
 
-    /* 遮罩：点遮罩收起，轻模糊加强"半遮"层次 */
+    /* 遮罩：全屏覆盖，点遮罩收起 */
     .sidebar-scrim {
       display: block;
       position: fixed;
       inset: 0;
-      top: 5rem;
-      background: rgba(0, 0, 0, 0.28);
+      background: rgba(0, 0, 0, 0.32);
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.3s ease;
