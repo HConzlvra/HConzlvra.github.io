@@ -119,6 +119,7 @@ const posts = (await getCollection('posts')).sort(
     width: 240px;
     display: grid;
     gap: 0.5rem;
+    align-content: start; /* 内容靠顶，不随面板高度拉伸分布 */
     opacity: 0;
     transform: translateX(-8px);
     transition: opacity 0.22s ease, transform 0.22s ease;
