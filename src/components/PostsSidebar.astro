@@ -201,14 +201,25 @@ const posts = (await getCollection('posts')).sort(
 
   /* ============ 移动端：全高贴边抽屉 ============ */
   @media (max-width: 768px) {
-    /* 按钮固定在左上（导航栏下方），开合时永不位移；
-       展开后浮在抽屉上方充当关闭钮，与"Posts"头部行同高对齐 */
+    /* 开关：紧贴导航栏下方；展开时滑到抽屉右缘与 Posts 标题同行，充当关闭钮 */
     .sidebar-toggle {
       position: fixed;
-      top: 5rem;
+      top: 4.9rem;
       left: 1rem;
+      width: 2rem;
+      height: 2rem;
       margin-right: 0;
       z-index: 95;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .toggle-icon {
+      width: 0.95rem;
+      height: 0.95rem;
+    }
+    /* 展开位移 = 抽屉宽 - 左(1rem) - 钮宽(2rem) - 右缘留白(1rem)，与面板宽度表达式保持同步 */
+    :global(.posts-layout[data-open='true']) .sidebar-toggle {
+      transform: translateX(calc(min(82vw, 19rem) - 4rem));
     }
     /* 侧栏脱离 grid，fixed 全高贴左边缘，从左滑入 */
     .posts-sidebar {
@@ -224,10 +235,11 @@ const posts = (await getCollection('posts')).sort(
       width: min(82vw, 19rem);
       height: 100dvh;
       max-height: 100dvh;
-      padding: 5rem 1rem 1.2rem;
+      /* 顶部只让开导航栏，Posts 紧贴其下 */
+      padding: 4.9rem 1rem 1.2rem;
       overflow-y: auto;
       overscroll-behavior: contain;
-      gap: 0.45rem;
+      gap: 0.35rem;
       opacity: 0;
       transform: translateX(-104%);
       pointer-events: none;
@@ -248,10 +260,10 @@ const posts = (await getCollection('posts')).sort(
       opacity: 1;
       pointer-events: auto;
     }
-    /* 头部行：与固定开关按钮同行，标题给按钮让位 */
+    /* 标题一行置顶：与右缘开关钮同高对齐，列表紧贴其下 */
     .sidebar-header {
-      min-height: 2.4rem;
-      padding: 0 0 0.4rem 2.9rem;
+      min-height: 2rem;
+      padding: 0 2.8rem 0.25rem 0;
     }
     /* 紧凑列表：单行条目，日期右对齐，去掉卡片底/描边 */
     .sidebar-links {
@@ -261,7 +273,7 @@ const posts = (await getCollection('posts')).sort(
       display: flex;
       align-items: baseline;
       gap: 0.5rem;
-      padding: 0.45rem 0.55rem 0.55rem;
+      padding: 0.4rem 0.55rem 0.5rem;
     }
     .sidebar-link::after {
       left: 0.55rem;
