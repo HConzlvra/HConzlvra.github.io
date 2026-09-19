@@ -474,15 +474,13 @@ const dateLabel = (d?: Date) =>
       max-width: 100%; /* 窄屏防御 */
       line-height: 1.18; /* 行距收紧，三行大字成为一个紧凑字块 */
     }
-    /* HI, / THIS IS：放大 + 加粗到与名字同档(800) + 纵向拉长。
-       inline-block 才能 transform；transform 后脱离 h1 的
-       background-clip:text 绘制层，须自带渐变自包含绘制（同 .name） */
+    /* 恢复到未拉长版：保持原来的更稳妥字号/行距，只保留 quote 的小改动 */
     .hero h1 .lines-hi {
       display: inline-block;
-      font-size: min(3.3rem, 12.8vw);
-      font-weight: 900;
-      line-height: 0.96;
-      letter-spacing: -0.06em;
+      font-size: min(3.1rem, 12vw);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.04em;
       background-image: var(--heading-gradient), var(--heading-gradient);
       background-size: 100% 52%;
       background-position: 0 0, 0 100%;
@@ -493,11 +491,11 @@ const dateLabel = (d?: Date) =>
     }
     .hero h1 .name {
       display: block;
-      font-size: min(2.0em, 13.8vw);
+      font-size: min(1.8em, 12.4vw);
       font-weight: 900;
       letter-spacing: -0.02em;
-      line-height: 1.04;
-      margin-top: 0.46em;
+      line-height: 1.18;
+      margin-top: 0.6em;
       background: var(--heading-gradient);
       -webkit-background-clip: text;
       background-clip: text;
