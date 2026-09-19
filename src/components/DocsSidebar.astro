@@ -12,19 +12,24 @@ const categories = [...byCategory.entries()].sort((a, b) => a[0].localeCompare(b
 ---
 
 <aside class="docs-sidebar">
-  <h2 class="sidebar-title">Docs</h2>
-  <nav class="sidebar-links">
-    <a href="/docs" class="sidebar-link active">
-      <span class="link-title">All</span>
-      <span class="link-count">{docs.length} entries</span>
-    </a>
-    {categories.map(([name, list]) => (
-      <a href={`/docs#${encodeURIComponent(name)}`} class="sidebar-link">
-        <span class="link-title">{name}</span>
-        <span class="link-count">{list.length}</span>
+  <details class="sidebar-panel" open>
+    <summary class="sidebar-header">
+      <span class="sidebar-title">Docs</span>
+      <span class="sidebar-caret" aria-hidden="true">▾</span>
+    </summary>
+    <nav class="sidebar-links">
+      <a href="/docs" class="sidebar-link active">
+        <span class="link-title">All</span>
+        <span class="link-count">{docs.length} entries</span>
       </a>
-    ))}
-  </nav>
+      {categories.map(([name, list]) => (
+        <a href={`/docs#${encodeURIComponent(name)}`} class="sidebar-link">
+          <span class="link-title">{name}</span>
+          <span class="link-count">{list.length}</span>
+        </a>
+      ))}
+    </nav>
+  </details>
 </aside>
 
 <style>
@@ -32,8 +37,24 @@ const categories = [...byCategory.entries()].sort((a, b) => a[0].localeCompare(b
     position: sticky;
     top: 90px;
     align-self: start;
+  }
+  .sidebar-panel {
     display: grid;
     gap: 0.75rem;
+  }
+  .sidebar-header {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--surface-border);
+    cursor: pointer;
+    user-select: none;
+  }
+  .sidebar-header::-webkit-details-marker {
+    display: none;
   }
   .sidebar-title {
     font-size: 0.8rem;
@@ -41,8 +62,14 @@ const categories = [...byCategory.entries()].sort((a, b) => a[0].localeCompare(b
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--text-secondary);
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--surface-border);
+  }
+  .sidebar-caret {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    transition: transform 0.2s ease;
+  }
+  .sidebar-panel[open] .sidebar-caret {
+    transform: rotate(180deg);
   }
   .sidebar-links {
     display: grid;
@@ -95,11 +122,19 @@ const categories = [...byCategory.entries()].sort((a, b) => a[0].localeCompare(b
     .docs-sidebar {
       position: sticky;
       top: 72px;
+    }
+    .sidebar-panel {
       gap: 0.6rem;
     }
+    .sidebar-header {
+      padding-bottom: 0.45rem;
+    }
     .sidebar-links {
-      display: grid;
+      display: none;
       gap: 0.5rem;
+    }
+    .sidebar-panel[open] .sidebar-links {
+      display: grid;
     }
     .sidebar-link {
       min-width: 0;

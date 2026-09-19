@@ -22,7 +22,7 @@ const dateLabel = (d?: Date) =>
          the cards start below the fold -->
     <div class="hero-screen">
       <section class="hero enter-left">
-        <h1><span class="lines-hi">HI,<br class="br-mobile" /> THIS IS</span><br /><span class="name">HCONZLVRA_</span></h1>
+        <h1><span class="lines-hi">HI,<br class="br-mobile" /> THIS IS</span><br /><span class="name">HCONZLVRA</span></h1>
         <p class="subtitle">Welcome to my site.</p>
         <p class="tagline">There is a crack in everything. <br class="br-mobile" />That's how the light gets in.</p>
         <div class="hero-actions">
@@ -479,10 +479,10 @@ const dateLabel = (d?: Date) =>
        background-clip:text 绘制层，须自带渐变自包含绘制（同 .name） */
     .hero h1 .lines-hi {
       display: inline-block;
-      font-size: min(4.3rem, 16vw);
+      font-size: clamp(3.1rem, 11vw, 4.8rem);
       font-weight: 800;
-      line-height: 0.95;
-      transform: scaleY(1.38);
+      line-height: 0.92;
+      transform: scaleY(1.56);
       background-image: var(--heading-gradient), var(--heading-gradient);
       background-size: 100% 52%;
       background-position: 0 0, 0 100%;
@@ -492,17 +492,30 @@ const dateLabel = (d?: Date) =>
       -webkit-text-fill-color: transparent;
     }
     .hero h1 .name {
-      display: block;
-      font-size: min(2.25em, 14.2vw);
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+      font-size: clamp(3.5rem, 14vw, 6.2rem);
       font-weight: 900;
       letter-spacing: -0.02em;
-      line-height: 1.08;
+      line-height: 1.06;
       margin-top: 0.45em;
-      transform: scaleY(1.5);
+      transform: scaleY(1.52);
       background: var(--heading-gradient);
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
+    }
+    .hero h1 .name::after {
+      content: '';
+      position: absolute;
+      left: 0.04em;
+      right: 0.04em;
+      bottom: -0.12em;
+      height: clamp(0.12em, 0.9vw, 0.18em);
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(176, 123, 255, 0.95), rgba(122, 92, 255, 0.95));
+      box-shadow: 0 0 18px rgba(156, 106, 255, 0.3);
     }
     /* 更窄的手机（≤359px）：padding 占比更高，vw 再收一档防止名字顶到边距 */
     @media (max-width: 359px) {

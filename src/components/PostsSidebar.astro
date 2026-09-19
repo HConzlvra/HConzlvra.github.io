@@ -13,32 +13,37 @@ const posts = (await getCollection('posts')).sort(
 ---
 
 <aside class="posts-sidebar">
-  <h2 class="sidebar-title">Posts</h2>
-  {
-    posts.length === 0 ? (
-      <p class="sidebar-empty">暂无文章</p>
-    ) : (
-      <nav class="sidebar-links">
-        {posts.map((post) => (
-          <a
-            href={`/posts/${post.id}`}
-            class:list={['sidebar-link', currentSlug === post.id && 'active']}
-            aria-current={currentSlug === post.id ? 'page' : undefined}
-            data-slug={post.id}
-            data-title={post.data.title}
-            data-date={post.data.pubDate?.toISOString() ?? ''}
-          >
-            <span class="link-title">{post.data.title}</span>
-            {post.data.pubDate && (
-              <time class="link-date" datetime={post.data.pubDate.toISOString()}>
-                {post.data.pubDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' })}
-              </time>
-            )}
-          </a>
-        ))}
-      </nav>
-    )
-  }
+  <details class="sidebar-panel" open>
+    <summary class="sidebar-header">
+      <span class="sidebar-title">Posts</span>
+      <span class="sidebar-caret" aria-hidden="true">▾</span>
+    </summary>
+    {
+      posts.length === 0 ? (
+        <p class="sidebar-empty">暂无文章</p>
+      ) : (
+        <nav class="sidebar-links">
+          {posts.map((post) => (
+            <a
+              href={`/posts/${post.id}`}
+              class:list={['sidebar-link', currentSlug === post.id && 'active']}
+              aria-current={currentSlug === post.id ? 'page' : undefined}
+              data-slug={post.id}
+              data-title={post.data.title}
+              data-date={post.data.pubDate?.toISOString() ?? ''}
+            >
+              <span class="link-title">{post.data.title}</span>
+              {post.data.pubDate && (
+                <time class="link-date" datetime={post.data.pubDate.toISOString()}>
+                  {post.data.pubDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' })}
+                </time>
+              )}
+            </a>
+          ))}
+        </nav>
+      )
+    }
+  </details>
 </aside>
 
 <style>
@@ -46,8 +51,24 @@ const posts = (await getCollection('posts')).sort(
     position: sticky;
     top: 90px;
     align-self: start;
+  }
+  .sidebar-panel {
     display: grid;
     gap: 0.75rem;
+  }
+  .sidebar-header {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--surface-border);
+    cursor: pointer;
+    user-select: none;
+  }
+  .sidebar-header::-webkit-details-marker {
+    display: none;
   }
   .sidebar-title {
     font-size: 0.8rem;
@@ -55,8 +76,14 @@ const posts = (await getCollection('posts')).sort(
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--text-secondary);
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--surface-border);
+  }
+  .sidebar-caret {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    transition: transform 0.2s ease;
+  }
+  .sidebar-panel[open] .sidebar-caret {
+    transform: rotate(180deg);
   }
   .sidebar-links {
     display: grid;
@@ -113,11 +140,19 @@ const posts = (await getCollection('posts')).sort(
     .posts-sidebar {
       position: sticky;
       top: 72px;
+    }
+    .sidebar-panel {
       gap: 0.6rem;
     }
+    .sidebar-header {
+      padding-bottom: 0.45rem;
+    }
     .sidebar-links {
-      display: grid;
+      display: none;
       gap: 0.5rem;
+    }
+    .sidebar-panel[open] .sidebar-links {
+      display: grid;
     }
     .sidebar-link {
       min-width: 0;
