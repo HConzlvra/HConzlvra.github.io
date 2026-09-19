@@ -199,47 +199,34 @@ const posts = (await getCollection('posts')).sort(
     display: none;
   }
 
-  /* ============ 移动端：全高贴边抽屉 ============ */
+  /* ============ 移动端：覆盖式抽屉（内部样式与桌面端完全一致，仅定位不同） ============ */
   @media (max-width: 768px) {
-    /* 开关：紧贴导航栏下方；展开时滑到抽屉右缘与 Posts 标题同行，充当关闭钮 */
+    /* 开关：fixed 钉在导航栏下方，收起时可见、展开时浮在面板上可关闭 */
     .sidebar-toggle {
       position: fixed;
       top: 4.9rem;
       left: 1rem;
-      width: 2rem;
-      height: 2rem;
       margin-right: 0;
       z-index: 95;
-      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-        background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
     }
-    .toggle-icon {
-      width: 0.95rem;
-      height: 0.95rem;
-    }
-    /* 展开位移 = 抽屉宽 - 左(1rem) - 钮宽(2rem) - 右缘留白(1rem)，与面板宽度表达式保持同步 */
-    :global(.posts-layout[data-open='true']) .sidebar-toggle {
-      transform: translateX(calc(min(82vw, 19rem) - 4rem));
-    }
-    /* 侧栏脱离 grid，fixed 全高贴左边缘，从左滑入 */
+    /* 侧栏脱离 grid 流 */
     .posts-sidebar {
       position: static;
       overflow: visible;
       height: auto;
       margin-right: 0;
     }
+    /* 面板：fixed 全高覆盖，从左滑入；内部 header/links 全继承桌面样式 */
     .sidebar-panel {
       position: fixed;
       top: 0;
       left: 0;
-      width: min(82vw, 19rem);
+      width: 240px;
       height: 100dvh;
       max-height: 100dvh;
-      /* 顶部只让开导航栏，Posts 紧贴其下 */
-      padding: 4.9rem 1rem 1.2rem;
+      padding: 5rem 1rem 1rem;
       overflow-y: auto;
       overscroll-behavior: contain;
-      gap: 0.35rem;
       opacity: 0;
       transform: translateX(-104%);
       pointer-events: none;
@@ -259,35 +246,6 @@ const posts = (await getCollection('posts')).sort(
       transform: translateX(0);
       opacity: 1;
       pointer-events: auto;
-    }
-    /* 标题一行置顶：与右缘开关钮同高对齐，列表紧贴其下 */
-    .sidebar-header {
-      min-height: 2rem;
-      padding: 0 2.8rem 0.25rem 0;
-    }
-    /* 紧凑列表：单行条目，日期右对齐，去掉卡片底/描边 */
-    .sidebar-links {
-      gap: 0.1rem;
-    }
-    .sidebar-link {
-      display: flex;
-      align-items: baseline;
-      gap: 0.5rem;
-      padding: 0.4rem 0.55rem 0.5rem;
-    }
-    .sidebar-link::after {
-      left: 0.55rem;
-      right: 0.55rem;
-      bottom: 0.12rem;
-    }
-    .link-title {
-      min-width: 0;
-      font-size: 0.84rem;
-    }
-    .link-date {
-      margin-left: auto;
-      flex-shrink: 0;
-      font-size: 0.68rem;
     }
 
     /* 遮罩：全屏覆盖，点遮罩收起 */
