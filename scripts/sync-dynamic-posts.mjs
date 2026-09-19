@@ -53,6 +53,10 @@ async function syncDynamicPosts() {
     if (!slug) continue;
 
     const target = path.join(postsDir, `${slug}.md`);
+    if (fs.existsSync(target)) {
+      console.log(`[sync-dynamic-posts] keep local file for ${slug}.md (local source of truth)`);
+      continue;
+    }
 
     let fullPost;
     try {
@@ -79,13 +83,8 @@ async function syncDynamicPosts() {
       '',
     ].filter(Boolean).join('\n');
 
-    const existing = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : null;
-    if (existing === fileContent) {
-      continue;
-    }
-
     fs.writeFileSync(target, fileContent, 'utf8');
-    console.log(`[sync-dynamic-posts] synced ${slug}.md`);
+    console.log(`[sync-dynamic-posts] created ${slug}.md from API`);
   }
 }
 
