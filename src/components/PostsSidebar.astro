@@ -6,12 +6,28 @@ interface Props {
 }
 const { currentSlug = '' } = Astro.props;
 
-// 按发布日期倒序
 const posts = (await getCollection('posts')).sort(
   (a, b) => (b.data.pubDate?.valueOf() ?? 0) - (a.data.pubDate?.valueOf() ?? 0)
 );
 ---
 
+<!-- 开关按钮：grid 第一列，sticky 钉在视口顶部，开合时永不位移。
+     圆形玻璃质感 + chevron 指示方向，与导航栏 hamburger 同语言 -->
+<button
+  class="sidebar-toggle"
+  type="button"
+  aria-expanded="false"
+  aria-controls="posts-sidebar-panel"
+  aria-label="切换文章目录"
+>
+  <svg class="toggle-icon" viewBox="0 0 24 24" aria-hidden="true">
+    <!-- 侧栏图标：左竖条 + 右大方块，展开时左条变粗（fill 切换） -->
+    <rect class="ic-bar" x="3" y="4" width="4" height="16" rx="1.5" />
+    <rect class="ic-panel" x="9" y="4" width="12" height="16" rx="2" />
+  </svg>
+</button>
+
+<!-- 侧栏面板：grid 第二列（电脑端 push），移动端全高贴边抽屉 -->
 <aside class="posts-sidebar">
   <div class="sidebar-panel" id="posts-sidebar-panel">
     <div class="sidebar-header">
@@ -45,44 +61,80 @@ const posts = (await getCollection('posts')).sort(
   </div>
 </aside>
 
-<!-- 统一开关：电脑端是贴 content 左边缘的竖向拉手（push），
-     移动端是左边缘圆角 tab，展开后跟着面板右移（overlay 半遮） -->
-<button
-  class="sidebar-toggle"
-  type="button"
-  aria-expanded="false"
-  aria-controls="posts-sidebar-panel"
-  aria-label="切换文章目录"
->
-  <span class="toggle-label">Posts</span>
-  <svg class="toggle-caret" viewBox="0 0 24 24" aria-hidden="true">
-    <path
-      d="M9 6l6 6-6 6"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2.4"
-      stroke-linecap="round"
-      stroke-linejoin="round"></path>
-  </svg>
-</button>
-
 <!-- 移动端遮罩：点遮罩收起面板 -->
 <div class="sidebar-scrim" aria-hidden="true"></div>
 
 <style>
-  /* ============ 通用 ============ */
+  /* ============ 开关按钮（两端共用） ============ */
+  .sidebar-toggle {
+    position: sticky;
+    top: 6rem;
+    align-self: start;
+    z-index: 40;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    margin-right: 0.9rem;
+    padding: 0;
+    border: 1px solid var(--surface-border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .sidebar-toggle:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+  }
+  .toggle-icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .toggle-icon .ic-bar,
+  .toggle-icon .ic-panel {
+    fill: currentColor;
+    transition: fill 0.2s ease;
+  }
+  /* 展开时：图标整体旋 180°，左条与右块互换视觉位置，暗示"已展开可收起" */
+  :global(.posts-layout[data-open='true']) .toggle-icon {
+    transform: rotate(180deg);
+  }
+
+  /* ============ 侧栏面板：电脑端 push（grid 第二列） ============ */
   .posts-sidebar {
-    min-width: 0;
+    align-self: start;
+    overflow: hidden;
+    height: fit-content;
+    margin-right: 2rem;
   }
   .sidebar-panel {
+    width: 240px;
     display: grid;
-    gap: 0.75rem;
+    gap: 0.5rem;
+    align-content: start; /* 内容靠顶，不随面板高度拉伸分布 */
+    opacity: 0;
+    transform: translateX(-8px);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    transition-delay: 0s;
+  }
+  :global(.posts-layout[data-open='true']) .sidebar-panel {
+    opacity: 1;
+    transform: none;
+    transition-delay: 0.1s; /* 等列宽撑开再显内容 */
   }
   .sidebar-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-bottom: 0.5rem;
+    padding-bottom: 0.35rem;
     border-bottom: 1px solid var(--surface-border);
   }
   .sidebar-title {
@@ -99,9 +151,9 @@ const posts = (await getCollection('posts')).sort(
   .sidebar-link {
     position: relative;
     display: grid;
-    gap: 0.12rem;
-    padding: 0.55rem 0.75rem 0.65rem;
-    border-radius: 10px;
+    gap: 0.1rem;
+    padding: 0.35rem 0.65rem 0.45rem;
+    border-radius: 8px;
     text-decoration: none;
     color: var(--text);
     transition: background 0.2s ease, color 0.2s ease;
@@ -109,9 +161,9 @@ const posts = (await getCollection('posts')).sort(
   .sidebar-link::after {
     content: '';
     position: absolute;
-    left: 0.75rem;
-    right: 0.75rem;
-    bottom: 0.18rem;
+    left: 0.65rem;
+    right: 0.65rem;
+    bottom: 0.1rem;
     height: 2px;
     border-radius: 1px;
     background: var(--btn-primary-bg);
@@ -143,120 +195,53 @@ const posts = (await getCollection('posts')).sort(
     font-size: 0.9rem;
   }
 
-  .toggle-caret {
-    transition: transform 0.26s ease;
-  }
-
-  /* ============ 电脑端：push 拉手 ============ */
-  /* toggle 绝对贴 content 左边缘；left 跟随 --sidebar-w，
-     展开时随 content 一起被往右挤 */
-  .sidebar-toggle {
-    position: absolute;
-    left: var(--sidebar-w);
-    top: 7rem;
-    z-index: 30;
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.35rem;
-    width: 1.7rem;
-    height: 3.6rem;
-    margin-left: 0.35rem; /* 落在 content 左 padding 区内，不遮正文 */
-    padding: 0;
-    border: 1px solid var(--surface-border);
-    border-radius: 10px;
-    background: var(--surface);
-    color: var(--text-secondary);
-    cursor: pointer;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-    transition: left 0.34s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease,
-      color 0.2s ease, box-shadow 0.2s ease;
-  }
-  .sidebar-toggle:hover {
-    background: var(--surface-hover);
-    color: var(--text);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
-  }
-  .toggle-label {
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    font-size: 0.6rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    line-height: 1;
-  }
-  .toggle-caret {
-    width: 0.7rem;
-    height: 0.7rem;
-  }
-  /* 收起时 caret 朝右（提示展开方向），展开时旋 180° 朝左 */
-  :global(.posts-layout[data-open='true']) .toggle-caret {
-    transform: rotate(180deg);
-  }
-
-  /* panel 在 sidebar 列内；列宽 0 + overflow hidden 收起时裁掉，
-     展开时随列宽出现，内容淡入 */
-  .posts-sidebar {
-    overflow: hidden;
-    align-self: start;
-    height: fit-content;
-  }
-  .sidebar-panel {
-    width: 240px;
-    opacity: 0;
-    transform: translateX(-6px);
-    transition: opacity 0.22s ease, transform 0.22s ease;
-    transition-delay: 0s;
-  }
-  :global(.posts-layout[data-open='true']) .sidebar-panel {
-    opacity: 1;
-    transform: none;
-    transition-delay: 0.12s; /* 等列宽撑开再显内容 */
-  }
-
   /* 遮罩仅移动端用 */
   .sidebar-scrim {
     display: none;
   }
 
-  /* ============ 移动端：overlay 半遮 ============ */
+  /* ============ 移动端：覆盖式抽屉（内部样式与桌面端完全一致，仅定位不同） ============ */
   @media (max-width: 768px) {
+    /* 开关：fixed 钉在导航栏下方，收起时可见、展开时浮在面板上可关闭 */
+    .sidebar-toggle {
+      position: fixed;
+      top: 4.9rem;
+      left: 1rem;
+      margin-right: 0;
+      z-index: 95;
+    }
+    /* 侧栏脱离 grid 流 */
     .posts-sidebar {
       position: static;
       overflow: visible;
       height: auto;
+      margin-right: 0;
     }
+    /* 面板：fixed 全高覆盖，从左滑入；内部 header/links 全继承桌面样式 */
     .sidebar-panel {
       position: fixed;
-      top: 4.5rem;
+      top: 0;
       left: 0;
-      width: min(80vw, 19rem);
-      height: calc(100dvh - 5.5rem);
-      max-height: calc(100dvh - 5.5rem);
-      padding: 1.1rem 0.9rem 1rem;
+      width: 240px;
+      height: 100dvh;
+      max-height: 100dvh;
+      padding: 5rem 1rem 1rem;
       overflow-y: auto;
-      gap: 0.6rem;
+      overscroll-behavior: contain;
       opacity: 0;
       transform: translateX(-104%);
       pointer-events: none;
       transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.22s ease;
       z-index: 90;
       border-right: 1px solid var(--surface-border);
-      border-radius: 0 18px 18px 0;
-      /* 主题感知的半透明背景 + 模糊：半遮住右侧文章，透出模糊轮廓 */
       backdrop-filter: blur(22px) saturate(1.2);
       -webkit-backdrop-filter: blur(22px) saturate(1.2);
     }
     :global(html[data-theme='light']) .sidebar-panel {
-      background: rgba(245, 242, 251, 0.82);
-      box-shadow: 18px 0 48px rgba(42, 36, 64, 0.14);
+      background: rgba(245, 242, 251, 0.94);
     }
     :global(html[data-theme='dark']) .sidebar-panel {
-      background: rgba(14, 12, 24, 0.86);
-      box-shadow: 18px 0 48px rgba(0, 0, 0, 0.42);
+      background: rgba(14, 12, 24, 0.96);
     }
     :global(.posts-layout[data-open='true']) .sidebar-panel {
       transform: translateX(0);
@@ -264,73 +249,11 @@ const posts = (await getCollection('posts')).sort(
       pointer-events: auto;
     }
 
-    .sidebar-header {
-      padding-bottom: 0.45rem;
-    }
-    .sidebar-links {
-      gap: 0.45rem;
-    }
-    .sidebar-link {
-      padding: 0.65rem 0.7rem 0.8rem;
-      background: var(--surface);
-      border: 1px solid var(--surface-border);
-    }
-    .link-title {
-      font-size: 0.84rem;
-    }
-    .link-date {
-      font-size: 0.68rem;
-    }
-
-    /* toggle：左边缘圆角 tab，展开后跟着面板右移 */
-    .sidebar-toggle {
-      position: fixed;
-      top: 4.5rem;
-      left: 0;
-      z-index: 95;
-      flex-direction: row;
-      width: auto;
-      min-width: 4.8rem;
-      height: 2.4rem;
-      margin-left: 0;
-      padding: 0 0.85rem 0 0.7rem;
-      border: 1px solid var(--surface-border);
-      border-left: none;
-      border-radius: 0 12px 12px 0;
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      transform: translateX(0);
-      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease,
-        color 0.2s ease;
-    }
-    :global(html[data-theme='light']) .sidebar-toggle {
-      background: rgba(245, 242, 251, 0.86);
-      box-shadow: 0 8px 22px rgba(42, 36, 64, 0.12);
-    }
-    :global(html[data-theme='dark']) .sidebar-toggle {
-      background: rgba(14, 12, 24, 0.86);
-      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
-    }
-    .toggle-label {
-      writing-mode: horizontal-tb;
-      font-size: 0.74rem;
-      letter-spacing: 0.1em;
-    }
-    .toggle-caret {
-      width: 0.85rem;
-      height: 0.85rem;
-    }
-    /* 展开时 toggle 跟着面板右移，贴在面板右边缘 */
-    :global(.posts-layout[data-open='true']) .sidebar-toggle {
-      transform: translateX(min(80vw, 19rem));
-    }
-
-    /* 遮罩：点遮罩收起 */
+    /* 遮罩：全屏覆盖，点遮罩收起 */
     .sidebar-scrim {
       display: block;
       position: fixed;
       inset: 0;
-      top: 4.5rem;
       background: rgba(0, 0, 0, 0.32);
       opacity: 0;
       pointer-events: none;
@@ -349,7 +272,7 @@ const posts = (await getCollection('posts')).sort(
     .sidebar-toggle,
     .sidebar-panel,
     .sidebar-scrim,
-    .toggle-caret {
+    .toggle-icon {
       transition: none !important;
     }
   }

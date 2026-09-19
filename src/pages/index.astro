@@ -164,23 +164,26 @@ const dateLabel = (d?: Date) =>
 
 <style>
   .container {
-    max-width: 1360px; /* wider than nav/footer: the hero headline needs the room */
+    max-width: 1360px;
     width: 100%;
-    min-height: 100vh; /* first screen exactly: vertical padding counts in (border-box) */
     box-sizing: border-box;
-    text-align: left; /* desktop: left aligned (mobile restores centering below) */
+    text-align: left;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center; /* hero + cards centered as one group (= previous look) */
     padding: 5rem 2.5rem 3rem;
     margin: 0 auto;
   }
 
-  /* Desktop: a plain wrapper (centering is the container's job).
-     Mobile: overridden below — fills the first screen with just the headline */
+  /* Desktop: hero-screen 填满首屏（减去导航栏高度），hero 内容纵向居中，
+     三个卡片自然落到折线以下。Mobile: 靠上，见媒体查询。 */
   .hero-screen {
     width: 100%;
+    min-height: calc(100vh - 5rem);
+    min-height: calc(100lvh - 5rem);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
   /* Hero */
@@ -457,16 +460,9 @@ const dateLabel = (d?: Date) =>
       padding-left: 1.25rem; /* 略收边距，给放大后的字让位 */
       padding-right: 1.25rem;
     }
-    /* First screen = headline only: hero-screen fills everything below the
-       fixed navbar (= the container's 5rem top padding), so the headline is
-       vertically centered on screen and the cards fall below the fold */
     .hero-screen {
-      min-height: calc(100vh - 5rem); /* fallback for older browsers */
-      min-height: calc(100lvh - 5rem); /* 最大视口：地址栏收起后可视高度变大，卡片起点始终压在折线之下 */
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start; /* 整体靠上：贴着导航栏，下方空间留白 */
-      padding-top: 5vh; /* 与导航栏只隔一点点 */
+      justify-content: flex-start; /* 移动端靠上，不居中 */
+      padding-top: 5vh;
     }
     .hero h1 {
       font-size: min(2.7rem, 10.5vw); /* 仅作 .name 的 em 基准，实际字号在下方两个 span 上 */
