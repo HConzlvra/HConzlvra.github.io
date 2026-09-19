@@ -13,10 +13,6 @@ const posts = (await getCollection('posts')).sort(
 ---
 
 <aside class="posts-sidebar">
-  <button class="sidebar-toggle" type="button" aria-expanded="false" aria-controls="posts-sidebar-panel">
-    <span>Posts</span>
-    <span class="sidebar-caret" aria-hidden="true">▾</span>
-  </button>
   <div class="sidebar-panel" id="posts-sidebar-panel">
     <div class="sidebar-header">
       <span class="sidebar-title">Posts</span>
@@ -49,11 +45,34 @@ const posts = (await getCollection('posts')).sort(
   </div>
 </aside>
 
+<!-- 统一开关：电脑端是贴 content 左边缘的竖向拉手（push），
+     移动端是左边缘圆角 tab，展开后跟着面板右移（overlay 半遮） -->
+<button
+  class="sidebar-toggle"
+  type="button"
+  aria-expanded="false"
+  aria-controls="posts-sidebar-panel"
+  aria-label="切换文章目录"
+>
+  <span class="toggle-label">Posts</span>
+  <svg class="toggle-caret" viewBox="0 0 24 24" aria-hidden="true">
+    <path
+      d="M9 6l6 6-6 6"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.4"
+      stroke-linecap="round"
+      stroke-linejoin="round"></path>
+  </svg>
+</button>
+
+<!-- 移动端遮罩：点遮罩收起面板 -->
+<div class="sidebar-scrim" aria-hidden="true"></div>
+
 <style>
+  /* ============ 通用 ============ */
   .posts-sidebar {
-    position: sticky;
-    top: 90px;
-    align-self: start;
+    min-width: 0;
   }
   .sidebar-panel {
     display: grid;
@@ -67,41 +86,32 @@ const posts = (await getCollection('posts')).sort(
     border-bottom: 1px solid var(--surface-border);
   }
   .sidebar-title {
-    font-size: 0.8rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--text-secondary);
   }
-  .sidebar-caret {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    transition: transform 0.2s ease;
-  }
-  .sidebar-toggle {
-    display: none;
-  }
   .sidebar-links {
     display: grid;
-    gap: 0.25rem;
+    gap: 0.2rem;
   }
   .sidebar-link {
     position: relative;
     display: grid;
-    gap: 0.15rem;
-    padding: 0.6rem 0.75rem 0.7rem;
-    border-radius: 8px;
+    gap: 0.12rem;
+    padding: 0.55rem 0.75rem 0.65rem;
+    border-radius: 10px;
     text-decoration: none;
     color: var(--text);
-    transition: background 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease;
   }
-  /* 底部横杠：悬浮时从左到右扫过（与顶部导航栏一致） */
   .sidebar-link::after {
     content: '';
     position: absolute;
     left: 0.75rem;
     right: 0.75rem;
-    bottom: 0.2rem;
+    bottom: 0.18rem;
     height: 2px;
     border-radius: 1px;
     background: var(--btn-primary-bg);
@@ -121,207 +131,347 @@ const posts = (await getCollection('posts')).sort(
   }
   .link-title {
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     line-height: 1.4;
   }
   .link-date {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     color: var(--text-secondary);
   }
   .sidebar-empty {
     color: var(--text-secondary);
     font-size: 0.9rem;
   }
+
+  .toggle-caret {
+    transition: transform 0.26s ease;
+  }
+
+  /* ============ 电脑端：push 拉手 ============ */
+  /* toggle 绝对贴 content 左边缘；left 跟随 --sidebar-w，
+     展开时随 content 一起被往右挤 */
+  .sidebar-toggle {
+    position: absolute;
+    left: var(--sidebar-w);
+    top: 7rem;
+    z-index: 30;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    width: 1.7rem;
+    height: 3.6rem;
+    margin-left: 0.35rem; /* 落在 content 左 padding 区内，不遮正文 */
+    padding: 0;
+    border: 1px solid var(--surface-border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+    transition: left 0.34s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease,
+      color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .sidebar-toggle:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+  }
+  .toggle-label {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+  .toggle-caret {
+    width: 0.7rem;
+    height: 0.7rem;
+  }
+  /* 收起时 caret 朝右（提示展开方向），展开时旋 180° 朝左 */
+  :global(.posts-layout[data-open='true']) .toggle-caret {
+    transform: rotate(180deg);
+  }
+
+  /* panel 在 sidebar 列内；列宽 0 + overflow hidden 收起时裁掉，
+     展开时随列宽出现，内容淡入 */
+  .posts-sidebar {
+    overflow: hidden;
+    align-self: start;
+    height: fit-content;
+  }
+  .sidebar-panel {
+    width: 240px;
+    opacity: 0;
+    transform: translateX(-6px);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    transition-delay: 0s;
+  }
+  :global(.posts-layout[data-open='true']) .sidebar-panel {
+    opacity: 1;
+    transform: none;
+    transition-delay: 0.12s; /* 等列宽撑开再显内容 */
+  }
+
+  /* 遮罩仅移动端用 */
+  .sidebar-scrim {
+    display: none;
+  }
+
+  /* ============ 移动端：overlay 半遮 ============ */
   @media (max-width: 768px) {
     .posts-sidebar {
-      position: fixed;
-      top: 4.5rem;
-      left: 0;
-      z-index: 80;
-      pointer-events: auto;
-    }
-    .sidebar-toggle {
-      display: inline-flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.45rem;
-      min-width: 5.4rem;
-      padding: 0.55rem 0.8rem;
-      border: 1px solid var(--surface-border);
-      border-radius: 0 10px 10px 0;
-      background: rgba(17, 17, 22, 0.96);
-      color: var(--text);
-      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
-      cursor: pointer;
-      font: inherit;
-      font-size: 0.8rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      position: relative;
-      z-index: 90;
-      touch-action: manipulation;
-    }
-    .posts-sidebar.open .sidebar-toggle {
-      transform: translateX(0);
+      position: static;
+      overflow: visible;
+      height: auto;
     }
     .sidebar-panel {
       position: fixed;
       top: 4.5rem;
       left: 0;
-      width: min(72vw, 18rem);
-      height: calc(100vh - 5.5rem);
-      max-height: calc(100vh - 5.5rem);
+      width: min(80vw, 19rem);
+      height: calc(100dvh - 5.5rem);
+      max-height: calc(100dvh - 5.5rem);
+      padding: 1.1rem 0.9rem 1rem;
       overflow-y: auto;
-      padding: 1rem 0.8rem 0.9rem;
-      background: rgba(17, 17, 22, 0.98);
-      border-right: 1px solid var(--surface-border);
-      border-radius: 0 16px 16px 0;
-      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
-      transform: translateX(-110%);
-      opacity: 0;
-      pointer-events: none;
-      transition: transform 0.25s ease, opacity 0.2s ease;
       gap: 0.6rem;
-      z-index: 85;
-      display: flex;
-      flex-direction: column;
+      opacity: 0;
+      transform: translateX(-104%);
+      pointer-events: none;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.22s ease;
+      z-index: 90;
+      border-right: 1px solid var(--surface-border);
+      border-radius: 0 18px 18px 0;
+      /* 主题感知的半透明背景 + 模糊：半遮住右侧文章，透出模糊轮廓 */
+      backdrop-filter: blur(22px) saturate(1.2);
+      -webkit-backdrop-filter: blur(22px) saturate(1.2);
     }
-    .posts-sidebar.open .sidebar-panel {
+    :global(html[data-theme='light']) .sidebar-panel {
+      background: rgba(245, 242, 251, 0.82);
+      box-shadow: 18px 0 48px rgba(42, 36, 64, 0.14);
+    }
+    :global(html[data-theme='dark']) .sidebar-panel {
+      background: rgba(14, 12, 24, 0.86);
+      box-shadow: 18px 0 48px rgba(0, 0, 0, 0.42);
+    }
+    :global(.posts-layout[data-open='true']) .sidebar-panel {
       transform: translateX(0);
       opacity: 1;
       pointer-events: auto;
     }
+
     .sidebar-header {
       padding-bottom: 0.45rem;
-      flex-shrink: 0;
     }
     .sidebar-links {
-      gap: 0.5rem;
-      flex: 1;
-      overflow-y: auto;
+      gap: 0.45rem;
     }
     .sidebar-link {
-      min-width: 0;
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid var(--surface-border);
-      border-radius: 10px;
       padding: 0.65rem 0.7rem 0.8rem;
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
     }
     .link-title {
-      font-size: 0.8rem;
+      font-size: 0.84rem;
     }
     .link-date {
       font-size: 0.68rem;
+    }
+
+    /* toggle：左边缘圆角 tab，展开后跟着面板右移 */
+    .sidebar-toggle {
+      position: fixed;
+      top: 4.5rem;
+      left: 0;
+      z-index: 95;
+      flex-direction: row;
+      width: auto;
+      min-width: 4.8rem;
+      height: 2.4rem;
+      margin-left: 0;
+      padding: 0 0.85rem 0 0.7rem;
+      border: 1px solid var(--surface-border);
+      border-left: none;
+      border-radius: 0 12px 12px 0;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      transform: translateX(0);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease,
+        color 0.2s ease;
+    }
+    :global(html[data-theme='light']) .sidebar-toggle {
+      background: rgba(245, 242, 251, 0.86);
+      box-shadow: 0 8px 22px rgba(42, 36, 64, 0.12);
+    }
+    :global(html[data-theme='dark']) .sidebar-toggle {
+      background: rgba(14, 12, 24, 0.86);
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+    }
+    .toggle-label {
+      writing-mode: horizontal-tb;
+      font-size: 0.74rem;
+      letter-spacing: 0.1em;
+    }
+    .toggle-caret {
+      width: 0.85rem;
+      height: 0.85rem;
+    }
+    /* 展开时 toggle 跟着面板右移，贴在面板右边缘 */
+    :global(.posts-layout[data-open='true']) .sidebar-toggle {
+      transform: translateX(min(80vw, 19rem));
+    }
+
+    /* 遮罩：点遮罩收起 */
+    .sidebar-scrim {
+      display: block;
+      position: fixed;
+      inset: 0;
+      top: 4.5rem;
+      background: rgba(0, 0, 0, 0.32);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 85;
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+    }
+    :global(.posts-layout[data-open='true']) .sidebar-scrim {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar-toggle,
+    .sidebar-panel,
+    .sidebar-scrim,
+    .toggle-caret {
+      transition: none !important;
     }
   }
 </style>
 
 <script>
   function setupPostsSidebar() {
-    const sidebar = document.querySelector('.posts-sidebar');
-    if (!sidebar) return;
+    const layout = document.querySelector('.posts-layout');
+    if (!layout || layout.dataset.bound === '1') return;
+    layout.dataset.bound = '1';
 
-    const toggle = sidebar.querySelector('.sidebar-toggle');
+    const toggle = layout.querySelector('.sidebar-toggle');
+    const scrim = layout.querySelector('.sidebar-scrim');
     if (!toggle) return;
 
-    const close = () => {
-      sidebar.classList.remove('open');
-      toggle.setAttribute('aria-expanded', 'false');
+    const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
+    const STORAGE_KEY = 'posts-sidebar-open';
+
+    const applyState = (open: boolean) => {
+      layout.setAttribute('data-open', open ? 'true' : 'false');
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     };
 
-    const open = () => {
-      sidebar.classList.add('open');
-      toggle.setAttribute('aria-expanded', 'true');
+    // 电脑端恢复上次展开偏好；移动端始终默认收起
+    const restore = () => {
+      if (!isMobile()) {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        applyState(saved === '1');
+      } else {
+        applyState(false);
+      }
+    };
+    restore();
+
+    const setOpen = (open: boolean) => {
+      applyState(open);
+      if (!isMobile()) localStorage.setItem(STORAGE_KEY, open ? '1' : '0');
     };
 
-    toggle.onclick = () => {
-      const willOpen = !sidebar.classList.contains('open');
-      if (willOpen) open();
-      else close();
-    };
+    toggle.addEventListener('click', () => {
+      setOpen(layout.getAttribute('data-open') !== 'true');
+    });
 
-    sidebar.querySelectorAll('.sidebar-link').forEach((link) => {
-      link.onclick = () => close();
+    if (scrim) scrim.addEventListener('click', () => setOpen(false));
+
+    // 委托：点目录链接时，移动端收起面板（电脑端保持展开）
+    layout.addEventListener('click', (e) => {
+      const a = (e.target as Element)?.closest('.sidebar-link');
+      if (a && isMobile()) setOpen(false);
+    });
+
+    // 跨断点切换：从电脑切到移动时收起，避免残留展开态
+    const mq = window.matchMedia('(max-width: 768px)');
+    mq.addEventListener('change', (e) => {
+      if (e.matches) applyState(false);
+      else restore();
     });
   }
 
-  document.addEventListener('astro:page-load', setupPostsSidebar);
-  setupPostsSidebar();
-</script>
-
-<script>
-  import { API_BASE } from '../lib/api';
-
-  // 动态文章合并（与 posts/index.astro 同源逻辑）：侧边栏目录是静态构建的，
-  // 这里运行时拉后端（D1）里 /admin 发布的文章，按日期降序混入。
-  // 后端不可用或无新文章时保持静态目录原样
-  const API = API_BASE;
-
-  const fmt = (ts: number) =>
-    new Date(ts).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' });
-
   function mergeSidebarPosts() {
-    fetch(`${API}/posts`)
-      .then((res) => {
-        if (!res.ok) return;
-        return res.json();
-      })
-      .then((payload) => {
-        const posts = Array.isArray(payload?.posts) ? payload.posts : [];
-        const nav = document.querySelector('.sidebar-links') as HTMLElement | null;
-        const dynamic = posts.filter((p) => p?.slug);
-        if (!dynamic.length) return;
+    import('../lib/api').then(({ API_BASE }) => {
+      const API = API_BASE;
+      const fmt = (ts: number) =>
+        new Date(ts).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' });
 
-        let holder = nav;
-        if (!holder) {
-          const empty = document.querySelector('.sidebar-empty');
-          if (!empty) return;
-          holder = document.createElement('nav');
-          holder.className = 'sidebar-links';
-          empty.replaceWith(holder);
-        }
+      fetch(`${API}/posts`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((payload) => {
+          const posts = Array.isArray(payload?.posts) ? payload.posts : [];
+          const nav = document.querySelector('.sidebar-links') as HTMLElement | null;
+          const dynamic = posts.filter((p) => p?.slug);
+          if (!dynamic.length) return;
 
-        const items = [...holder.querySelectorAll<HTMLAnchorElement>('.sidebar-link')].map((a) => ({
-          slug: a.dataset.slug || '',
-          title: a.dataset.title || '',
-          ts: Number(new Date(a.dataset.date || 0).valueOf()) || 0,
-          el: a,
-        }));
+          let holder = nav;
+          if (!holder) {
+            const empty = document.querySelector('.sidebar-empty');
+            if (!empty) return;
+            holder = document.createElement('nav');
+            holder.className = 'sidebar-links';
+            empty.replaceWith(holder);
+          }
 
-        for (const p of dynamic) {
-          const slug = p.slug;
-          if (!slug || items.some((it) => it.slug === slug)) continue;
-          items.push({ slug, title: p.title || slug, ts: Number(p.created_at) || 0, el: null });
-        }
+          const items = [...holder.querySelectorAll<HTMLAnchorElement>('.sidebar-link')].map((a) => ({
+            slug: a.dataset.slug || '',
+            title: a.dataset.title || '',
+            ts: Number(new Date(a.dataset.date || 0).valueOf()) || 0,
+            el: a as HTMLElement,
+          }));
 
-        items.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+          for (const p of dynamic) {
+            const slug = p.slug;
+            if (!slug || items.some((it) => it.slug === slug)) continue;
+            items.push({ slug, title: p.title || slug, ts: Number(p.created_at) || 0, el: null });
+          }
 
-        const proto = holder.querySelector('.sidebar-link');
-        for (const it of items) {
-          if (it.el) continue;
-          const a = (proto?.cloneNode(true) || document.createElement('a')) as HTMLAnchorElement;
-          a.href = `/posts/${it.slug}`;
-          a.removeAttribute('aria-current');
-          a.classList.remove('active');
-          a.dataset.slug = it.slug;
-          a.dataset.title = it.title;
-          a.dataset.date = new Date(it.ts).toISOString();
-          const title = a.querySelector('.link-title');
-          if (title) title.textContent = it.title;
-          if (!title) a.textContent = it.title;
-          const date = a.querySelector('.link-date');
-          if (date) date.textContent = fmt(it.ts);
-          it.el = a;
-        }
+          items.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
-        holder.innerHTML = '';
-        for (const it of items) holder.append(it.el!);
-        setupPostsSidebar();
-      })
-      .catch(() => {
-        // 后端不可用：保持静态目录
-        setupPostsSidebar();
-      });
+          const proto = holder.querySelector('.sidebar-link');
+          for (const it of items) {
+            if (it.el) continue;
+            const a = (proto?.cloneNode(true) || document.createElement('a')) as HTMLAnchorElement;
+            a.href = `/posts/${it.slug}`;
+            a.removeAttribute('aria-current');
+            a.classList.remove('active');
+            a.dataset.slug = it.slug;
+            a.dataset.title = it.title;
+            a.dataset.date = new Date(it.ts).toISOString();
+            const title = a.querySelector('.link-title');
+            if (title) title.textContent = it.title;
+            if (!title) a.textContent = it.title;
+            const date = a.querySelector('.link-date');
+            if (date) date.textContent = fmt(it.ts);
+            it.el = a;
+          }
+
+          holder.innerHTML = '';
+          for (const it of items) holder.append(it.el!);
+        })
+        .catch(() => {
+          /* 后端不可用：保持静态目录 */
+        });
+    });
   }
 
   document.addEventListener('astro:page-load', () => {

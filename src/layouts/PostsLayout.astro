@@ -12,7 +12,7 @@ const { title, description, currentSlug } = Astro.props;
 ---
 
 <Layout title={title} description={description}>
-  <div class="posts-layout">
+  <div class="posts-layout" data-open="false">
     <PostsSidebar currentSlug={currentSlug} />
     <div class="posts-content">
       <slot />
@@ -21,24 +21,42 @@ const { title, description, currentSlug } = Astro.props;
 </Layout>
 
 <style>
+  /* 电脑端 push 布局：侧栏列宽由 --sidebar-w 控制（0 ↔ 240px），
+     展开时 content 被 grid 列撑开往右挤，收起时 content 占满。
+     --sidebar-col-gap 同步过渡，收起时不留缝。 */
   .posts-layout {
+    --sidebar-w: 0px;
+    --sidebar-col-gap: 0rem;
+    position: relative;
     display: grid;
-    grid-template-columns: 240px minmax(0, 1fr);
-    gap: 3rem;
+    grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+    column-gap: var(--sidebar-col-gap);
     max-width: 1280px;
     margin: 0 auto;
     padding: 7rem 1.5rem 4rem;
+    transition:
+      grid-template-columns 0.34s cubic-bezier(0.4, 0, 0.2, 1),
+      column-gap 0.34s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .posts-layout[data-open='true'] {
+    --sidebar-w: 240px;
+    --sidebar-col-gap: 2.5rem;
+  }
+  /* 给电脑端 toggle 拉手留出落位（toggle 绝对贴 content 左边缘） */
+  .posts-content {
+    min-width: 0;
+    padding-left: 2.4rem;
   }
   @media (max-width: 768px) {
     .posts-layout {
       grid-template-columns: 1fr;
-      gap: 1rem;
-      align-items: start;
-      padding-left: 1rem;
-      padding-right: 1rem;
+      column-gap: 0;
+      gap: 0;
+      padding: 6rem 1.1rem 4rem;
+      transition: none;
     }
     .posts-content {
-      min-width: 0;
+      padding-left: 0;
       width: 100%;
     }
   }
