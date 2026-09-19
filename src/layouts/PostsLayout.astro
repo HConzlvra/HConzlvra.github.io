@@ -31,8 +31,12 @@ const { title, description, currentSlug } = Astro.props;
   }
   @media (max-width: 768px) {
     .posts-layout {
-      grid-template-columns: 1fr;
-      gap: 1.5rem;
+      grid-template-columns: 180px minmax(0, 1fr);
+      gap: 1rem;
+      align-items: start;
+    }
+    .posts-content {
+      min-width: 0;
     }
   }
 </style>

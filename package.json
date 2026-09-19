@@ -7,10 +7,12 @@
   },
   "scripts": {
     "dev": "node scripts/sync-dynamic-posts.mjs && astro dev --host 0.0.0.0",
+    "dev:sync": "node scripts/sync-dynamic-posts.mjs --watch & astro dev --host 0.0.0.0",
     "build": "node scripts/sync-dynamic-posts.mjs && astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "sync:posts": "node scripts/sync-dynamic-posts.mjs"
+    "sync:posts": "node scripts/sync-dynamic-posts.mjs",
+    "sync:posts:watch": "node scripts/sync-dynamic-posts.mjs --watch"
   },
   "dependencies": {
     "astro": "^7.3.1",

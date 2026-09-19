@@ -1,0 +1,118 @@
+---
+import { getCollection } from 'astro:content';
+
+const docs = await getCollection('docs');
+const byCategory = new Map<string, typeof docs>();
+for (const d of docs) {
+  const c = d.data.category;
+  if (!byCategory.has(c)) byCategory.set(c, []);
+  byCategory.get(c)!.push(d);
+}
+const categories = [...byCategory.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+---
+
+<aside class="docs-sidebar">
+  <h2 class="sidebar-title">Docs</h2>
+  <nav class="sidebar-links">
+    <a href="/docs" class="sidebar-link active">
+      <span class="link-title">All</span>
+      <span class="link-count">{docs.length} entries</span>
+    </a>
+    {categories.map(([name, list]) => (
+      <a href={`/docs#${encodeURIComponent(name)}`} class="sidebar-link">
+        <span class="link-title">{name}</span>
+        <span class="link-count">{list.length}</span>
+      </a>
+    ))}
+  </nav>
+</aside>
+
+<style>
+  .docs-sidebar {
+    position: sticky;
+    top: 90px;
+    align-self: start;
+    display: grid;
+    gap: 0.75rem;
+  }
+  .sidebar-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--surface-border);
+  }
+  .sidebar-links {
+    display: grid;
+    gap: 0.25rem;
+  }
+  .sidebar-link {
+    position: relative;
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.6rem 0.75rem 0.7rem;
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--text);
+    transition: background 0.2s ease;
+  }
+  .sidebar-link::after {
+    content: '';
+    position: absolute;
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: 0.2rem;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--btn-primary-bg);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.3s ease;
+  }
+  .sidebar-link:hover {
+    background: var(--surface);
+  }
+  .sidebar-link:hover::after,
+  .sidebar-link.active::after {
+    transform: scaleX(1);
+  }
+  .sidebar-link.active {
+    background: var(--surface);
+  }
+  .link-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+  .link-count {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+  }
+
+  @media (max-width: 768px) {
+    .docs-sidebar {
+      position: sticky;
+      top: 72px;
+      gap: 0.6rem;
+    }
+    .sidebar-links {
+      display: grid;
+      gap: 0.5rem;
+    }
+    .sidebar-link {
+      min-width: 0;
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 10px;
+      padding: 0.65rem 0.7rem 0.8rem;
+    }
+    .link-title {
+      font-size: 0.8rem;
+    }
+    .link-count {
+      font-size: 0.68rem;
+    }
+  }
+</style>

@@ -111,31 +111,26 @@ const posts = (await getCollection('posts')).sort(
   }
   @media (max-width: 768px) {
     .posts-sidebar {
-      position: static;
-      gap: 0.9rem;
+      position: sticky;
+      top: 72px;
+      gap: 0.6rem;
     }
     .sidebar-links {
-      display: flex;
-      flex-direction: row;
-      overflow-x: auto;
-      gap: 0.8rem;
-      padding-bottom: 0.4rem;
-      scrollbar-width: thin;
-      -ms-overflow-style: auto;
+      display: grid;
+      gap: 0.5rem;
     }
     .sidebar-link {
-      flex: 0 0 220px;
-      min-width: 220px;
+      min-width: 0;
       background: var(--surface);
       border: 1px solid var(--surface-border);
-      border-radius: 12px;
-      padding: 0.8rem 0.9rem 0.95rem;
+      border-radius: 10px;
+      padding: 0.65rem 0.7rem 0.8rem;
     }
     .link-title {
-      font-size: 0.9rem;
+      font-size: 0.8rem;
     }
     .link-date {
-      font-size: 0.72rem;
+      font-size: 0.68rem;
     }
   }
 </style>

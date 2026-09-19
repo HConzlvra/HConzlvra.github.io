@@ -7,6 +7,8 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 const postsDir = path.join(rootDir, 'src/content/posts');
 const apiBase = (process.env.PUBLIC_API_BASE || 'https://guestbook-9z8.pages.dev/api').replace(/\/+$/, '');
+const watchMode = process.argv.includes('--watch');
+const pollIntervalMs = Number(process.env.SYNC_POLL_MS || 30000);
 
 function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
@@ -29,7 +31,7 @@ async function fetchJson(url) {
   return res.json();
 }
 
-async function main() {
+async function syncDynamicPosts() {
   ensureDir(postsDir);
 
   let payload;
@@ -51,9 +53,6 @@ async function main() {
     if (!slug) continue;
 
     const target = path.join(postsDir, `${slug}.md`);
-    if (fs.existsSync(target)) {
-      continue;
-    }
 
     let fullPost;
     try {
@@ -80,9 +79,30 @@ async function main() {
       '',
     ].filter(Boolean).join('\n');
 
+    const existing = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : null;
+    if (existing === fileContent) {
+      continue;
+    }
+
     fs.writeFileSync(target, fileContent, 'utf8');
     console.log(`[sync-dynamic-posts] synced ${slug}.md`);
   }
 }
 
-main();
+async function main() {
+  await syncDynamicPosts();
+
+  if (watchMode) {
+    console.log(`[sync-dynamic-posts] watching ${apiBase}/posts every ${pollIntervalMs}ms`);
+    setInterval(() => {
+      syncDynamicPosts().catch((error) => {
+        console.error('[sync-dynamic-posts] watch cycle failed:', error);
+      });
+    }, pollIntervalMs);
+  }
+}
+
+main().catch((error) => {
+  console.error('[sync-dynamic-posts] failed:', error);
+  process.exitCode = 1;
+});

@@ -479,12 +479,10 @@ const dateLabel = (d?: Date) =>
        background-clip:text 绘制层，须自带渐变自包含绘制（同 .name） */
     .hero h1 .lines-hi {
       display: inline-block;
-      font-size: min(3.4rem, 12.8vw); /* 与名字同步扩大：390 宽≈49.9px */
-      font-weight: 800; /* 粗度与 HCONZLVRA_ 同档 */
-      line-height: 1; /* scaleY 连行距一起拉伸：1.0 拉伸后观感 ≈1.07 */
-      transform: scaleY(1.5); /* 纵向拉长（大胆档） */
-      /* 渐变逐行重启：两层各盖半盒（顶/底对齐），每行各拿到一份完整
-         粉→紫渐变。否则一层渐变画满整个双行盒，THIS IS 接到的是中段续色 */
+      font-size: min(4.3rem, 16vw);
+      font-weight: 800;
+      line-height: 0.95;
+      transform: scaleY(1.38);
       background-image: var(--heading-gradient), var(--heading-gradient);
       background-size: 100% 52%;
       background-position: 0 0, 0 100%;
@@ -493,16 +491,14 @@ const dateLabel = (d?: Date) =>
       background-clip: text;
       -webkit-text-fill-color: transparent;
     }
-    /* 名字：再加粗一档(900) + 拉得比大写行长（1.7 > 1.5），
-       视觉高度 ≈ 60px vs 大写 54px，层次拉开 */
     .hero h1 .name {
-      display: block; /* 独立成行：inline-block 的基线对齐会把高盒顶进上一行 */
-      font-size: min(1.8em, 12.6vw); /* 顶满左右边距：390 宽下划线距右边界≈1px */
-      font-weight: 900; /* 800 → 900：加粗一点点 */
+      display: block;
+      font-size: min(2.25em, 14.2vw);
+      font-weight: 900;
       letter-spacing: -0.02em;
-      line-height: 1.15;
-      margin-top: 0.59em; /* 补偿 scaleY 双向外溢（盒间距≠视觉间距），让 THIS IS 回到上下两行正中 */
-      transform: scaleY(1.7); /* 比 .lines-hi 的 1.5 更长（同步拉长的大胆档） */
+      line-height: 1.08;
+      margin-top: 0.45em;
+      transform: scaleY(1.5);
       background: var(--heading-gradient);
       -webkit-background-clip: text;
       background-clip: text;
@@ -519,8 +515,10 @@ const dateLabel = (d?: Date) =>
       margin-bottom: 0.9rem;
     }
     .hero .tagline {
-      font-size: min(1.4rem, 5.2vw); /* 每句一行仍是硬约束，vw 封顶 */
-      line-height: 1.6;
+      font-size: min(1.05rem, 4vw);
+      line-height: 1.45;
+      margin-top: 0.85rem;
+      padding-left: 0.7rem;
     }
     /* 按钮：各占一整行、横向填满屏宽 */
     .hero-actions {
