@@ -160,10 +160,9 @@ const posts = (await getCollection('posts')).sort(
       position: relative;
       z-index: 90;
       touch-action: manipulation;
-      transform: none;
     }
     .posts-sidebar.open .sidebar-toggle {
-      transform: none;
+      transform: translateX(0);
     }
     .sidebar-panel {
       position: fixed;
@@ -178,7 +177,7 @@ const posts = (await getCollection('posts')).sort(
       border-right: 1px solid var(--surface-border);
       border-radius: 0 16px 16px 0;
       box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
-      transform: translateX(calc(-100% - 1rem));
+      transform: translateX(-110%);
       opacity: 0;
       pointer-events: none;
       transition: transform 0.25s ease, opacity 0.2s ease;
@@ -235,7 +234,6 @@ const posts = (await getCollection('posts')).sort(
       toggle.setAttribute('aria-expanded', 'true');
     };
 
-    toggle.onClick = null;
     toggle.onclick = () => {
       const willOpen = !sidebar.classList.contains('open');
       if (willOpen) open();
@@ -243,11 +241,7 @@ const posts = (await getCollection('posts')).sort(
     };
 
     sidebar.querySelectorAll('.sidebar-link').forEach((link) => {
-      link.onclick = (event) => {
-        if (link instanceof HTMLAnchorElement && event.defaultPrevented === false) {
-          close();
-        }
-      };
+      link.onclick = () => close();
     });
   }
 
