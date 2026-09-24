@@ -59,6 +59,11 @@ html[data-theme='light'] {
   --nav-tint: rgba(255, 255, 255, 0.42);
   --nav-border: rgba(42, 36, 64, 0.08);
   --nav-underline: #9c6fe0;
+  /* 移动端液态玻璃导航（配方取自 andrewawa.pages.dev，色调适配本站） */
+  --nav-glass-bg: rgba(245, 242, 251, 0.55);
+  --nav-glass-border: rgba(255, 255, 255, 0.25);
+  --nav-glass-hi: rgba(255, 255, 255, 0.7);
+  --nav-glass-lo: rgba(255, 255, 255, 0.15);
   --grad-a: #c74d86;
   --grad-b: #8b3fd1;
   --heading-gradient: linear-gradient(135deg, var(--grad-a), var(--grad-b));
@@ -88,6 +93,11 @@ html[data-theme='dark'] {
   --nav-tint: rgba(11, 9, 32, 0.42);
   --nav-border: rgba(255, 255, 255, 0.08);
   --nav-underline: #b48cf0;
+  /* 移动端液态玻璃导航（深色） */
+  --nav-glass-bg: rgba(10, 9, 19, 0.72);
+  --nav-glass-border: rgba(255, 255, 255, 0.08);
+  --nav-glass-hi: rgba(255, 255, 255, 0.05);
+  --nav-glass-lo: rgba(255, 255, 255, 0.03);
   --grad-a: #f45595;
   --grad-b: #e08ffc;
   --heading-gradient: linear-gradient(135deg, var(--grad-a), var(--grad-b));
