@@ -164,15 +164,13 @@ const dateLabel = (d?: Date) =>
 
 <style>
   .container {
-    max-width: 1360px;
     width: 100%;
     box-sizing: border-box;
     text-align: left;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding: 5rem 2.5rem 3rem;
-    margin: 0 auto;
+    padding: 5rem 3rem 3rem;
+    margin: 0;
   }
 
   /* Desktop: hero-screen 填满首屏（减去导航栏高度），hero 内容纵向居中，
@@ -191,7 +189,7 @@ const dateLabel = (d?: Date) =>
     width: 100%;
   }
   .hero h1 {
-    font-size: 3.4rem; /* first line (HI, HERE IS) */
+    font-size: clamp(3rem, 7vw, 7rem); /* first line (HI, HERE IS)：随视口放大，大屏更震撼 */
     font-weight: 600;
     width: fit-content; /* shrink the gradient to text width so short titles still show all of it */
     background: var(--heading-gradient);
@@ -205,7 +203,7 @@ const dateLabel = (d?: Date) =>
   /* The name: bigger and heavier than line one, on its own line (break comes from <br>) */
   .hero h1 .name {
     display: inline-block;
-    font-size: 1.55em; /* ≈5.3rem, larger than line one */
+    font-size: 1.55em; /* ≈ 大屏可达 10rem+ */
     font-weight: 800;
     letter-spacing: -0.01em;
     /* inline-block + large font: the h1 line box would clip the descending
@@ -214,13 +212,13 @@ const dateLabel = (d?: Date) =>
     padding-bottom: 0.08em;
   }
   .hero .subtitle {
-    font-size: 2.4rem;
+    font-size: clamp(1.8rem, 3vw, 3rem);
     font-weight: 500;
     color: var(--accent-text);
     margin-bottom: 0.75rem;
   }
   .hero .tagline {
-    font-size: 1.4rem;
+    font-size: clamp(1.1rem, 1.6vw, 1.8rem);
     color: var(--text-secondary);
     line-height: 1.7;
     white-space: nowrap;
@@ -290,17 +288,17 @@ const dateLabel = (d?: Date) =>
   /* Features: three cards side by side */
   .features {
     width: 100%;
-    margin-top: 3.5rem; /* hero ↔ cards gap (mobile: separates them by a screen anyway) */
+    margin-top: 3.5rem;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 2rem;
+    gap: 1.5rem;
   }
   .features .card {
     background: var(--surface);
     backdrop-filter: blur(10px);
     border: 1px solid var(--surface-border);
     border-radius: 20px;
-    padding: 2rem 1.5rem;
+    padding: clamp(1.5rem, 2vw, 2.5rem);
     transition: all 0.3s ease;
   }
   .features .card:hover {
@@ -313,8 +311,8 @@ const dateLabel = (d?: Date) =>
   .features .card:nth-child(2) { animation-delay: 0.08s; }
   .features .card:nth-child(3) { animation-delay: 0.16s; }
   .features .card h3 {
-    width: fit-content; /* shrink gradient to text width */
-    font-size: 1.45rem;
+    width: fit-content;
+    font-size: clamp(1.3rem, 2vw, 2rem);
     font-weight: 700;
     margin-bottom: 0.75rem;
     background: var(--heading-gradient);
@@ -328,7 +326,7 @@ const dateLabel = (d?: Date) =>
   .features .card p {
     color: var(--text-secondary);
     line-height: 1.7;
-    font-size: 1rem;
+    font-size: clamp(0.95rem, 1.2vw, 1.2rem);
     font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
     letter-spacing: 0.02em;
   }
@@ -339,12 +337,12 @@ const dateLabel = (d?: Date) =>
   .home-lower {
     background: var(--footer-bg);
     border-top: 1px solid var(--surface-border);
-    padding: 2rem 2.5rem 4.5rem;
+    padding: 2rem 3rem 4.5rem;
     text-align: left;
   }
   .lower-inner {
-    max-width: 1080px;
-    margin: 0 auto;
+    width: 100%;
+    margin: 0;
   }
   .section-head {
     display: flex;
@@ -354,7 +352,7 @@ const dateLabel = (d?: Date) =>
     margin: 2.5rem 0 0.6rem;
   }
   .section-head h2 {
-    font-size: 1.45rem;
+    font-size: clamp(1.4rem, 2vw, 2rem);
     font-weight: 700;
     color: var(--text);
   }
@@ -387,7 +385,7 @@ const dateLabel = (d?: Date) =>
   .latest-title {
     color: var(--text);
     font-weight: 600;
-    font-size: 1.1rem;
+    font-size: clamp(1.05rem, 1.3vw, 1.4rem);
     transition: color 0.2s ease;
   }
   .latest-item:hover .latest-title {
@@ -423,7 +421,7 @@ const dateLabel = (d?: Date) =>
     box-shadow: var(--card-shadow);
   }
   .qc-title {
-    font-size: 1.12rem;
+    font-size: clamp(1.05rem, 1.3vw, 1.4rem);
     font-weight: 700;
     color: var(--text);
     transition: color 0.2s ease;
