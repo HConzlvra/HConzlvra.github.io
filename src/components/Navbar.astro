@@ -99,7 +99,7 @@ const isActive = (href: string) =>
           </a>
         ))
       }
-      {/* 移动端主题切换：放在下拉菜单最底部，复用 ThemeToggle 的脚本（.theme-toggle） */}
+      {/* 移动端主题切换：放在下拉菜单最底部，只留图标，复用 ThemeToggle 的脚本（.theme-toggle） */}
       <button class="theme-toggle theme-toggle-menu" aria-label="Toggle theme" type="button">
         <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
           <circle cx="12" cy="12" r="4.2" fill="currentColor"></circle>
@@ -117,7 +117,6 @@ const isActive = (href: string) =>
         <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
           <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="currentColor"></path>
         </svg>
-        <span class="toggle-label">Theme</span>
       </button>
     </div>
   </div>
@@ -439,8 +438,8 @@ const isActive = (href: string) =>
   /* 汉堡按钮（仅移动端显示）：三根 SVG 线，开合时变形成叉叉 */
   .hamburger {
     display: none;
-    width: 34px;
-    height: 34px;
+    width: 30px;
+    height: 30px;
     justify-content: center;
     align-items: center;
     border: 1px solid var(--nav-border);
@@ -492,7 +491,7 @@ const isActive = (href: string) =>
     max-width: 672px;
     display: flex;
     flex-direction: column;
-    padding: 0.5rem;
+    padding: 0.35rem;
     border-radius: 16px;
     pointer-events: auto;
     background: var(--nav-glass-bg);
@@ -518,11 +517,12 @@ const isActive = (href: string) =>
     transform: translateY(0);
   }
   .mobile-panel a {
-    padding: 0.8rem 1rem;
+    padding: 0.6rem 0.85rem;
     border-radius: 10px;
     text-decoration: none;
     color: var(--accent-text);
     font-weight: 500;
+    font-size: 0.92rem;
     /* 链接随面板逐条滑入 */
     opacity: 0;
     transform: translateY(-6px);
@@ -549,21 +549,18 @@ const isActive = (href: string) =>
     color: var(--text);
   }
 
-  /* 移动端菜单里的主题切换按钮：和链接同款样式，顶部加分隔线 */
+  /* 移动端菜单里的主题切换按钮：只留图标，居中显示，顶部加分隔线 */
   .theme-toggle-menu {
-    margin-top: 0.4rem;
-    padding: 0.8rem 1rem;
+    margin-top: 0.3rem;
+    padding: 0.55rem 0;
     border: none;
     border-top: 1px solid var(--surface-border);
     border-radius: 0;
     background: none;
     color: var(--accent-text);
-    font-weight: 500;
-    font-size: 1rem;
-    font-family: inherit;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    justify-content: center;
     width: 100%;
     opacity: 0;
     transform: translateY(-6px);
@@ -582,9 +579,6 @@ const isActive = (href: string) =>
     background: var(--surface);
     color: var(--text);
     border-radius: 10px;
-  }
-  .theme-toggle-menu .toggle-label {
-    line-height: 1;
   }
   .theme-toggle-menu svg {
     flex-shrink: 0;
