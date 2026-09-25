@@ -133,6 +133,7 @@ html {
   background-image: var(--page-bg);
   background-size: 100% 100%;
   background-repeat: no-repeat;
+  background-attachment: fixed; /* 渐变背景固定在视口，滚动时不动，像永远在那里的画布 */
   overscroll-behavior-y: none;
   overscroll-behavior-x: none;
   /* 站点全响应式，永远不需要横向滚动；个别浏览器会把 fixed 画布/滚动槽
