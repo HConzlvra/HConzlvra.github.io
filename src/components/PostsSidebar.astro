@@ -202,13 +202,19 @@ const posts = (await getCollection('posts')).sort(
 
   /* ============ 移动端：覆盖式抽屉（内部样式与桌面端完全一致，仅定位不同） ============ */
   @media (max-width: 768px) {
-    /* 开关：fixed 钉在导航栏下方，收起时可见、展开时浮在面板上可关闭 */
+    /* 开关：fixed 钉在导航栏下方，收起时可见、展开时移到面板右上角不挡 Posts 文字 */
     .sidebar-toggle {
       position: fixed;
       top: 4.9rem;
       left: 1rem;
       margin-right: 0;
       z-index: 95;
+      transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s ease,
+        background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }
+    /* 展开后移到面板右上角，让出左侧 Posts 标题区域 */
+    :global(.posts-layout[data-open='true']) .sidebar-toggle {
+      left: calc(240px - 2.4rem - 1rem); /* 面板宽 240px - 钮宽 2.4rem - 右留白 1rem */
     }
     /* 侧栏脱离 grid 流 */
     .posts-sidebar {

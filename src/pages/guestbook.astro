@@ -359,15 +359,14 @@ import Layout from '../layouts/Layout.astro';
   const SIZE = 20;
   let page = 1;
 
-  // 相对时间显示
+  // 相对时间显示：1 天内用相对时间，1 天及以上显示具体日期+时间（精确到分钟，基于存储的真实时间戳）
   function timeAgo(ts: number): string {
     const diff = Date.now() - ts;
     if (diff < 60_000) return 'just now';
     if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
     if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-    if (diff < 30 * 86_400_000) return `${Math.floor(diff / 86_400_000)}d ago`;
     const d = new Date(ts);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   }
 
   interface Msg {
