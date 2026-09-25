@@ -642,16 +642,16 @@ const dateLabel = (d?: Date) =>
       padding-left: 0.7rem;
       margin-top: 0.85rem;
     }
-    /* 按钮：居右排列，不填满宽度，下移拉开与 tagline 的距离 */
+    /* 按钮：居右排列，统一宽度，下移拉开与 tagline 的距离 */
     .hero-actions {
-      margin-top: 2.6rem;
-      gap: 0.9rem;
+      margin-top: 3.3rem;
+      gap: 1.1rem;
       flex-direction: column;
       align-items: flex-end; /* 居右，平衡左侧大字的视觉重心 */
     }
     .hero-actions .btn {
-      width: auto; /* 按内容自适应，不横向填满 */
-      padding: 0.85rem 1.3rem;
+      width: 9.5rem; /* 两个按钮等宽 */
+      padding: 0.85rem 1rem;
       font-size: 0.95rem;
     }
     .features {
