@@ -22,12 +22,12 @@ const dateLabel = (d?: Date) =>
          the cards start below the fold -->
     <div class="hero-screen">
       <section class="hero">
-        <h1 class="anim-up" style="--d: 0.05s"><span class="lines-hi">HI,<br class="br-mobile" /> THIS IS</span><br /><span class="name" data-scramble>HCONZLVRA_</span></h1>
-        <p class="subtitle anim-up" style="--d: 0.18s">Welcome to my site.</p>
-        <p class="tagline anim-up" style="--d: 0.30s">There is a crack in everything. <br class="br-mobile" />That's how the light gets in.</p>
+        <h1 class="anim-up" style="--d: 0.05s"><span class="lines-hi" data-scramble>HI,<br class="br-mobile" /> THIS IS</span><br /><span class="name" data-scramble>HCONZLVRA_</span></h1>
+        <p class="subtitle anim-up" style="--d: 0.18s" data-scramble>Welcome to my site.</p>
+        <p class="tagline anim-up" style="--d: 0.30s" data-scramble>There is a crack in everything. <br class="br-mobile" />That's how the light gets in.</p>
         <div class="hero-actions anim-up" style="--d: 0.42s">
-          <a class="btn btn-solid" href="/about">About me</a>
-          <a class="btn btn-outline" href="/guestbook">Guestbook</a>
+          <a class="btn btn-solid" href="/about" data-scramble>About me</a>
+          <a class="btn btn-outline" href="/guestbook" data-scramble>Guestbook</a>
         </div>
       </section>
     </div>
@@ -161,69 +161,83 @@ const dateLabel = (d?: Date) =>
   document.addEventListener('astro:page-load', mergeLatest);
   mergeLatest();
 
-  // ---------- Scramble text effect for the hero name ----------
-  // 字符解密效果：在名字淡入后开始，随机字符逐位还原为正确字符。
-  // 名字使用 background-clip: text 渐变，scramble 期间文字内容变化但渐变仍生效。
-  const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+  // ---------- Scramble text effect for the whole hero ----------
+  // 字符解密效果：与淡入动画同时开始，随机字符（仅英文字母）逐位还原为正确字符。
+  // 递归处理文本节点，保留 <br> 等 DOM 结构；渐变文字用 background-clip:text 不受影响。
+  const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+  const FRAME_INTERVAL = 45; // ms/帧：放慢切换节奏
+  const TOTAL_DURATION = 1000; // 目标总时长 ms
+  const START_DELAY = 60; // 与淡入动画同时开始（略延迟避免首帧闪烁）
 
-  const scramble = (el: HTMLElement) => {
-    const original = el.textContent || '';
-    const len = original.length;
-    // 每位字符还原的进度：-1 表示还在随机，>=0 表示已锁定为正确字符
-    const queue: number[] = Array(len).fill(-1);
-    // 逐位锁定的顺序：从左到右，带轻微随机抖动
-    const order = [...Array(len).keys()].sort((a, b) => a - b);
+  // 递归收集元素下的所有文本节点，保留 DOM 结构（<br> 等不丢）
+  const collectTextNodes = (root: Node): Text[] => {
+    const nodes: Text[] = [];
+    const walk = (node: Node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        if ((node.textContent || '').length > 0) nodes.push(node as Text);
+      } else {
+        for (const child of node.childNodes) walk(child);
+      }
+    };
+    walk(root);
+    return nodes;
+  };
+
+  const scrambleElement = (el: HTMLElement) => {
+    const textNodes = collectTextNodes(el);
+    if (!textNodes.length) return;
+    const originals = textNodes.map((n) => n.textContent || '');
+    // 统计非空白字符总数
+    const totalChars = originals.reduce(
+      (sum, s) => sum + [...s].filter((c) => !/\s/.test(c)).length,
+      0
+    );
+    if (totalChars === 0) return;
+
+    const totalFrames = Math.ceil(TOTAL_DURATION / FRAME_INTERVAL);
+    // 每帧锁定的字符数：让锁定过程占总时长的 ~70%，留余量收尾
+    const locksPerFrame = Math.max(1, Math.ceil(totalChars / (totalFrames * 0.7)));
 
     let frame = 0;
-    const totalFrames = 28; // 总帧数
-    const lockEvery = 2; // 每 2 帧锁定一位
-    let raf = 0;
+    let timer: number | undefined;
 
     const tick = () => {
       frame++;
-      // 锁定新的一位
-      const lockIndex = Math.floor(frame / lockEvery);
-      for (let i = 0; i < lockIndex && i < len; i++) {
-        queue[order[i]] = i;
+      const targetLock = Math.min(totalChars, Math.floor(frame * locksPerFrame));
+      let count = 0;
+      for (let ni = 0; ni < textNodes.length; ni++) {
+        const orig = originals[ni];
+        let out = '';
+        for (const ch of orig) {
+          if (/\s/.test(ch)) {
+            out += ch; // 空白字符原样保留
+          } else if (count < targetLock) {
+            out += ch; // 已锁定：显示正确字符
+            count++;
+          } else {
+            out += SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+          }
+        }
+        textNodes[ni].textContent = out;
       }
-      // 构建当前显示文本
-      let out = '';
-      for (let i = 0; i < len; i++) {
-        if (queue[i] >= 0) {
-          out += original[i];
-        } else if (original[i] === ' ') {
-          out += ' ';
-        } else {
-          out += SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+
+      if (count < totalChars && frame < totalFrames * 1.5) {
+        timer = window.setTimeout(tick, FRAME_INTERVAL);
+      } else {
+        // 收尾：确保所有文本完全正确
+        for (let ni = 0; ni < textNodes.length; ni++) {
+          textNodes[ni].textContent = originals[ni];
         }
       }
-      el.textContent = out;
-      if (frame < totalFrames) {
-        raf = requestAnimationFrame(tick);
-      } else {
-        el.textContent = original; // 最终确保完全正确
-      }
     };
 
-    // 在名字淡入动画结束后触发（h1 的 --d: 0.05s + 0.8s 动画时长）
-    const startDelay = 850; // 与入场动画配合
-    const start = () => {
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      setTimeout(() => {
-        cancelAnimationFrame(raf);
-        frame = 0;
-        queue.fill(-1);
-        tick();
-      }, startDelay);
-    };
-
-    start();
+    timer = window.setTimeout(tick, START_DELAY);
   };
 
-  // 首次加载 + 软导航回首页时触发
+  // 首次加载 + 软导航回首页时触发：对所有 [data-scramble] 元素执行
   const tryScramble = () => {
-    const el = document.querySelector<HTMLElement>('.name[data-scramble]');
-    if (el) scramble(el);
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    document.querySelectorAll<HTMLElement>('[data-scramble]').forEach(scrambleElement);
   };
   document.addEventListener('astro:page-load', tryScramble);
   tryScramble();
