@@ -164,7 +164,8 @@ const dateLabel = (d?: Date) =>
   // ---------- Scramble text effect for the whole hero ----------
   // 字符解密效果：与淡入动画同时开始，随机字符（仅英文字母）逐位还原为正确字符。
   // 递归处理文本节点，保留 <br> 等 DOM 结构；渐变文字用 background-clip:text 不受影响。
-  const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const SCRAMBLE_UPPER = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const SCRAMBLE_LOWER = 'abcdefghijklmnopqrstuvwxyz';
   const FRAME_INTERVAL = 45; // ms/帧：放慢切换节奏
   const TOTAL_DURATION = 1000; // 目标总时长 ms
   const START_DELAY = 60; // 与淡入动画同时开始（略延迟避免首帧闪烁）
@@ -214,8 +215,12 @@ const dateLabel = (d?: Date) =>
           } else if (count < targetLock) {
             out += ch; // 已锁定：显示正确字符
             count++;
+          } else if (/[A-Z]/.test(ch)) {
+            out += SCRAMBLE_UPPER[Math.floor(Math.random() * SCRAMBLE_UPPER.length)];
+          } else if (/[a-z]/.test(ch)) {
+            out += SCRAMBLE_LOWER[Math.floor(Math.random() * SCRAMBLE_LOWER.length)];
           } else {
-            out += SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+            out += ch; // 非字母字符（标点、数字等）原样保留
           }
         }
         textNodes[ni].textContent = out;
