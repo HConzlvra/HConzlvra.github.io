@@ -10,17 +10,17 @@
 @property --page-bg-1 {
   syntax: '<color>';
   inherits: true;
-  initial-value: #f5f2fb;
+  initial-value: #f7f6f3;
 }
 @property --page-bg-2 {
   syntax: '<color>';
   inherits: true;
-  initial-value: #e9e4f7;
+  initial-value: #edebe6;
 }
 @property --page-bg-3 {
   syntax: '<color>';
   inherits: true;
-  initial-value: #f0e9f4;
+  initial-value: #f2f1ed;
 }
 @property --grad-a {
   syntax: '<color>';
@@ -44,11 +44,11 @@
    ============================================ */
 :root,
 html[data-theme='light'] {
-  --page-bg-1: #f5f2fb;
-  --page-bg-2: #e9e4f7;
-  --page-bg-3: #f0e9f4;
+  --page-bg-1: #f7f6f3;
+  --page-bg-2: #edebe6;
+  --page-bg-3: #f2f1ed;
   --page-bg: linear-gradient(135deg, var(--page-bg-1), var(--page-bg-2), var(--page-bg-3));
-  --html-bg: #efeaf5;
+  --html-bg: #f2f1ed;
   --text: #2a2440;
   --text-secondary: #5a5470;
   --accent-text: #6b4fa8;
@@ -60,7 +60,7 @@ html[data-theme='light'] {
   --nav-border: rgba(42, 36, 64, 0.08);
   --nav-underline: #9c6fe0;
   /* 移动端液态玻璃导航（配方取自 andrewawa.pages.dev，色调适配本站） */
-  --nav-glass-bg: rgba(245, 242, 251, 0.55);
+  --nav-glass-bg: rgba(247, 246, 243, 0.55);
   --nav-glass-border: rgba(255, 255, 255, 0.25);
   --nav-glass-hi: rgba(255, 255, 255, 0.7);
   --nav-glass-lo: rgba(255, 255, 255, 0.15);
@@ -73,16 +73,16 @@ html[data-theme='light'] {
   --btn-secondary-border: rgba(42, 36, 64, 0.25);
   --card-shadow: 0 12px 40px rgba(42, 36, 64, 0.12);
   --code-bg: rgba(42, 36, 64, 0.07);
-  --footer-bg: #f0edf5;
-  --dot-color: rgba(42, 36, 64, 0.08);
+  --footer-bg: #edece8;
+  --dot-color: rgba(45, 43, 38, 0.08);
 }
 
 html[data-theme='dark'] {
-  --page-bg-1: #050507;
-  --page-bg-2: #100f12;
-  --page-bg-3: #08080a;
+  --page-bg-1: #060607;
+  --page-bg-2: #0a0a0b;
+  --page-bg-3: #080809;
   --page-bg: linear-gradient(135deg, var(--page-bg-1), var(--page-bg-2), var(--page-bg-3));
-  --html-bg: #0a0a0c;
+  --html-bg: #09090a;
   --text: #e0e0e0;
   --text-secondary: #b0b0c8;
   --accent-text: #c8b6ff;
@@ -94,7 +94,7 @@ html[data-theme='dark'] {
   --nav-border: rgba(255, 255, 255, 0.08);
   --nav-underline: #b48cf0;
   /* 移动端液态玻璃导航（深色） */
-  --nav-glass-bg: rgba(10, 9, 19, 0.72);
+  --nav-glass-bg: rgba(10, 10, 11, 0.72);
   --nav-glass-border: rgba(255, 255, 255, 0.08);
   --nav-glass-hi: rgba(255, 255, 255, 0.05);
   --nav-glass-lo: rgba(255, 255, 255, 0.03);
