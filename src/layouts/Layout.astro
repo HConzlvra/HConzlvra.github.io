@@ -22,8 +22,8 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
     <link rel="icon" href="/favicon.ico" />
     <meta name="generator" content={Astro.generator} />
     <!-- 移动端浏览器 UI（地址栏/底栏）颜色跟随主题，与 --html-bg 同值 -->
-    <meta name="theme-color" content="#f2f1ed" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#09090a" media="(prefers-color-scheme: dark)" /><!-- 与深色 --html-bg 同值 -->
+    <meta name="theme-color" content="#ebe9e4" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0a090f" media="(prefers-color-scheme: dark)" /><!-- 与深色 --html-bg 同值 -->
     <meta name="description" content={description} />
     <slot name="head" />
     <title>{title}</title>
@@ -60,7 +60,7 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
       // 否则移动端浏览器地址栏颜色跟系统偏好走，和页面实际主题不一致
       const syncThemeColor = () => {
         const color =
-          document.documentElement.getAttribute('data-theme') === 'dark' ? '#09090a' : '#f2f1ed';
+          document.documentElement.getAttribute('data-theme') === 'dark' ? '#0a090f' : '#ebe9e4';
         for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
           meta.setAttribute('content', color);
           meta.removeAttribute('media');
