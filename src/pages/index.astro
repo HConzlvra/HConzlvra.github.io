@@ -164,7 +164,7 @@ const dateLabel = (d?: Date) =>
   // ---------- Scramble text effect for the whole hero ----------
   // 字符解密效果：与淡入动画同时开始，随机字符（仅英文字母）逐位还原为正确字符。
   // 递归处理文本节点，保留 <br> 等 DOM 结构；渐变文字用 background-clip:text 不受影响。
-  const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+  const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const FRAME_INTERVAL = 45; // ms/帧：放慢切换节奏
   const TOTAL_DURATION = 1000; // 目标总时长 ms
   const START_DELAY = 60; // 与淡入动画同时开始（略延迟避免首帧闪烁）
