@@ -1,4 +1,4 @@
-<button id="theme-toggle" aria-label="切换深浅色主题" title="切换深浅色">
+<button class="theme-toggle theme-toggle-float" aria-label="Toggle theme" title="Toggle theme">
   <!-- 纯色简洁太阳：深色模式下显示（点击切到浅色） -->
   <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
     <circle cx="12" cy="12" r="4.2" fill="currentColor"></circle>
@@ -20,37 +20,51 @@
 </button>
 
 <style>
-  #theme-toggle {
+  .theme-toggle {
+    display: inline-grid;
+    place-items: center;
+    cursor: pointer;
+  }
+  /* 桌面端浮动按钮：右下角圆形 */
+  .theme-toggle-float {
     position: fixed;
     right: 1.5rem;
     bottom: 1.5rem;
     z-index: 100;
     width: 2.8rem;
     height: 2.8rem;
-    display: grid;
-    place-items: center;
     border: 1px solid var(--surface-border);
     border-radius: 50%;
     background: var(--surface);
     backdrop-filter: blur(10px);
     color: var(--text);
-    cursor: pointer;
     transition:
       transform 0.2s ease,
       background 0.2s ease;
   }
-  #theme-toggle:hover {
+  .theme-toggle-float:hover {
     transform: translateY(-3px);
     background: var(--surface-hover);
   }
+  /* 移动端隐藏浮动按钮，改由下拉菜单里的按钮承担 */
+  @media (max-width: 768px) {
+    .theme-toggle-float {
+      display: none;
+    }
+  }
   /* 两个图标叠放在同一格子里，按主题显隐 */
-  #theme-toggle svg {
+  .theme-toggle svg {
     grid-area: 1 / 1;
   }
-  :global(html[data-theme='dark']) .icon-moon {
+</style>
+
+<!-- 图标显隐规则必须全局，因为 mobile-panel 里的主题切换按钮（Navbar.astro）
+     也用 .icon-sun / .icon-moon，scoped 样式跨组件不生效 -->
+<style is:global>
+  html[data-theme='dark'] .icon-moon {
     display: none;
   }
-  :global(html[data-theme='light']) .icon-sun {
+  html[data-theme='light'] .icon-sun {
     display: none;
   }
 </style>
@@ -62,7 +76,7 @@
   // 窗口内连点：清掉旧计时器重新计，动画从当前颜色续走不跳变
   let animTimer: number | undefined;
   document.addEventListener('click', (event) => {
-    const target = event.target instanceof Element ? event.target.closest('#theme-toggle') : null;
+    const target = event.target instanceof Element ? event.target.closest('.theme-toggle') : null;
     if (!target) return;
     const html = document.documentElement;
     const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
