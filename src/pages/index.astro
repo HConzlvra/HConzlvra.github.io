@@ -23,7 +23,7 @@ const dateLabel = (d?: Date) =>
     <div class="hero-screen">
       <section class="hero">
         <h1 class="anim-up" style="--d: 0.05s"><span class="lines-hi" data-scramble>HI,<br class="br-mobile" /> THIS IS</span><br /><span class="name" data-scramble>HCONZLVRA_</span></h1>
-        <p class="subtitle anim-up" style="--d: 0.18s" data-scramble>Welcome to my site.</p>
+        <p class="subtitle anim-up" style="--d: 0.18s">Welcome to my site.</p>
         <p class="tagline anim-up" style="--d: 0.30s">There is a crack in everything. <br class="br-mobile" />That's how the light gets in.</p>
         <div class="hero-frame anim-up" style="--d: 0.42s">
           <div class="frame-deco">
@@ -173,7 +173,7 @@ const dateLabel = (d?: Date) =>
   mergeLatest();
 
   // ---------- Scramble text effect ----------
-  // 字符解密效果：只作用于 hero 标题与 welcome 那行，与淡入动画同时开始，
+  // 字符解密效果：只作用于 hero 标题，与淡入动画同时开始，
   // 随机字符（仅英文字母）逐位还原为正确字符。
   // 递归处理文本节点，保留 <br> 等 DOM 结构；渐变文字用 background-clip:text 不受影响。
   const SCRAMBLE_UPPER = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -664,7 +664,7 @@ const dateLabel = (d?: Date) =>
       padding-top: 5vh;
     }
     /* 像素方块：5 个并排，饱和紫调从左到右依次变浅；
-       出现时机排在角框上移结束之后，逐个从左往右弹出（不跟着向上淡入） */
+       与按钮淡入同时开始，逐个从左往右弹出 */
     .hero-pixels {
       display: flex;
       position: absolute;
@@ -676,27 +676,27 @@ const dateLabel = (d?: Date) =>
       width: 9px;
       height: 9px;
       background: #ad81e5;
-      opacity: 0; /* 角框上升阶段保持不可见 */
+      opacity: 0; /* 按钮出现前保持不可见 */
       animation: pixel-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
     .hero-pixels span:nth-child(1) {
       background: #6f3fc4;
-      animation-delay: 1.25s;
+      animation-delay: 0.42s; /* 与按钮淡入同时开始 */
     }
     .hero-pixels span:nth-child(2) {
       background: #7d4dd0;
-      animation-delay: 1.35s;
+      animation-delay: 0.5s;
     }
     .hero-pixels span:nth-child(3) {
       background: #8b5cda;
-      animation-delay: 1.45s;
+      animation-delay: 0.58s;
     }
     .hero-pixels span:nth-child(4) {
       background: #9c6fe0;
-      animation-delay: 1.55s;
+      animation-delay: 0.66s;
     }
     .hero-pixels span:nth-child(5) {
-      animation-delay: 1.65s;
+      animation-delay: 0.74s;
     }
     .hero h1 {
       font-size: min(2.7rem, 10.5vw); /* 仅作 .name 的 em 基准，实际字号在下方两个 span 上 */
