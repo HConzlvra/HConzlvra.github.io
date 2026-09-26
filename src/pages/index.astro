@@ -37,6 +37,10 @@ const dateLabel = (d?: Date) =>
           <span class="frame-meta"><span class="frame-meta-label">// entry points</span></span>
         </div>
       </section>
+      <!-- 像素方块装饰：取自指针拖尾的紫色小方块，仅移动端显示（hero 左下角） -->
+      <div class="hero-pixels" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
     </div>
 
     <section class="features">
@@ -357,7 +361,8 @@ const dateLabel = (d?: Date) =>
 
   /* 代码风角框装饰：仅移动端可见，桌面端全部隐藏 */
   .frame-deco,
-  .frame-meta {
+  .frame-meta,
+  .hero-pixels {
     display: none;
   }
 
@@ -601,8 +606,34 @@ const dateLabel = (d?: Date) =>
       padding-right: 1.25rem;
     }
     .hero-screen {
+      position: relative; /* 承载左下角的像素方块装饰 */
       justify-content: flex-start; /* 移动端靠上，不居中 */
       padding-top: 5vh;
+    }
+    /* 左下角像素方块装饰：5 个并排，颜色从左到右依次变浅（基色取自指针拖尾 #9c6fe0） */
+    .hero-pixels {
+      display: flex;
+      position: absolute;
+      left: 0;
+      bottom: 1.25rem;
+      gap: 4px;
+    }
+    .hero-pixels span {
+      width: 9px;
+      height: 9px;
+      background: #9c6fe0;
+    }
+    .hero-pixels span:nth-child(2) {
+      background: #ab85e5;
+    }
+    .hero-pixels span:nth-child(3) {
+      background: #ba9ae9;
+    }
+    .hero-pixels span:nth-child(4) {
+      background: #c9b0ee;
+    }
+    .hero-pixels span:nth-child(5) {
+      background: #d7c5f3;
     }
     .hero h1 {
       font-size: min(2.7rem, 10.5vw); /* 仅作 .name 的 em 基准，实际字号在下方两个 span 上 */
@@ -689,6 +720,7 @@ const dateLabel = (d?: Date) =>
       flex: 1;
       height: 2px;
       margin-left: -0.35rem; /* 穿出竖线左侧，与竖线交叉 */
+      margin-right: 6.4rem; /* 右端收在文字前，横线长度与竖线相当，呈 L 形 */
       background: var(--surface-border);
     }
     .frame-meta-label {
