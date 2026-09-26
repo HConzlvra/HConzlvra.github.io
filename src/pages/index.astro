@@ -303,7 +303,8 @@ const dateLabel = (d?: Date) =>
   // 字母依序出现，像现场敲出来：整段文字一开始就占好位置（每个字符包一层
   // span，只切透明度），所以打字过程不会因为逐字排版而抖动。
   // 延迟与间隔分别由 [data-type]（毫秒）和 TYPE_INTERVAL 控制。
-  const TYPE_INTERVAL = 18; // ms/字（≈1 字/帧，60 字左右刚好和其余入场动画同时收尾）
+  // 300ms 起步 + 61 字 × 15ms ≈ 1.22s 收尾，正好与按钮（0.42s + 0.8s）同时到位
+  const TYPE_INTERVAL = 15; // ms/字
   const typing = new WeakSet<HTMLElement>();
 
   const typeElement = (el: HTMLElement) => {
@@ -326,13 +327,17 @@ const dateLabel = (d?: Date) =>
       node.replaceWith(frag);
     }
 
+    // 按真实时间推进而不是链式 setTimeout：帧率与调度抖动不会把总时长拖长，
+    // 60 字左右必定在 1s 内敲完，和其它入场动画一起到位
     let i = 0;
-    const tick = () => {
-      if (i >= chars.length) return;
-      chars[i++].classList.add('is-on');
-      window.setTimeout(tick, TYPE_INTERVAL);
+    let start = 0;
+    const step = (now: number) => {
+      if (!start) start = now;
+      const target = Math.min(chars.length, Math.ceil((now - start) / TYPE_INTERVAL));
+      while (i < target) chars[i++].classList.add('is-on');
+      if (i < chars.length) requestAnimationFrame(step);
     };
-    window.setTimeout(tick, Number(el.dataset.type) || 0);
+    window.setTimeout(() => requestAnimationFrame(step), Number(el.dataset.type) || 0);
   };
 
   // 首次加载 + 软导航回首页时触发
