@@ -34,7 +34,7 @@ const dateLabel = (d?: Date) =>
             <a class="btn btn-solid" href="/about" data-scramble>About me</a>
             <a class="btn btn-outline" href="/guestbook" data-scramble>Guestbook</a>
           </div>
-          <span class="frame-meta">// entry points</span>
+          <span class="frame-meta"><span class="frame-meta-label">// entry points</span></span>
         </div>
       </section>
     </div>
@@ -655,31 +655,44 @@ const dateLabel = (d?: Date) =>
       padding-left: 0.7rem;
       margin-top: 0.85rem;
     }
-    /* 代码风 L 形角框：仅移动端。左竖线贴近按钮，下横线向右延伸，线条 2px */
+    /* 代码风 L 形角框：仅移动端。左竖线 + 底部横线，线条 2px */
     .hero-frame {
       position: relative;
       margin-top: 3.8rem;
-      padding: 0 0 1rem 0;
     }
-    /* 左竖线：紧贴装饰列左侧，底部越过角点向下一小截 */
+    /* 左竖线：底部与横线交叉后收在框底 */
     .hero-frame::before {
       content: '';
       position: absolute;
       left: 0;
       top: 1.4rem;
-      bottom: -0.35rem; /* 穿出横线下方，与横线交叉 */
+      bottom: 0;
       width: 2px;
       background: var(--surface-border);
     }
-    /* 下横线：左端越过竖线向左一小截，右端超出按钮右缘 */
-    .hero-frame::after {
+    /* 底部行：横线撑满左侧、文字居右。横线左端穿出竖线左侧与之交叉，
+       右端在文字前停下（不再延伸到右边界） */
+    .frame-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.7rem;
+      font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+      font-size: 0.7rem;
+      line-height: 1.4;
+      color: var(--text-secondary);
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+    .frame-meta::before {
       content: '';
-      position: absolute;
-      left: -0.35rem; /* 穿出竖线左侧，与竖线交叉 */
-      bottom: 0;
-      right: -1.8rem;
+      flex: 1;
       height: 2px;
+      margin-left: -0.35rem; /* 穿出竖线左侧，与竖线交叉 */
       background: var(--surface-border);
+    }
+    .frame-meta-label {
+      opacity: 0.55;
     }
     /* 左竖线与按钮之间的装饰列：紫色小圆点 + 竖排文字，间距刚好容纳 */
     .frame-deco {
@@ -706,17 +719,6 @@ const dateLabel = (d?: Date) =>
       writing-mode: vertical-rl;
       text-orientation: upright;
       opacity: 0.7;
-    }
-    /* 按钮下方、下横线上方的注释文字 */
-    .frame-meta {
-      display: block;
-      margin-top: 0.6rem;
-      font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
-      font-size: 0.7rem;
-      color: var(--text-secondary);
-      opacity: 0.55;
-      letter-spacing: 0.04em;
-      text-align: right;
     }
     /* 按钮：居右排列，统一宽度，左侧留出装饰列空间 */
     .hero-actions {

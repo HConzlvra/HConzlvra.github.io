@@ -247,6 +247,8 @@ const isActive = (href: string) =>
       menuBtn?.setAttribute('aria-expanded', String(open));
       return;
     }
+    // 主题滑钮：切换后保持菜单展开，不收起
+    if (target?.closest('.theme-switch')) return;
     // 点击菜单外任意位置（含菜单内链接）时收起菜单
     if (wrap.classList.contains('mobile-open')) {
       wrap.classList.remove('mobile-open');
