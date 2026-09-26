@@ -98,9 +98,9 @@ html[data-theme='dark'] {
   --nav-glass-border: rgba(255, 255, 255, 0.08);
   --nav-glass-hi: rgba(255, 255, 255, 0.05);
   --nav-glass-lo: rgba(255, 255, 255, 0.03);
-  /* 深色下标题渐变更偏紫：左端（--grad-a）由玫红转向品紫，右端只轻微带一点紫 */
-  --grad-a: #f457d0;
-  --grad-b: #d98ffc;
+  /* 深色下标题渐变只比原色多一丝丝紫：左端（--grad-a）色相 336° → 329°，右端保持原样 */
+  --grad-a: #f452a5;
+  --grad-b: #e08ffc;
   --heading-gradient: linear-gradient(135deg, var(--grad-a), var(--grad-b));
   --btn-primary-bg: #f093fb;
   --btn-primary-bg-hover: #f5576c;
