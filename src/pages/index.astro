@@ -177,9 +177,17 @@ const dateLabel = (d?: Date) =>
   // 递归处理文本节点，保留 <br> 等 DOM 结构；渐变文字用 background-clip:text 不受影响。
   const SCRAMBLE_UPPER = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const SCRAMBLE_LOWER = 'abcdefghijklmnopqrstuvwxyz';
-  const FRAME_INTERVAL = 45; // ms/帧：放慢切换节奏
-  const TOTAL_DURATION = 1000; // 目标总时长 ms
-  const START_DELAY = 60; // 与淡入动画同时开始（略延迟避免首帧闪烁）
+  const FRAME_INTERVAL = 45; // ms/次：随机字符的切换节奏
+  const LOCK_DURATION = 1000; // ms：还原过程的总时长
+
+  // 每个文本节点的原文只在第一次记下，之后一律从它还原。
+  // 本效果有两个触发入口（模块内的立即调用 + astro:page-load），第二次触发时
+  // 文本可能已经被打乱；若把乱码当成原文，动画结束就会停在错误的字母上。
+  const originals = new WeakMap<Text, string>();
+  // 已有动画在跑的元素：重复触发直接忽略，避免两套循环同时改写同一批文本节点
+  const playing = new WeakSet<HTMLElement>();
+  // 已经完整播放过的元素：同一页面视图内不重播（首次加载两个入口会各触发一次）
+  const played = new WeakSet<HTMLElement>();
 
   // 递归收集元素下的所有文本节点，保留 DOM 结构（<br> 等不丢）
   const collectTextNodes = (root: Node): Text[] => {
@@ -195,30 +203,46 @@ const dateLabel = (d?: Date) =>
     return nodes;
   };
 
+  const randChar = (set: string) => set.charAt(Math.floor(Math.random() * set.length));
+
   const scrambleElement = (el: HTMLElement) => {
-    const textNodes = collectTextNodes(el);
-    if (!textNodes.length) return;
-    const originals = textNodes.map((n) => n.textContent || '');
+    if (playing.has(el)) return;
+    const nodes = collectTextNodes(el);
+    if (!nodes.length) return;
+
+    // 取回原文；顺便判断当前文本是否已被打乱（上次被打断留下的乱码）
+    let dirty = false;
+    const texts = nodes.map((n) => {
+      const known = originals.get(n);
+      if (known === undefined) {
+        const text = n.textContent || '';
+        originals.set(n, text);
+        return text;
+      }
+      if (n.textContent !== known) dirty = true;
+      return known;
+    });
+
+    // 已播过且文本干净：同一页面视图内的重复触发，跳过不重播
+    if (played.has(el) && !dirty) return;
+    // 文本脏了：先还原干净再重播
+    if (dirty) nodes.forEach((n, i) => (n.textContent = texts[i]));
+
     // 统计非空白字符总数
-    const totalChars = originals.reduce(
-      (sum, s) => sum + [...s].filter((c) => !/\s/.test(c)).length,
-      0
-    );
+    const totalChars = texts.reduce((sum, s) => sum + [...s].filter((c) => !/\s/.test(c)).length, 0);
     if (totalChars === 0) return;
 
-    const totalFrames = Math.ceil(TOTAL_DURATION / FRAME_INTERVAL);
-    // 每帧锁定的字符数：让锁定过程占总时长的 ~70%，留余量收尾
-    const locksPerFrame = Math.max(1, Math.ceil(totalChars / (totalFrames * 0.7)));
+    playing.add(el);
+    played.add(el);
 
-    let frame = 0;
-    let timer: number | undefined;
+    const lockWindow = LOCK_DURATION * 0.7; // 锁定阶段占总时长的 ~70%，留余量收尾
+    let start = 0;
+    let lastPaint = Number.NEGATIVE_INFINITY;
 
-    const tick = () => {
-      frame++;
-      const targetLock = Math.min(totalChars, Math.floor(frame * locksPerFrame));
+    const paint = (targetLock: number) => {
       let count = 0;
-      for (let ni = 0; ni < textNodes.length; ni++) {
-        const orig = originals[ni];
+      for (let ni = 0; ni < nodes.length; ni++) {
+        const orig = texts[ni];
         let out = '';
         for (const ch of orig) {
           if (/\s/.test(ch)) {
@@ -227,27 +251,41 @@ const dateLabel = (d?: Date) =>
             out += ch; // 已锁定：显示正确字符
             count++;
           } else if (/[A-Z]/.test(ch)) {
-            out += SCRAMBLE_UPPER[Math.floor(Math.random() * SCRAMBLE_UPPER.length)];
+            out += randChar(SCRAMBLE_UPPER);
           } else if (/[a-z]/.test(ch)) {
-            out += SCRAMBLE_LOWER[Math.floor(Math.random() * SCRAMBLE_LOWER.length)];
+            out += randChar(SCRAMBLE_LOWER);
           } else {
             out += ch; // 非字母字符（标点、数字等）原样保留
           }
         }
-        textNodes[ni].textContent = out;
-      }
-
-      if (count < totalChars && frame < totalFrames * 1.5) {
-        timer = window.setTimeout(tick, FRAME_INTERVAL);
-      } else {
-        // 收尾：确保所有文本完全正确
-        for (let ni = 0; ni < textNodes.length; ni++) {
-          textNodes[ni].textContent = originals[ni];
-        }
+        if (nodes[ni].textContent !== out) nodes[ni].textContent = out;
       }
     };
 
-    timer = window.setTimeout(tick, START_DELAY);
+    // 收尾：确保所有文本完全正确
+    const finish = () => {
+      for (let ni = 0; ni < nodes.length; ni++) {
+        if (nodes[ni].textContent !== texts[ni]) nodes[ni].textContent = texts[ni];
+      }
+      playing.delete(el);
+    };
+
+    // 进度按真实时间算而不是按帧数：标签页被节流或掉帧时不会拖慢/卡住，
+    // 到点一定收尾，且最后写回的永远是原文
+    const step = (now: number) => {
+      if (!start) start = now;
+      const elapsed = now - start;
+      const progress = Math.min(1, elapsed / lockWindow);
+      // 仍按 FRAME_INTERVAL 的节奏刷新字符，避免 60fps 下闪烁过快
+      if (progress >= 1 || elapsed - lastPaint >= FRAME_INTERVAL) {
+        lastPaint = elapsed;
+        paint(Math.floor(progress * totalChars));
+      }
+      if (progress < 1) requestAnimationFrame(step);
+      else finish();
+    };
+
+    requestAnimationFrame(step);
   };
 
   // 首次加载 + 软导航回首页时触发：对所有 [data-scramble] 元素执行
