@@ -413,24 +413,40 @@ const dateLabel = (d?: Date) =>
     font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
   }
 
-  /* 代码风角框装饰：仅移动端可见 */
-  .frame-deco,
-  .frame-meta {
+  /* 代码风角框装饰（竖排 NAV）：仅移动端可见 */
+  .frame-deco {
     display: none;
   }
 
-  /* 角框容器：像素方块以它为定位基准（桌面/移动通用） */
+  /* 角框容器：移动端像素方块以它为定位基准；桌面端用 flex 排成
+     「按钮一行 + 像素方块与 // entry points 一行」 */
   .hero-frame {
     position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 3rem; /* 按钮行与像素方块行之间的间距 */
+  }
+
+  /* // entry points：桌面与像素方块同一行（排在方块右侧），移动端在 L 形底部（见媒体查询） */
+  .frame-meta {
+    order: 1; /* 桌面上排到像素方块之后 */
+    margin-left: 0.5rem;
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    font-size: 0.7rem;
+    line-height: 1.4;
+    color: var(--text-secondary);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .frame-meta::before {
+    content: none; /* 桌面无横线 */
   }
 
   /* 像素方块：5 个并排，饱和紫调从左到右依次变浅；
-     与按钮淡入同时开始，从左往右逐个弹出（桌面/移动通用） */
+     与按钮淡入同时开始，从左往右逐个弹出 */
   .hero-pixels {
     display: flex;
-    position: absolute;
-    left: 0;
-    bottom: -1.5rem;
     gap: 4px;
   }
   .hero-pixels span {
@@ -464,6 +480,7 @@ const dateLabel = (d?: Date) =>
   .hero-actions {
     display: flex;
     flex-wrap: wrap;
+    flex: 0 0 100%; /* 在 .hero-frame 里独占一行，像素方块行落在其下 */
     gap: 1rem;
     margin-top: 2rem;
   }
@@ -756,7 +773,14 @@ const dateLabel = (d?: Date) =>
     }
     /* 代码风 L 形角框：仅移动端。左竖线 + 底部横线，线条 2px */
     .hero-frame {
+      display: block; /* 覆盖桌面的 flex 行布局 */
       margin-top: 3.8rem;
+    }
+    /* 桌面在流内的像素方块，移动端改回绝对定位，悬在 L 形左下角下方 */
+    .hero-pixels {
+      position: absolute;
+      left: 0;
+      bottom: -1.5rem;
     }
     /* 左竖线：底部与横线交叉后收在框底 */
     .hero-frame::before {
@@ -774,13 +798,7 @@ const dateLabel = (d?: Date) =>
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      margin-top: 0.7rem;
-      font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
-      font-size: 0.7rem;
-      line-height: 1.4;
-      color: var(--text-secondary);
-      letter-spacing: 0.04em;
-      white-space: nowrap;
+      margin: 0.7rem 0 0; /* 覆盖桌面的 margin-left */
     }
     .frame-meta::before {
       content: '';
