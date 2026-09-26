@@ -350,10 +350,11 @@ const dateLabel = (d?: Date) =>
   document.addEventListener('astro:page-load', tryTyping);
   tryTyping();
 
-  // ---------- 滚动驱动动画（移动端）----------
+  // ---------- 滚动驱动动画 ----------
   // 刷新时的入场动画播完后，把 L 形线 / 像素方块 / NAV 这几个元素交给滚动位置驱动：
   // 下滚按入场动画倒放、上滚正放，进度完全跟手，可以停在半途而不是一次性播完。
-  // 只写一个 --p 变量（1 = 完全入场，0 = 完全退场），各元素在 CSS 里各自换算。
+  // 只写一个 --p 变量（1 = 完全入场，0 = 完全退场），各元素在 CSS 里各自换算；
+  // 支持原生 scroll-driven animation 的浏览器里，L 形线与 NAV 由合成器接管（见 CSS）。
   let scrubFrame: HTMLElement | null = null;
   let scrubDistance = 420; // px：滚过这段距离，动画从"完全入场"走到"完全退场"
   let scrubQueued = false;
@@ -378,18 +379,15 @@ const dateLabel = (d?: Date) =>
 
   const setupScrub = () => {
     const frame = document.querySelector<HTMLElement>('.hero-frame');
-    if (
-      !frame ||
-      !window.matchMedia('(max-width: 768px)').matches || // 仅移动端
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    )
-      return;
+    if (!frame || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     const start = () => {
       if (!frame.isConnected) return;
       // 滚到"框顶到达视口顶部"时正好退场完毕，距离据此换算
       scrubDistance = Math.max(200, Math.round(frame.getBoundingClientRect().top + window.scrollY));
       scrubFrame = frame;
+      // 原生滚动驱动的动画范围（animation-range）要的是绝对像素
+      frame.style.setProperty('--scrub-dist', `${scrubDistance}px`);
       frame.classList.add('is-scrub');
       paintScrub();
     };
@@ -481,6 +479,40 @@ const dateLabel = (d?: Date) =>
     }
     to {
       transform: scaleX(1);
+    }
+  }
+  /* 原生滚动驱动用的关键帧：时间轴 0% = 页面顶部（完全画好），
+     100% = 已滚过 --scrub-dist（完全退场）。数值与 JS 回退实现一一对应 */
+  @keyframes l-scrub-y {
+    from {
+      transform: scaleY(1);
+    }
+    30% {
+      transform: scaleY(1); /* 前 30% 不动，之后才收（倒放"先横后竖"） */
+    }
+    to {
+      transform: scaleY(0);
+    }
+  }
+  @keyframes l-scrub-x {
+    from {
+      transform: scaleX(1);
+    }
+    40% {
+      transform: scaleX(0); /* 一进来就开始收，40% 处收完 */
+    }
+    to {
+      transform: scaleX(0);
+    }
+  }
+  @keyframes deco-scrub {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(var(--anim-y-up));
     }
   }
   /* 打字效果：字符从一开始就占好位置（不改变排版），只逐个显出来，
@@ -606,6 +638,22 @@ const dateLabel = (d?: Date) =>
   .hero-pixels span:nth-child(5) {
     animation-delay: 0.74s;
   }
+
+  /* ---- 像素方块的滚动驱动（两端通用）----
+     脚本在入场动画播完后给 .hero-frame 加 .is-scrub，此后方块由 --p
+     （滚动位置换算：1 = 完全入场 / 0 = 完全退场）决定显隐。
+     每个方块在自己的阈值上直接"跳"，阈值从左往右依次错开 → 下滚时最右边先消失、
+     最左边最后消失，且可停在中间 */
+  .hero-frame.is-scrub .hero-pixels span {
+    animation: none;
+    --lp: clamp(0, calc((var(--p) - (0.25 + var(--i) * 0.15)) * 100), 1);
+    opacity: var(--lp);
+  }
+  .hero-frame.is-scrub .hero-pixels span:nth-child(1) { --i: 0; }
+  .hero-frame.is-scrub .hero-pixels span:nth-child(2) { --i: 1; }
+  .hero-frame.is-scrub .hero-pixels span:nth-child(3) { --i: 2; }
+  .hero-frame.is-scrub .hero-pixels span:nth-child(4) { --i: 3; }
+  .hero-frame.is-scrub .hero-pixels span:nth-child(5) { --i: 4; }
 
   /* Hero 按钮：紫色主题（实心 + 描边），桌面/移动通用 */
   .hero-actions {
@@ -1010,10 +1058,11 @@ const dateLabel = (d?: Date) =>
       padding: 0.9rem 0.25rem;
     }
 
-    /* ---- 滚动驱动动画 ----
-       脚本在刷新入场动画播完后给 .hero-frame 加 .is-scrub，此后这几个元素的状态
-       完全由 --p（滚动位置换算而来，1 = 完全入场 / 0 = 完全退场）决定，
-       所以下滚是倒放、上滚是正放，并且能停在动画中间 */
+    /* ---- 滚动驱动动画（L 形线 / NAV）----
+       .hero-frame 由脚本在入场动画播完后加 .is-scrub，此后这几个元素的状态
+       由 --p（滚动位置换算而来，1 = 完全入场 / 0 = 完全退场）决定，
+       所以下滚是倒放、上滚是正放，并且能停在动画中间。
+       下面是 JS 换算的回退实现；支持原生滚动驱动时由后面的 @supports 覆盖 */
     .hero-frame.is-scrub::before {
       animation: none;
       /* 入场是"先竖后横"，倒放就是"先收横、再收竖" */
@@ -1028,17 +1077,28 @@ const dateLabel = (d?: Date) =>
       opacity: var(--p);
       transform: translateY(calc((1 - var(--p)) * var(--anim-y-up)));
     }
-    .hero-frame.is-scrub .hero-pixels span {
-      animation: none;
-      /* 每个方块在自己的进度阈值上直接"跳"出来，阈值从左往右依次错开，
-         所以整体进度 1→0 时最右边的先消失、最左边的最后消失（不渐隐） */
-      --lp: clamp(0, calc((var(--p) - (0.25 + var(--i) * 0.15)) * 100), 1);
-      opacity: var(--lp);
+
+    /* 原生 scroll-driven animation：动画跑在合成器上，滚动期间完全不占主线程，
+       避免主线程被点阵画布等占用时（iOS Safari 上很明显）出现卡顿 */
+    @supports (animation-timeline: scroll()) {
+      .hero-frame.is-scrub::before,
+      .hero-frame.is-scrub .frame-meta::before,
+      .hero-frame.is-scrub .frame-deco {
+        animation-duration: 1s; /* 进度型时间轴里 1s = 时间轴范围的 100% */
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+        animation-timeline: scroll(root block);
+        animation-range: 0 var(--scrub-dist, 480px);
+      }
+      .hero-frame.is-scrub::before {
+        animation-name: l-scrub-y;
+      }
+      .hero-frame.is-scrub .frame-meta::before {
+        animation-name: l-scrub-x;
+      }
+      .hero-frame.is-scrub .frame-deco {
+        animation-name: deco-scrub;
+      }
     }
-    .hero-frame.is-scrub .hero-pixels span:nth-child(1) { --i: 0; }
-    .hero-frame.is-scrub .hero-pixels span:nth-child(2) { --i: 1; }
-    .hero-frame.is-scrub .hero-pixels span:nth-child(3) { --i: 2; }
-    .hero-frame.is-scrub .hero-pixels span:nth-child(4) { --i: 3; }
-    .hero-frame.is-scrub .hero-pixels span:nth-child(5) { --i: 4; }
   }
 </style>
