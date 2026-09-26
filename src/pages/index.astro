@@ -25,17 +25,19 @@ const dateLabel = (d?: Date) =>
         <h1 class="anim-up" style="--d: 0.05s"><span class="lines-hi" data-scramble>HI,<br class="br-mobile" /> THIS IS</span><br /><span class="name" data-scramble>HCONZLVRA_</span></h1>
         <p class="subtitle anim-up" style="--d: 0.18s">Welcome to my site.</p>
         <p class="tagline anim-up" style="--d: 0.30s">There is a crack in everything. <br class="br-mobile" />That's how the light gets in.</p>
-        <div class="hero-frame anim-up" style="--d: 0.42s">
-          <div class="frame-deco">
+        <!-- 框体本身不做淡入上移：移动端的 L 形线要以"笔顺"自己画出来，
+             所以淡入动画下移到框内的各个子元素上 -->
+        <div class="hero-frame">
+          <div class="frame-deco anim-up" style="--d: 0.42s">
             <span class="deco-dot"></span>
             <span class="deco-text">NAV</span>
           </div>
-          <div class="hero-actions">
+          <div class="hero-actions anim-up" style="--d: 0.42s">
             <a class="btn btn-solid" href="/about">About me</a>
             <a class="btn btn-outline" href="/guestbook">Guestbook</a>
           </div>
-          <span class="frame-meta"><span class="frame-meta-label">// entry points</span></span>
-          <!-- 像素方块装饰：仅移动端显示，贴在 L 形左下角下方 -->
+          <span class="frame-meta"><span class="frame-meta-label anim-up" style="--d: 0.42s">// entry points</span></span>
+          <!-- 像素方块装饰：桌面在流内、移动端悬在 L 形左下角下方 -->
           <div class="hero-pixels" aria-hidden="true">
             <span></span><span></span><span></span><span></span><span></span>
           </div>
@@ -360,6 +362,23 @@ const dateLabel = (d?: Date) =>
     to {
       opacity: 1;
       transform: translateX(0) scale(1);
+    }
+  }
+  /* L 形线按笔顺画出：先竖（自上而下），后横（自左而右） */
+  @keyframes l-stroke-y {
+    from {
+      transform: scaleY(0);
+    }
+    to {
+      transform: scaleY(1);
+    }
+  }
+  @keyframes l-stroke-x {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
     }
   }
   /* 减少动态偏好：直接显示，不做动画 */
@@ -782,7 +801,7 @@ const dateLabel = (d?: Date) =>
       left: 0;
       bottom: -1.5rem;
     }
-    /* 左竖线：底部与横线交叉后收在框底 */
+    /* 左竖线：底部与横线交叉后收在框底。笔顺第一步：自上而下长出 */
     .hero-frame::before {
       content: '';
       position: absolute;
@@ -791,6 +810,8 @@ const dateLabel = (d?: Date) =>
       bottom: 0;
       width: 2px;
       background: var(--surface-border);
+      transform-origin: top;
+      animation: l-stroke-y 0.35s ease-out 0.42s both;
     }
     /* 底部行：横线撑满左侧、文字居右。横线左端穿出竖线左侧与之交叉，
        右端在文字前停下（不再延伸到右边界） */
@@ -800,6 +821,7 @@ const dateLabel = (d?: Date) =>
       gap: 0.5rem;
       margin: 0.7rem 0 0; /* 覆盖桌面的 margin-left */
     }
+    /* 底部横线：笔顺第二步，竖线画完后自左而右长出 */
     .frame-meta::before {
       content: '';
       flex: 1;
@@ -807,9 +829,19 @@ const dateLabel = (d?: Date) =>
       margin-left: -0.35rem; /* 穿出竖线左侧，与竖线交叉 */
       margin-right: 8.4rem; /* 右端收在文字前，横线明显短于竖线，呈 L 形 */
       background: var(--surface-border);
+      transform-origin: left;
+      animation: l-stroke-x 0.3s ease-out 0.77s both;
     }
     .frame-meta-label {
-      opacity: 0.55;
+      /* 用颜色透明度做压暗（而不是 opacity）：.anim-up 动画结束后会把 opacity 锁在 1 */
+      color: color-mix(in srgb, var(--text-secondary) 55%, transparent);
+    }
+    /* 减少动态偏好：L 形线直接画好 */
+    @media (prefers-reduced-motion: reduce) {
+      .hero-frame::before,
+      .frame-meta::before {
+        animation: none;
+      }
     }
     /* 左竖线与按钮之间的装饰列：紫色小圆点 + 竖排文字，间距刚好容纳 */
     .frame-deco {
