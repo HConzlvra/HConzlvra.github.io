@@ -413,11 +413,51 @@ const dateLabel = (d?: Date) =>
     font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
   }
 
-  /* 代码风角框装饰：仅移动端可见，桌面端全部隐藏 */
+  /* 代码风角框装饰：仅移动端可见 */
   .frame-deco,
-  .frame-meta,
-  .hero-pixels {
+  .frame-meta {
     display: none;
+  }
+
+  /* 角框容器：像素方块以它为定位基准（桌面/移动通用） */
+  .hero-frame {
+    position: relative;
+  }
+
+  /* 像素方块：5 个并排，饱和紫调从左到右依次变浅；
+     与按钮淡入同时开始，从左往右逐个弹出（桌面/移动通用） */
+  .hero-pixels {
+    display: flex;
+    position: absolute;
+    left: 0;
+    bottom: -1.5rem;
+    gap: 4px;
+  }
+  .hero-pixels span {
+    width: 9px;
+    height: 9px;
+    background: #ad81e5;
+    opacity: 0; /* 按钮出现前保持不可见 */
+    animation: pixel-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .hero-pixels span:nth-child(1) {
+    background: #6f3fc4;
+    animation-delay: 0.42s; /* 与按钮淡入同时开始 */
+  }
+  .hero-pixels span:nth-child(2) {
+    background: #7d4dd0;
+    animation-delay: 0.5s;
+  }
+  .hero-pixels span:nth-child(3) {
+    background: #8b5cda;
+    animation-delay: 0.58s;
+  }
+  .hero-pixels span:nth-child(4) {
+    background: #9c6fe0;
+    animation-delay: 0.66s;
+  }
+  .hero-pixels span:nth-child(5) {
+    animation-delay: 0.74s;
   }
 
   /* Hero 按钮：紫色主题（实心 + 描边），桌面/移动通用 */
@@ -663,41 +703,6 @@ const dateLabel = (d?: Date) =>
       justify-content: flex-start; /* 移动端靠上，不居中 */
       padding-top: 5vh;
     }
-    /* 像素方块：5 个并排，饱和紫调从左到右依次变浅；
-       与按钮淡入同时开始，逐个从左往右弹出 */
-    .hero-pixels {
-      display: flex;
-      position: absolute;
-      left: 0;
-      bottom: -1.5rem;
-      gap: 4px;
-    }
-    .hero-pixels span {
-      width: 9px;
-      height: 9px;
-      background: #ad81e5;
-      opacity: 0; /* 按钮出现前保持不可见 */
-      animation: pixel-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-    }
-    .hero-pixels span:nth-child(1) {
-      background: #6f3fc4;
-      animation-delay: 0.42s; /* 与按钮淡入同时开始 */
-    }
-    .hero-pixels span:nth-child(2) {
-      background: #7d4dd0;
-      animation-delay: 0.5s;
-    }
-    .hero-pixels span:nth-child(3) {
-      background: #8b5cda;
-      animation-delay: 0.58s;
-    }
-    .hero-pixels span:nth-child(4) {
-      background: #9c6fe0;
-      animation-delay: 0.66s;
-    }
-    .hero-pixels span:nth-child(5) {
-      animation-delay: 0.74s;
-    }
     .hero h1 {
       font-size: min(2.7rem, 10.5vw); /* 仅作 .name 的 em 基准，实际字号在下方两个 span 上 */
       margin-inline: 0; /* 覆盖桌面的 fit-content 居中，左对齐 */
@@ -751,7 +756,6 @@ const dateLabel = (d?: Date) =>
     }
     /* 代码风 L 形角框：仅移动端。左竖线 + 底部横线，线条 2px */
     .hero-frame {
-      position: relative;
       margin-top: 3.8rem;
     }
     /* 左竖线：底部与横线交叉后收在框底 */
