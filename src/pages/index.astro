@@ -349,6 +349,58 @@ const dateLabel = (d?: Date) =>
   };
   document.addEventListener('astro:page-load', tryTyping);
   tryTyping();
+
+  // ---------- 滚动驱动动画（移动端）----------
+  // 刷新时的入场动画播完后，把 L 形线 / 像素方块 / NAV 这几个元素交给滚动位置驱动：
+  // 下滚按入场动画倒放、上滚正放，进度完全跟手，可以停在半途而不是一次性播完。
+  // 只写一个 --p 变量（1 = 完全入场，0 = 完全退场），各元素在 CSS 里各自换算。
+  let scrubFrame: HTMLElement | null = null;
+  let scrubDistance = 420; // px：滚过这段距离，动画从"完全入场"走到"完全退场"
+  let scrubQueued = false;
+
+  const paintScrub = () => {
+    scrubQueued = false;
+    if (!scrubFrame?.isConnected) return;
+    const p = Math.max(0, Math.min(1, 1 - window.scrollY / scrubDistance));
+    scrubFrame.style.setProperty('--p', p.toFixed(4));
+  };
+
+  // 监听器只注册一次（模块脚本只执行一次），元素在每次页面加载时重新取
+  window.addEventListener(
+    'scroll',
+    () => {
+      if (scrubQueued) return;
+      scrubQueued = true;
+      requestAnimationFrame(paintScrub);
+    },
+    { passive: true }
+  );
+
+  const setupScrub = () => {
+    const frame = document.querySelector<HTMLElement>('.hero-frame');
+    if (
+      !frame ||
+      !window.matchMedia('(max-width: 768px)').matches || // 仅移动端
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    )
+      return;
+
+    const start = () => {
+      if (!frame.isConnected) return;
+      // 滚到"框顶到达视口顶部"时正好退场完毕，距离据此换算
+      scrubDistance = Math.max(200, Math.round(frame.getBoundingClientRect().top + window.scrollY));
+      scrubFrame = frame;
+      frame.classList.add('is-scrub');
+      paintScrub();
+    };
+
+    // 等刷新时的入场动画播完再接管，避免接管瞬间跳变
+    const last = frame.querySelector('.hero-pixels span:last-child');
+    if (last) last.addEventListener('animationend', start, { once: true });
+    else start();
+  };
+  document.addEventListener('astro:page-load', setupScrub);
+  setupScrub();
 </script>
 
 <style>
@@ -958,5 +1010,36 @@ const dateLabel = (d?: Date) =>
     .latest-item {
       padding: 0.9rem 0.25rem;
     }
+
+    /* ---- 滚动驱动动画 ----
+       脚本在刷新入场动画播完后给 .hero-frame 加 .is-scrub，此后这几个元素的状态
+       完全由 --p（滚动位置换算而来，1 = 完全入场 / 0 = 完全退场）决定，
+       所以下滚是倒放、上滚是正放，并且能停在动画中间 */
+    .hero-frame.is-scrub::before {
+      animation: none;
+      /* 入场是"先竖后横"，倒放就是"先收横、再收竖" */
+      transform: scaleY(clamp(0, calc(var(--p) / 0.7), 1));
+    }
+    .hero-frame.is-scrub .frame-meta::before {
+      animation: none;
+      transform: scaleX(clamp(0, calc((var(--p) - 0.6) / 0.4), 1));
+    }
+    .hero-frame.is-scrub .frame-deco {
+      animation: none;
+      opacity: var(--p);
+      transform: translateY(calc((1 - var(--p)) * var(--anim-y-up)));
+    }
+    .hero-frame.is-scrub .hero-pixels span {
+      animation: none;
+      /* 每个方块错开 8% 的进度：整体进度 1→0 时，最右边的先退场、最左边的最后退 */
+      --lp: clamp(0, calc((var(--p) - var(--i) * 0.08) / 0.68), 1);
+      opacity: var(--lp);
+      transform: translateX(calc((1 - var(--lp)) * -8px)) scale(calc(0.6 + var(--lp) * 0.4));
+    }
+    .hero-frame.is-scrub .hero-pixels span:nth-child(1) { --i: 0; }
+    .hero-frame.is-scrub .hero-pixels span:nth-child(2) { --i: 1; }
+    .hero-frame.is-scrub .hero-pixels span:nth-child(3) { --i: 2; }
+    .hero-frame.is-scrub .hero-pixels span:nth-child(4) { --i: 3; }
+    .hero-frame.is-scrub .hero-pixels span:nth-child(5) { --i: 4; }
   }
 </style>
