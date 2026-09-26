@@ -421,8 +421,10 @@ const isActive = (href: string) =>
     transition: border-color 0.2s ease;
   }
   .search-btn {
-    width: 34px;
-    height: 34px;
+    /* 32 = 表单 34px 高（含 1px 边框）减去上下边框：这样按钮不会被 overflow 裁掉，
+       表单收起时的轮廓正好是 34×34 的正圆（原来按钮 34px 宽 → 表单 36×34 是椭圆） */
+    width: 32px;
+    height: 32px;
     display: grid;
     place-items: center;
     border: none;
@@ -438,6 +440,9 @@ const isActive = (href: string) =>
     color: var(--text);
     font: inherit;
     font-size: 0.88rem;
+    /* 撑满表单内容区：展开成搜索栏时不会改变表单内部的高度，
+       竖直方向与收起态完全一致 */
+    height: 100%;
     width: 0;
     opacity: 0;
     padding: 0;
@@ -459,11 +464,12 @@ const isActive = (href: string) =>
     padding: 0 0.75rem 0 0.15rem;
   }
 
-  /* 汉堡按钮（仅移动端显示）：三根 SVG 线，开合时变形成叉叉 */
+  /* 汉堡按钮（仅移动端显示）：三根 SVG 线，开合时变形成叉叉。
+     34×34 与搜索表单的轮廓（34×34 圆）统一 */
   .hamburger {
     display: none;
-    width: 30px;
-    height: 30px;
+    width: 34px;
+    height: 34px;
     justify-content: center;
     align-items: center;
     border: 1px solid var(--nav-border);
