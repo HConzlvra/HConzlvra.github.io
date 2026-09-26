@@ -394,8 +394,9 @@ const dateLabel = (d?: Date) =>
       paintScrub();
     };
 
-    // 等刷新时的入场动画播完再接管，避免接管瞬间跳变
-    const last = frame.querySelector('.hero-pixels span:last-child');
+    // 等刷新时最晚结束的入场动画（按钮/NAV 的 hero-rise，1.22s）播完再接管，
+    // 否则接管瞬间会把还没播完的动画直接跳到终态
+    const last = frame.querySelector('.hero-actions');
     if (last) last.addEventListener('animationend', start, { once: true });
     else start();
   };
@@ -456,15 +457,13 @@ const dateLabel = (d?: Date) =>
       transform: translateY(0);
     }
   }
-  /* 像素方块：从左侧逐个弹出（不跟随角框一起向上淡入） */
+  /* 像素方块：只做"出现"，不淡入、不位移、不缩放 */
   @keyframes pixel-in {
     from {
       opacity: 0;
-      transform: translateX(-8px) scale(0.6);
     }
     to {
       opacity: 1;
-      transform: translateX(0) scale(1);
     }
   }
   /* L 形线按笔顺画出：先竖（自上而下），后横（自左而右） */
@@ -576,7 +575,7 @@ const dateLabel = (d?: Date) =>
   }
 
   /* 像素方块：5 个并排，饱和紫调从左到右依次变浅；
-     与按钮淡入同时开始，从左往右逐个弹出 */
+     与按钮淡入同时开始，逐个从左往右"跳"出来（用 steps 去掉过渡，只剩出现） */
   .hero-pixels {
     display: flex;
     gap: 4px;
@@ -586,7 +585,7 @@ const dateLabel = (d?: Date) =>
     height: 9px;
     background: #ad81e5;
     opacity: 0; /* 按钮出现前保持不可见 */
-    animation: pixel-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: pixel-in 1ms steps(1, end) forwards;
   }
   .hero-pixels span:nth-child(1) {
     background: #6f3fc4;
@@ -1031,10 +1030,10 @@ const dateLabel = (d?: Date) =>
     }
     .hero-frame.is-scrub .hero-pixels span {
       animation: none;
-      /* 每个方块错开 8% 的进度：整体进度 1→0 时，最右边的先退场、最左边的最后退 */
-      --lp: clamp(0, calc((var(--p) - var(--i) * 0.08) / 0.68), 1);
+      /* 每个方块在自己的进度阈值上直接"跳"出来，阈值从左往右依次错开，
+         所以整体进度 1→0 时最右边的先消失、最左边的最后消失（不渐隐） */
+      --lp: clamp(0, calc((var(--p) - (0.25 + var(--i) * 0.15)) * 100), 1);
       opacity: var(--lp);
-      transform: translateX(calc((1 - var(--lp)) * -8px)) scale(calc(0.6 + var(--lp) * 0.4));
     }
     .hero-frame.is-scrub .hero-pixels span:nth-child(1) { --i: 0; }
     .hero-frame.is-scrub .hero-pixels span:nth-child(2) { --i: 1; }
