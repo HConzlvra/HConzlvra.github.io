@@ -116,10 +116,27 @@ const isActive = (href: string) =>
             <path d="M8 7h9v9"></path>
           </svg>
         </a>
-        {/* 主题切换滑钮：复用 .theme-toggle 类触发 ThemeToggle 的脚本 */}
+        {/* 主题切换滑钮：复用 .theme-toggle 类触发 ThemeToggle 的脚本，轨道黑白切换 */}
         <button class="theme-toggle theme-switch" aria-label="Toggle theme" type="button" role="switch">
           <span class="switch-track">
-            <span class="switch-thumb"></span>
+            <span class="switch-thumb">
+              <svg class="icon-sun" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
+                <circle cx="12" cy="12" r="4" fill="currentColor"></circle>
+                <g stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <line x1="12" y1="2.5" x2="12" y2="4.5"></line>
+                  <line x1="12" y1="19.5" x2="12" y2="21.5"></line>
+                  <line x1="2.5" y1="12" x2="4.5" y2="12"></line>
+                  <line x1="19.5" y1="12" x2="21.5" y2="12"></line>
+                  <line x1="5.6" y1="5.6" x2="7" y2="7"></line>
+                  <line x1="17" y1="17" x2="18.4" y2="18.4"></line>
+                  <line x1="18.4" y1="5.6" x2="17" y2="7"></line>
+                  <line x1="7" y1="17" x2="5.6" y2="18.4"></line>
+                </g>
+              </svg>
+              <svg class="icon-moon" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
+                <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="currentColor"></path>
+              </svg>
+            </span>
           </span>
         </button>
       </div>
@@ -591,7 +608,7 @@ const isActive = (href: string) =>
     opacity: 0.6;
   }
 
-  /* 主题切换滑钮：轨道 + 圆点 */
+  /* 主题切换滑钮：轨道黑白切换，滑钮内日月图标 */
   .theme-switch {
     border: none;
     background: transparent;
@@ -605,7 +622,7 @@ const isActive = (href: string) =>
     width: 2.6rem;
     height: 1.45rem;
     border-radius: 999px;
-    background: var(--surface-border);
+    background: #e2e2e2; /* 浅色模式：白灰轨道 */
     transition: background 0.3s ease;
   }
   .switch-thumb {
@@ -618,11 +635,24 @@ const isActive = (href: string) =>
     border-radius: 50%;
     background: var(--surface);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;
+    display: grid;
+    place-items: center;
+    color: var(--text);
   }
-  /* 深色模式：轨道变紫，圆点滑到右侧 */
+  /* 滑钮内日月图标叠放 */
+  .switch-thumb svg {
+    grid-area: 1 / 1;
+  }
+  /* 覆盖 ThemeToggle 全局规则：滑钮显示"当前主题"图标
+     （浅色=太阳，深色=月亮），而非"将切换到"的图标 */
+  html[data-theme='light'] .switch-thumb .icon-sun { display: block; }
+  html[data-theme='light'] .switch-thumb .icon-moon { display: none; }
+  html[data-theme='dark'] .switch-thumb .icon-moon { display: block; }
+  html[data-theme='dark'] .switch-thumb .icon-sun { display: none; }
+  /* 深色模式：轨道变黑，圆点滑到右侧 */
   html[data-theme='dark'] .switch-track {
-    background: var(--btn-primary-bg);
+    background: #2a2a2a;
   }
   html[data-theme='dark'] .switch-thumb {
     transform: translate(calc(2.6rem - 1.15rem - 4px), -50%);

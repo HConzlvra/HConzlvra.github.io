@@ -26,6 +26,10 @@ const dateLabel = (d?: Date) =>
         <p class="subtitle anim-up" style="--d: 0.18s" data-scramble>Welcome to my site.</p>
         <p class="tagline anim-up" style="--d: 0.30s" data-scramble>There is a crack in everything. <br class="br-mobile" />That's how the light gets in.</p>
         <div class="hero-frame anim-up" style="--d: 0.42s">
+          <div class="frame-deco">
+            <span class="deco-dot"></span>
+            <span class="deco-text">NAV</span>
+          </div>
           <div class="hero-actions">
             <a class="btn btn-solid" href="/about" data-scramble>About me</a>
             <a class="btn btn-outline" href="/guestbook" data-scramble>Guestbook</a>
@@ -645,31 +649,57 @@ const dateLabel = (d?: Date) =>
       padding-left: 0.7rem;
       margin-top: 0.85rem;
     }
-    /* 代码风 L 形角框：仅移动端。左竖线留空不顶满，下横线向右延伸，线条不打架 */
+    /* 代码风 L 形角框：仅移动端。左竖线贴近按钮，下横线向右延伸，线条 2px */
     .hero-frame {
       position: relative;
       margin-top: 3.8rem;
       padding: 0 0 1rem 0;
     }
-    /* 左竖线：从按钮区域中部开始往下，不顶到顶部，左侧留 0.5rem 空隙 */
+    /* 左竖线：紧贴装饰列左侧，不顶到顶部 */
     .hero-frame::before {
       content: '';
       position: absolute;
-      left: -0.5rem;
+      left: 0;
       top: 1.4rem;
       bottom: 0;
-      width: 1px;
+      width: 2px;
       background: var(--surface-border);
     }
     /* 下横线：从左竖线底部向右延伸，超出按钮右缘 */
     .hero-frame::after {
       content: '';
       position: absolute;
-      left: -0.5rem;
+      left: 0;
       bottom: 0;
       right: -1.8rem;
-      height: 1px;
+      height: 2px;
       background: var(--surface-border);
+    }
+    /* 左竖线与按钮之间的装饰列：紫色小圆点 + 竖排文字，间距刚好容纳 */
+    .frame-deco {
+      position: absolute;
+      left: 0.35rem;
+      top: 0.2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .deco-dot {
+      width: 0.4rem;
+      height: 0.4rem;
+      border-radius: 50%;
+      background: var(--btn-primary-bg);
+    }
+    .deco-text {
+      font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: var(--btn-primary-bg);
+      letter-spacing: 0.15em;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      opacity: 0.7;
     }
     /* 按钮下方、下横线上方的注释文字 */
     .frame-meta {
@@ -682,9 +712,10 @@ const dateLabel = (d?: Date) =>
       letter-spacing: 0.04em;
       text-align: right;
     }
-    /* 按钮：居右排列，统一宽度 */
+    /* 按钮：居右排列，统一宽度，左侧留出装饰列空间 */
     .hero-actions {
       margin-top: 0;
+      margin-left: 2rem;
       gap: 1.1rem;
       flex-direction: column;
       align-items: flex-end;
