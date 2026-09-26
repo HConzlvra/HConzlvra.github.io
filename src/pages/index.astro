@@ -303,8 +303,10 @@ const dateLabel = (d?: Date) =>
   // 字母依序出现，像现场敲出来：整段文字一开始就占好位置（每个字符包一层
   // span，只切透明度），所以打字过程不会因为逐字排版而抖动。
   // 延迟与间隔分别由 [data-type]（毫秒）和 TYPE_INTERVAL 控制。
-  // 300ms 起步 + 61 字 × 15ms ≈ 1.22s 收尾，正好与按钮（0.42s + 0.8s）同时到位
-  const TYPE_INTERVAL = 15; // ms/字
+  // 300ms 起步 + 61 字 × 10ms ≈ 0.91s 收尾。
+  // 注意 hero-rise 用的是 cubic-bezier(0.22,1,0.36,1) 强缓出，按钮名义上跑满
+  // 1.22s，但视觉上 ~0.8s 就已到位，所以按"视觉到位"对齐而不是按名义终点
+  const TYPE_INTERVAL = 10; // ms/字
   const typing = new WeakSet<HTMLElement>();
 
   const typeElement = (el: HTMLElement) => {
