@@ -649,15 +649,13 @@ const dateLabel = (d?: Date) =>
       padding-left: 0.7rem;
       margin-top: 0.85rem;
     }
-    /* 代码风 L 形角框：仅移动端。框收缩到按钮宽度并靠右，左竖线紧贴按钮 */
+    /* 代码风 L 形角框：仅移动端。左竖线贴近按钮，下横线向右延伸，线条 2px */
     .hero-frame {
       position: relative;
-      width: fit-content;
       margin-top: 3.8rem;
-      margin-left: auto; /* 靠右，与按钮同侧 */
-      padding: 0 0 1rem 1.4rem; /* 左侧 1.4rem 为装饰列预留，刚好容纳 */
+      padding: 0 0 1rem 0;
     }
-    /* 左竖线：贴框左缘（即装饰列左侧），不顶到顶部 */
+    /* 左竖线：紧贴装饰列左侧，不顶到顶部 */
     .hero-frame::before {
       content: '';
       position: absolute;
@@ -673,14 +671,14 @@ const dateLabel = (d?: Date) =>
       position: absolute;
       left: 0;
       bottom: 0;
-      right: -1.4rem;
+      right: -1.8rem;
       height: 2px;
       background: var(--surface-border);
     }
-    /* 装饰列：垂直居左，紫色小圆点 + 竖排文字 */
+    /* 左竖线与按钮之间的装饰列：紫色小圆点 + 竖排文字，间距刚好容纳 */
     .frame-deco {
       position: absolute;
-      left: 0.4rem;
+      left: 0.35rem;
       top: 0.2rem;
       display: flex;
       flex-direction: column;
@@ -714,10 +712,10 @@ const dateLabel = (d?: Date) =>
       letter-spacing: 0.04em;
       text-align: right;
     }
-    /* 按钮：统一宽度（左侧装饰空间由 .hero-frame 的 padding-left 提供） */
+    /* 按钮：居右排列，统一宽度，左侧留出装饰列空间 */
     .hero-actions {
       margin-top: 0;
-      margin-left: 0;
+      margin-left: 2rem;
       gap: 1.1rem;
       flex-direction: column;
       align-items: flex-end;
