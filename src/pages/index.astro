@@ -403,19 +403,26 @@ const dateLabel = (d?: Date) =>
 
   // ---------- 彩蛋：像素方块波浪 ----------
   // 桌面：指针在热区（比方块大一圈）停留 0.3s 后开始波浪，移开立刻停；
-  //       不离开就每 0.3s 再来一波——用"周期 0.3s 的无限循环 + 相邻方块错开 60ms"
-  //       叠成连续的波，而不是一次次重启动画（重启会把半空中的方块打断）
+  //       不离开就每 1s 再来一波——用"周期 1s 的无限循环 + 相邻方块错开 60ms"叠出来，
+  //       而不是一次次重启动画（重启会把半空中的方块打断）
   // 移动端：点一下走一波
-  const HOP_PERIOD = 300; // ms：一波的周期（也就是"每隔 0.3s 一波"）
+  const HOP_MS = 300; // ms：单次"跳起—落地"的动作时长（两端一致）
+  const HOP_SPAN = 0.8; // 跳跃占动作时长的比例，余下的时间落地静止
+  const LOOP_MS = 1000; // ms：桌面端两波之间的间隔
   const HOP_STAGGER = 60; // ms：相邻方块错开的相位
   const HOP_HEIGHT = 7; // px：跳起高度
 
-  const HOP_KEYFRAMES: Keyframe[] = [
-    { transform: 'translateY(0px)', offset: 0, easing: 'cubic-bezier(0.33, 0, 0.67, 1)' },
-    { transform: `translateY(-${HOP_HEIGHT}px)`, offset: 0.4, easing: 'cubic-bezier(0.33, 0, 0.67, 1)' },
-    { transform: 'translateY(0px)', offset: 0.8 },
-    { transform: 'translateY(0px)', offset: 1 },
-  ];
+  // 在一个 duration 内只跳一次（占用 HOP_MS），其余时间静止，
+  // 于是"动作时长"和"重复间隔"可以分开设：桌面端 1s 的周期里只在开头跳
+  const buildHop = (duration: number): Keyframe[] => {
+    const hop = (HOP_MS * HOP_SPAN) / duration;
+    return [
+      { transform: 'translateY(0px)', offset: 0, easing: 'cubic-bezier(0.33, 0, 0.67, 1)' },
+      { transform: `translateY(-${HOP_HEIGHT}px)`, offset: hop / 2, easing: 'cubic-bezier(0.33, 0, 0.67, 1)' },
+      { transform: 'translateY(0px)', offset: hop },
+      { transform: 'translateY(0px)', offset: 1 },
+    ];
+  };
 
   let waveAnims: Animation[] = [];
   let waveTimer = 0;
@@ -431,10 +438,12 @@ const dateLabel = (d?: Date) =>
     const host = document.querySelector<HTMLElement>('.hero-pixels');
     if (!host) return;
     stopWave();
+    const duration = loop ? LOOP_MS : HOP_MS; // 桌面：1s 的周期里只跳一次
+    const frames = buildHop(duration);
     host.querySelectorAll('span').forEach((span, i) => {
       waveAnims.push(
-        span.animate(HOP_KEYFRAMES, {
-          duration: HOP_PERIOD,
+        span.animate(frames, {
+          duration,
           delay: i * HOP_STAGGER, // 依次从左往右起跳
           iterations: loop ? Number.POSITIVE_INFINITY : 1,
         })
