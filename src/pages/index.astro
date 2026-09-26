@@ -24,7 +24,7 @@ const dateLabel = (d?: Date) =>
       <section class="hero">
         <h1 class="anim-up" style="--d: 0.05s"><span class="lines-hi" data-scramble>HI,<br class="br-mobile" /> THIS IS</span><br /><span class="name" data-scramble>HCONZLVRA_</span></h1>
         <p class="subtitle anim-up" style="--d: 0.18s">Welcome to my site.</p>
-        <p class="tagline anim-up" style="--d: 0.30s">There is a crack in everything. <br class="br-mobile" />That's how the light gets in.</p>
+        <p class="tagline" data-type="300">There is a crack in everything. <br class="br-mobile" />That's how the light gets in.</p>
         <!-- 框体本身不做淡入上移：移动端的 L 形线要以"笔顺"自己画出来，
              所以淡入动画下移到框内的各个子元素上 -->
         <div class="hero-frame">
@@ -36,7 +36,7 @@ const dateLabel = (d?: Date) =>
             <a class="btn btn-solid" href="/about">About me</a>
             <a class="btn btn-outline" href="/guestbook">Guestbook</a>
           </div>
-          <span class="frame-meta"><span class="frame-meta-label anim-up" style="--d: 0.42s">// entry points</span></span>
+          <span class="frame-meta"><span class="frame-meta-label" data-type="420">// entry points</span></span>
           <!-- 像素方块装饰：桌面在流内、移动端悬在 L 形左下角下方 -->
           <div class="hero-pixels" aria-hidden="true">
             <span></span><span></span><span></span><span></span><span></span>
@@ -298,6 +298,50 @@ const dateLabel = (d?: Date) =>
   };
   document.addEventListener('astro:page-load', tryScramble);
   tryScramble();
+
+  // ---------- Typewriter effect ----------
+  // 字母依序出现，像现场敲出来：整段文字一开始就占好位置（每个字符包一层
+  // span，只切透明度），所以打字过程不会因为逐字排版而抖动。
+  // 延迟与间隔分别由 [data-type]（毫秒）和 TYPE_INTERVAL 控制。
+  const TYPE_INTERVAL = 40; // ms/字
+  const typing = new WeakSet<HTMLElement>();
+
+  const typeElement = (el: HTMLElement) => {
+    if (typing.has(el)) return;
+    const nodes = collectTextNodes(el);
+    if (!nodes.length) return;
+    typing.add(el);
+
+    // 逐字包 span（<br> 等结构保持不动）
+    const chars: HTMLElement[] = [];
+    for (const node of nodes) {
+      const frag = document.createDocumentFragment();
+      for (const ch of node.textContent || '') {
+        const span = document.createElement('span');
+        span.className = 'tw-ch';
+        span.textContent = ch;
+        frag.append(span);
+        chars.push(span);
+      }
+      node.replaceWith(frag);
+    }
+
+    let i = 0;
+    const tick = () => {
+      if (i >= chars.length) return;
+      chars[i++].classList.add('is-on');
+      window.setTimeout(tick, TYPE_INTERVAL);
+    };
+    window.setTimeout(tick, Number(el.dataset.type) || 0);
+  };
+
+  // 首次加载 + 软导航回首页时触发
+  const tryTyping = () => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    document.querySelectorAll<HTMLElement>('[data-type]').forEach(typeElement);
+  };
+  document.addEventListener('astro:page-load', tryTyping);
+  tryTyping();
 </script>
 
 <style>
@@ -381,6 +425,15 @@ const dateLabel = (d?: Date) =>
       transform: scaleX(1);
     }
   }
+  /* 打字效果：字符从一开始就占好位置（不改变排版），只逐个显出来，
+     这样"敲字"过程不会引起换行抖动 */
+  .tw-ch {
+    opacity: 0;
+  }
+  .tw-ch.is-on {
+    opacity: 1;
+  }
+
   /* 减少动态偏好：直接显示，不做动画 */
   @media (prefers-reduced-motion: reduce) {
     .anim-up {
@@ -833,8 +886,7 @@ const dateLabel = (d?: Date) =>
       animation: l-stroke-x 0.3s ease-out 0.77s both;
     }
     .frame-meta-label {
-      /* 用颜色透明度做压暗（而不是 opacity）：.anim-up 动画结束后会把 opacity 锁在 1 */
-      color: color-mix(in srgb, var(--text-secondary) 55%, transparent);
+      opacity: 0.55;
     }
     /* 减少动态偏好：L 形线直接画好 */
     @media (prefers-reduced-motion: reduce) {
