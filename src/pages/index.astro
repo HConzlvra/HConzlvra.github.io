@@ -303,7 +303,7 @@ const dateLabel = (d?: Date) =>
   // 字母依序出现，像现场敲出来：整段文字一开始就占好位置（每个字符包一层
   // span，只切透明度），所以打字过程不会因为逐字排版而抖动。
   // 延迟与间隔分别由 [data-type]（毫秒）和 TYPE_INTERVAL 控制。
-  const TYPE_INTERVAL = 40; // ms/字
+  const TYPE_INTERVAL = 18; // ms/字（≈1 字/帧，60 字左右刚好和其余入场动画同时收尾）
   const typing = new WeakSet<HTMLElement>();
 
   const typeElement = (el: HTMLElement) => {
