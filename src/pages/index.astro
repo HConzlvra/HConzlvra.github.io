@@ -426,11 +426,12 @@ const dateLabel = (d?: Date) =>
     }
   }
   /* 打字效果：字符从一开始就占好位置（不改变排版），只逐个显出来，
-     这样"敲字"过程不会引起换行抖动 */
-  .tw-ch {
+     这样"敲字"过程不会引起换行抖动。
+     这些 span 由脚本运行时创建，没有 Astro 的作用域属性，必须用 :global */
+  :global(.tw-ch) {
     opacity: 0;
   }
-  .tw-ch.is-on {
+  :global(.tw-ch.is-on) {
     opacity: 1;
   }
 
