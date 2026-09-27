@@ -402,9 +402,9 @@ const dateLabel = (d?: Date) =>
   setupScrub();
 
   // ---------- 彩蛋：像素方块波浪 ----------
-  // 桌面：指针在热区（比方块大一圈）停留 0.3s 后开始波浪，移开立刻停；
-  //       不离开就每 1s 再来一波——用"周期 1s 的无限循环 + 相邻方块错开 60ms"叠出来，
-  //       而不是一次次重启动画（重启会把半空中的方块打断）
+  // 桌面：指针在热区（比方块大一圈）停留 0.3s 后开始波浪，移开后把当前这一轮播完再停；
+  //       不离开就每 1s 再来一波——每轮动画用 iterations: 1，靠定时器逐轮续播，
+  //       所以在任意时刻停下来都不需要中途 cancel（那会把半空中的方块打断）
   // 移动端：点一下走一波
   const HOP_MS = 300; // ms：单次"跳起—落地"的动作时长（两端一致）
   const HOP_SPAN = 0.8; // 跳跃占动作时长的比例，余下的时间落地静止
@@ -425,58 +425,49 @@ const dateLabel = (d?: Date) =>
   };
 
   let waveAnims: Animation[] = [];
-  let waveTimer = 0;
-  let keepLooping = false;
+  let hoverTimer = 0; // 起跳前的停留确认（0.3s）
+  let loopTimer = 0; // 循环调度：每 LOOP_MS 安排下一轮
+  let hovering = false; // 指针是否停留在热区内
 
   // 立即停止：重新开始或离开页面时调用
   const stopWave = () => {
-    window.clearTimeout(waveTimer);
-    waveTimer = 0;
-    keepLooping = false;
+    window.clearTimeout(hoverTimer);
+    window.clearTimeout(loopTimer);
+    hoverTimer = 0;
+    loopTimer = 0;
+    hovering = false;
     waveAnims.forEach((a) => a.cancel());
     waveAnims = [];
   };
 
-  // 指针移走：不立即 cancel，而是让每个动画跑完当前这一轮后自然结束
-  const releaseWave = () => {
-    window.clearTimeout(waveTimer);
-    waveTimer = 0;
-    keepLooping = false;
-    waveAnims.forEach((anim) => {
-      try {
-        const timing = anim.effect.getTiming();
-        const delay = (timing.delay as number) || 0;
-        const duration = (timing.duration as number) || 0;
-        if (duration <= 0) { anim.cancel(); return; }
-        const activeTime = anim.currentTime - delay;
-        if (activeTime <= 0) {
-          anim.cancel(); // 还在 delay 阶段没起跳，直接取消
-        } else {
-          const currentIter = Math.floor(activeTime / duration);
-          anim.effect.updateTiming({ iterations: currentIter + 1 }); // 跑完当前这一轮就结束
-        }
-      } catch {
-        anim.cancel();
-      }
-    });
-    waveAnims = [];
-  };
-
-  const runWave = (loop: boolean) => {
+  // 播放一轮：每个方块各跳一次（iterations: 1），
+  // 播完自然停在原地——不会像无限循环那样需要中途 cancel 打断
+  const playCycle = (duration: number) => {
     const host = document.querySelector<HTMLElement>('.hero-pixels');
     if (!host) return;
-    stopWave(); // 重新开始时立即清掉旧的
-    keepLooping = loop;
-    const duration = loop ? LOOP_MS : HOP_MS; // 桌面：1s 的周期里只跳一次
     const frames = buildHop(duration);
     host.querySelectorAll('span').forEach((span, i) => {
       const anim = span.animate(frames, {
         duration,
         delay: i * HOP_STAGGER, // 依次从左往右起跳
-        iterations: loop ? Number.POSITIVE_INFINITY : 1,
+        iterations: 1,
       });
       waveAnims.push(anim);
+      anim.finished
+        .then(() => {
+          waveAnims = waveAnims.filter((a) => a !== anim);
+        })
+        .catch(() => {}); // cancel() 会让 finished 抛错，忽略
     });
+  };
+
+  // 循环调度：只要指针还在热区，就每 LOOP_MS 起一轮。
+  // 指针离开后 hovering 变 false，这里不再安排下一轮，
+  // 已经起跳的这一轮会照常播完（不 cancel，所以不会半空停住）
+  const stepWave = () => {
+    if (!hovering) return;
+    playCycle(LOOP_MS);
+    loopTimer = window.setTimeout(stepWave, LOOP_MS);
   };
 
   const waveBound = new WeakSet<HTMLElement>();
@@ -488,20 +479,23 @@ const dateLabel = (d?: Date) =>
     waveBound.add(host);
 
     if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
-      let isHovering = false;
       host.addEventListener('mouseenter', () => {
-        isHovering = true;
-        window.clearTimeout(waveTimer);
-        waveTimer = window.setTimeout(() => {
-          if (isHovering) runWave(true); // 指针还在才起跳，防止延迟触发在离开后启动死循环
+        hovering = true;
+        window.clearTimeout(hoverTimer);
+        hoverTimer = window.setTimeout(() => {
+          if (!hovering) return; // 0.3s 内又移开了，不起跳
+          window.clearTimeout(loopTimer);
+          playCycle(LOOP_MS);
+          loopTimer = window.setTimeout(stepWave, LOOP_MS);
         }, 300); // 停留 0.3s 才起跳
       });
       host.addEventListener('mouseleave', () => {
-        isHovering = false;
-        releaseWave(); // 移走后让这一轮播完
+        hovering = false; // 只做标记：已起跳的这一轮不打断，会自己播完
+        window.clearTimeout(hoverTimer);
+        window.clearTimeout(loopTimer);
       });
     } else {
-      host.addEventListener('click', () => runWave(false)); // 点一次走一波
+      host.addEventListener('click', () => playCycle(HOP_MS)); // 点一次走一波
     }
   };
   document.addEventListener('astro:page-load', bindWave);
