@@ -1,13 +1,14 @@
 ---
 // 集成后台：Posts 发布/编辑/删除 + Guestbook 留言管理
+// 安全：静态 HTML 只含登录表单，整个后台界面在密钥验证通过后由 JS 动态注入
 // 不进导航栏、noindex，仅自己使用
 import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="Admin | HConzlvra_">
   <meta slot="head" name="robots" content="noindex, nofollow" />
-  <div class="admin-page">
-    <!-- 登录视图 -->
+  <div class="admin-page" id="admin-page">
+    <!-- 静态页面只渲染登录视图，后台界面在登录成功后由 JS 注入 -->
     <section class="login-view" id="login-view">
       <div class="login-card">
         <h1>Admin</h1>
@@ -17,90 +18,6 @@ import Layout from '../layouts/Layout.astro';
           <button type="submit" class="btn primary">Log in</button>
         </form>
         <p class="status" id="login-status"></p>
-      </div>
-    </section>
-
-    <!-- 后台视图 -->
-    <section class="admin-view" id="admin-view" hidden>
-      <!-- 顶栏 -->
-      <header class="admin-bar">
-        <div class="bar-left">
-          <span class="bar-logo">⚙</span>
-          <h1>Admin Dashboard</h1>
-        </div>
-        <button type="button" class="btn ghost" id="logout-btn">Log out</button>
-      </header>
-
-      <div class="admin-body">
-        <!-- 侧边导航 -->
-        <nav class="admin-nav">
-          <button type="button" class="nav-item active" data-tab="posts">
-            <span class="nav-icon">📝</span>
-            <span>Posts</span>
-          </button>
-          <button type="button" class="nav-item" data-tab="guestbook">
-            <span class="nav-icon">💬</span>
-            <span>Guestbook</span>
-          </button>
-        </nav>
-
-        <!-- 内容区 -->
-        <div class="admin-content">
-          <!-- Posts 面板 -->
-          <div class="tab-panel active" id="tab-posts">
-            <div class="panel-head">
-              <h2>Posts</h2>
-              <button type="button" class="btn ghost small" id="new-post-btn">+ New post</button>
-            </div>
-
-            <div class="card editor" id="editor-card">
-              <div class="field">
-                <label for="f-title">Title</label>
-                <input id="f-title" type="text" maxlength="120" placeholder="Post title" />
-              </div>
-              <div class="field-row">
-                <div class="field">
-                  <label for="f-slug">Slug <span class="dim">(lowercase / digits / hyphens)</span></label>
-                  <input id="f-slug" type="text" placeholder="my-first-post" />
-                </div>
-                <div class="field">
-                  <label for="f-desc">Description <span class="dim">(optional)</span></label>
-                  <input id="f-desc" type="text" maxlength="300" placeholder="One-line summary" />
-                </div>
-              </div>
-              <div class="field">
-                <div class="toolbar">
-                  <label for="f-content">Content (Markdown)</label>
-                  <div class="toolbar-actions">
-                    <button type="button" class="btn ghost small" id="preview-btn">Preview</button>
-                    <button type="button" class="btn primary small" id="publish-btn">Publish</button>
-                  </div>
-                </div>
-                <textarea id="f-content" rows="16" placeholder="# Heading&#10;&#10;Write your post in Markdown…"></textarea>
-                <div class="preview prose" id="preview-box" hidden></div>
-              </div>
-              <p class="status" id="editor-status"></p>
-            </div>
-
-            <div class="card list">
-              <h3>Published posts</h3>
-              <ul id="post-list"></ul>
-              <p class="empty" id="list-empty" hidden>No posts yet.</p>
-            </div>
-          </div>
-
-          <!-- Guestbook 面板 -->
-          <div class="tab-panel" id="tab-guestbook">
-            <div class="panel-head">
-              <h2>Guestbook</h2>
-              <button type="button" class="btn ghost small" id="refresh-gb-btn">↻ Refresh</button>
-            </div>
-            <div class="card list">
-              <ul id="gb-list"></ul>
-              <p class="empty" id="gb-empty" hidden>No messages yet.</p>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
   </div>
@@ -113,14 +30,6 @@ import Layout from '../layouts/Layout.astro';
   const API = API_BASE;
   const KEY_STORE = 'admin_key';
 
-  const $ = (id: string) => document.getElementById(id) as HTMLElement;
-  const fields = {
-    title: $('f-title') as HTMLInputElement,
-    slug: $('f-slug') as HTMLInputElement,
-    desc: $('f-desc') as HTMLInputElement,
-    content: $('f-content') as HTMLTextAreaElement,
-  };
-
   let adminKey = '';
   let slugTouched = false;
   let editingSlug = '';
@@ -131,34 +40,10 @@ import Layout from '../layouts/Layout.astro';
     return h;
   };
 
-  function showLogin(msg = '') {
-    $('login-view').hidden = false;
-    $('admin-view').hidden = true;
-    $('login-status').textContent = msg;
-  }
-
-  function showAdmin() {
-    $('login-view').hidden = true;
-    $('admin-view').hidden = false;
-    loadList();
-  }
-
-  // ---- Tab 切换 ----
-  document.querySelectorAll('.nav-item').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const tab = (btn as HTMLElement).dataset.tab;
-      document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('active', b === btn));
-      document.querySelectorAll('.tab-panel').forEach((p) =>
-        p.classList.toggle('active', (p as HTMLElement).id === `tab-${tab}`)
-      );
-      if (tab === 'guestbook') loadGuestbook();
-    });
-  });
-
-  // ---- 登录 / 登出 ----
-  $('login-form').addEventListener('submit', async (e) => {
+  // ---- 登录 ----
+  document.getElementById('login-form')!.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const key = ($('key-input') as HTMLInputElement).value;
+    const key = (document.getElementById('key-input') as HTMLInputElement).value;
     if (!key) return;
     const res = await fetch(`${API}/admin/verify`, {
       headers: { Authorization: `Bearer ${key}` },
@@ -166,299 +51,373 @@ import Layout from '../layouts/Layout.astro';
     if (res && res.ok) {
       adminKey = key;
       sessionStorage.setItem(KEY_STORE, key);
-      showAdmin();
+      enterAdmin();
     } else {
-      $('login-status').textContent = 'Wrong key or network error.';
+      (document.getElementById('login-status') as HTMLElement).textContent = 'Wrong key or network error.';
     }
-  });
-
-  $('logout-btn').addEventListener('click', () => {
-    adminKey = '';
-    sessionStorage.removeItem(KEY_STORE);
-    showLogin();
   });
 
   const saved = sessionStorage.getItem(KEY_STORE);
   if (saved) {
     adminKey = saved;
     fetch(`${API}/admin/verify`, { headers: { Authorization: `Bearer ${saved}` } })
-      .then((r) => (r.ok ? showAdmin() : showLogin()))
-      .catch(() => showLogin());
+      .then((r) => (r.ok ? enterAdmin() : null))
+      .catch(() => null);
   }
 
-  // ---- Posts 编辑器 ----
-  fields.title.addEventListener('input', () => {
-    if (!slugTouched && !editingSlug) {
-      fields.slug.value = fields.title.value
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(0, 64);
+  // ---- 注入后台界面（仅在验证通过后执行） ----
+  function enterAdmin() {
+    const page = document.getElementById('admin-page')!;
+    // 移除登录视图
+    document.getElementById('login-view')?.remove();
+
+    page.insertAdjacentHTML(
+      'beforeend',
+      `
+      <section class="admin-view" id="admin-view">
+        <header class="admin-bar">
+          <div class="bar-left">
+            <span class="bar-logo">⚙</span>
+            <h1>Admin Dashboard</h1>
+          </div>
+          <button type="button" class="btn ghost" id="logout-btn">Log out</button>
+        </header>
+        <div class="admin-body">
+          <nav class="admin-nav">
+            <button type="button" class="nav-item active" data-tab="posts">
+              <span class="nav-icon">📝</span><span>Posts</span>
+            </button>
+            <button type="button" class="nav-item" data-tab="guestbook">
+              <span class="nav-icon">💬</span><span>Guestbook</span>
+            </button>
+          </nav>
+          <div class="admin-content">
+            <div class="tab-panel active" id="tab-posts">
+              <div class="panel-head">
+                <h2>Posts</h2>
+                <button type="button" class="btn ghost small" id="new-post-btn">+ New post</button>
+              </div>
+              <div class="card editor" id="editor-card">
+                <div class="field">
+                  <label for="f-title">Title</label>
+                  <input id="f-title" type="text" maxlength="120" placeholder="Post title" />
+                </div>
+                <div class="field-row">
+                  <div class="field">
+                    <label for="f-slug">Slug <span class="dim">(lowercase / digits / hyphens)</span></label>
+                    <input id="f-slug" type="text" placeholder="my-first-post" />
+                  </div>
+                  <div class="field">
+                    <label for="f-desc">Description <span class="dim">(optional)</span></label>
+                    <input id="f-desc" type="text" maxlength="300" placeholder="One-line summary" />
+                  </div>
+                </div>
+                <div class="field">
+                  <div class="toolbar">
+                    <label for="f-content">Content (Markdown)</label>
+                    <div class="toolbar-actions">
+                      <button type="button" class="btn ghost small" id="preview-btn">Preview</button>
+                      <button type="button" class="btn primary small" id="publish-btn">Publish</button>
+                    </div>
+                  </div>
+                  <textarea id="f-content" rows="16" placeholder="# Heading&#10;&#10;Write your post in Markdown…"></textarea>
+                  <div class="preview prose" id="preview-box" hidden></div>
+                </div>
+                <p class="status" id="editor-status"></p>
+              </div>
+              <div class="card list">
+                <h3>Published posts</h3>
+                <ul id="post-list"></ul>
+                <p class="empty" id="list-empty" hidden>No posts yet.</p>
+              </div>
+            </div>
+            <div class="tab-panel" id="tab-guestbook">
+              <div class="panel-head">
+                <h2>Guestbook</h2>
+                <button type="button" class="btn ghost small" id="refresh-gb-btn">↻ Refresh</button>
+              </div>
+              <div class="card list">
+                <ul id="gb-list"></ul>
+                <p class="empty" id="gb-empty" hidden>No messages yet.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    `
+    );
+
+    bindAdmin();
+  }
+
+  function bindAdmin() {
+    const $ = (id: string) => document.getElementById(id) as HTMLElement;
+    const fields = {
+      title: $('f-title') as HTMLInputElement,
+      slug: $('f-slug') as HTMLInputElement,
+      desc: $('f-desc') as HTMLInputElement,
+      content: $('f-content') as HTMLTextAreaElement,
+    };
+
+    function showLogin(msg = '') {
+      document.getElementById('admin-view')?.remove();
+      location.reload();
     }
-  });
-  fields.slug.addEventListener('input', () => {
-    slugTouched = fields.slug.value !== '';
-  });
 
-  $('preview-btn').addEventListener('click', () => {
-    const box = $('preview-box');
-    const showing = box.hidden;
-    box.hidden = !showing;
-    fields.content.hidden = showing;
-    if (showing) box.innerHTML = marked.parse(fields.content.value) as string;
-    $('preview-btn').textContent = showing ? 'Edit' : 'Preview';
-  });
+    $('logout-btn').addEventListener('click', () => {
+      adminKey = '';
+      sessionStorage.removeItem(KEY_STORE);
+      showLogin();
+    });
 
-  $('new-post-btn').addEventListener('click', () => {
-    resetForm();
-    $('editor-status').textContent = '';
-    $('editor-card').scrollIntoView({ behavior: 'smooth' });
-  });
-
-  $('publish-btn').addEventListener('click', async () => {
-    const status = $('editor-status');
-    const slug = fields.slug.value.trim();
-    if (!fields.title.value.trim() || !slug || !fields.content.value.trim()) {
-      status.textContent = 'Title, slug and content are all required.';
-      return;
-    }
-    status.textContent = 'Publishing…';
-    $('publish-btn').setAttribute('disabled', '');
-    try {
-      const res = await fetch(`${API}/posts`, {
-        method: 'POST',
-        headers: authHeaders(true),
-        body: JSON.stringify({
-          slug,
-          title: fields.title.value,
-          description: fields.desc.value,
-          content: fields.content.value,
-        }),
+    // Tab 切换
+    document.querySelectorAll('.nav-item').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const tab = (btn as HTMLElement).dataset.tab;
+        document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('active', b === btn));
+        document.querySelectorAll('.tab-panel').forEach((p) =>
+          p.classList.toggle('active', (p as HTMLElement).id === `tab-${tab}`)
+        );
+        if (tab === 'guestbook') loadGuestbook();
       });
-      if (res.status === 401) {
-        sessionStorage.removeItem(KEY_STORE);
-        adminKey = '';
-        showLogin('Session expired, please log in again.');
-        return;
+    });
+
+    // Posts 编辑器
+    fields.title.addEventListener('input', () => {
+      if (!slugTouched && !editingSlug) {
+        fields.slug.value = fields.title.value
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+          .slice(0, 64);
       }
-      const data = await res.json();
-      if (!res.ok) {
-        status.textContent = data.error || 'Publish failed.';
-        return;
-      }
-      status.textContent = editingSlug
-        ? `Updated “${data.post.title}” ✓`
-        : `Published “${data.post.title}” ✓`;
+    });
+    fields.slug.addEventListener('input', () => {
+      slugTouched = fields.slug.value !== '';
+    });
+
+    $('preview-btn').addEventListener('click', () => {
+      const box = $('preview-box');
+      const showing = box.hidden;
+      box.hidden = !showing;
+      fields.content.hidden = showing;
+      if (showing) box.innerHTML = marked.parse(fields.content.value) as string;
+      $('preview-btn').textContent = showing ? 'Edit' : 'Preview';
+    });
+
+    $('new-post-btn').addEventListener('click', () => {
       resetForm();
-      loadList();
-    } catch {
-      status.textContent = 'Network error — please try again.';
-    } finally {
-      $('publish-btn').removeAttribute('disabled');
-    }
-  });
-
-  function resetForm() {
-    editingSlug = '';
-    fields.title.value = '';
-    fields.slug.value = '';
-    fields.desc.value = '';
-    fields.content.value = '';
-    slugTouched = false;
-    const box = $('preview-box');
-    box.hidden = true;
-    box.innerHTML = '';
-    fields.content.hidden = false;
-    $('preview-btn').textContent = 'Preview';
-  }
-
-  // ---- Posts 列表 ----
-  async function loadList() {
-    try {
-      const res = await fetch(`${API}/posts`);
-      if (!res.ok) return;
-      const { posts = [] } = await res.json();
-      const ul = $('post-list') as HTMLUListElement;
-      ul.innerHTML = '';
-      for (const p of posts) {
-        const li = document.createElement('li');
-        const info = document.createElement('div');
-        info.className = 'row-info';
-        const title = document.createElement('a');
-        title.href = `/posts/${p.slug}`;
-        title.className = 'row-title';
-        title.textContent = p.title;
-        const date = document.createElement('time');
-        date.className = 'row-date';
-        date.textContent = new Date(p.created_at).toLocaleDateString('zh-CN', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        });
-        info.append(title, date);
-        const actions = document.createElement('div');
-        actions.className = 'row-actions';
-        const editBtn = document.createElement('button');
-        editBtn.type = 'button';
-        editBtn.className = 'btn ghost small';
-        editBtn.textContent = 'Edit';
-        editBtn.addEventListener('click', () => loadIntoEditor(p.slug));
-        const delBtn = document.createElement('button');
-        delBtn.type = 'button';
-        delBtn.className = 'btn ghost small danger';
-        delBtn.textContent = 'Delete';
-        delBtn.addEventListener('click', () => removePost(p.slug, p.title));
-        actions.append(editBtn, delBtn);
-        li.append(info, actions);
-        ul.append(li);
-      }
-      $('list-empty').hidden = posts.length > 0;
-    } catch {
-      /* 静默 */
-    }
-  }
-
-  async function loadIntoEditor(slug: string) {
-    try {
-      const res = await fetch(`${API}/posts/${slug}`);
-      if (!res.ok) return;
-      const { post } = await res.json();
-      editingSlug = slug;
-      fields.title.value = post.title;
-      fields.slug.value = post.slug;
-      fields.desc.value = post.description || '';
-      fields.content.value = post.content;
-      slugTouched = true;
-      $('editor-status').textContent = `Editing “${post.title}”`;
+      $('editor-status').textContent = '';
       $('editor-card').scrollIntoView({ behavior: 'smooth' });
-    } catch {
-      /* 静默 */
-    }
-  }
+    });
 
-  async function removePost(slug: string, title: string) {
-    if (!confirm(`Delete “${title}”? This cannot be undone.`)) return;
-    try {
-      const res = await fetch(`${API}/posts/${slug}`, { method: 'DELETE', headers: authHeaders() });
-      if (res.status === 401) {
-        showLogin('Session expired, please log in again.');
+    $('publish-btn').addEventListener('click', async () => {
+      const status = $('editor-status');
+      const slug = fields.slug.value.trim();
+      if (!fields.title.value.trim() || !slug || !fields.content.value.trim()) {
+        status.textContent = 'Title, slug and content are all required.';
         return;
       }
-      if (res.ok) loadList();
-    } catch {
-      /* 静默 */
-    }
-  }
-
-  // ---- Guestbook 管理 ----
-  interface Msg {
-    id: number;
-    parent_id: number | null;
-    nickname: string;
-    content: string;
-    created_at: number;
-    replies?: Msg[];
-  }
-
-  function timeAgo(ts: number): string {
-    const diff = Date.now() - ts;
-    if (diff < 60_000) return 'just now';
-    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-    const d = new Date(ts);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  }
-
-  function renderMsg(m: Msg, parentNick?: string): HTMLElement {
-    const el = document.createElement(m.parent_id == null ? 'li' : 'div');
-    el.className = m.parent_id == null ? 'gb-item' : 'gb-reply';
-    el.dataset.id = String(m.id);
-
-    const head = document.createElement('div');
-    head.className = 'gb-head';
-    const meta = document.createElement('div');
-    meta.className = 'gb-meta';
-    const nick = document.createElement('span');
-    nick.className = 'gb-nick';
-    nick.textContent = m.nickname;
-    meta.append(nick);
-    if (parentNick) {
-      const to = document.createElement('span');
-      to.className = 'gb-replyto';
-      to.textContent = `→ @${parentNick}`;
-      meta.append(to);
-    }
-    const time = document.createElement('span');
-    time.className = 'gb-time';
-    time.textContent = timeAgo(m.created_at);
-    meta.append(time);
-    head.append(meta);
-
-    const delBtn = document.createElement('button');
-    delBtn.type = 'button';
-    delBtn.className = 'btn ghost small danger';
-    delBtn.textContent = 'Delete';
-    delBtn.addEventListener('click', () => deleteMsg(m.id, m.nickname, el));
-    head.append(delBtn);
-
-    const content = document.createElement('div');
-    content.className = 'gb-content';
-    content.textContent = m.content;
-
-    const replies = document.createElement('div');
-    replies.className = 'gb-replies';
-    for (const r of m.replies || []) replies.append(renderMsg(r, m.nickname));
-
-    el.append(head, content, replies);
-    return el;
-  }
-
-  async function deleteMsg(id: number, nickname: string, el: HTMLElement) {
-    if (!confirm(`Delete message from @${nickname}? Replies will also be removed.`)) return;
-    try {
-      const res = await fetch(`${API}/messages/${id}`, { method: 'DELETE', headers: authHeaders() });
-      if (res.status === 401) {
-        showLogin('Session expired, please log in again.');
-        return;
+      status.textContent = 'Publishing…';
+      $('publish-btn').setAttribute('disabled', '');
+      try {
+        const res = await fetch(`${API}/posts`, {
+          method: 'POST',
+          headers: authHeaders(true),
+          body: JSON.stringify({
+            slug,
+            title: fields.title.value,
+            description: fields.desc.value,
+            content: fields.content.value,
+          }),
+        });
+        if (res.status === 401) {
+          sessionStorage.removeItem(KEY_STORE);
+          adminKey = '';
+          showLogin('Session expired, please log in again.');
+          return;
+        }
+        const data = await res.json();
+        if (!res.ok) {
+          status.textContent = data.error || 'Publish failed.';
+          return;
+        }
+        status.textContent = editingSlug
+          ? `Updated “${data.post.title}” ✓`
+          : `Published “${data.post.title}” ✓`;
+        resetForm();
+        loadList();
+      } catch {
+        status.textContent = 'Network error — please try again.';
+      } finally {
+        $('publish-btn').removeAttribute('disabled');
       }
-      if (res.ok) {
-        el.style.opacity = '0.3';
-        el.style.pointerEvents = 'none';
-      }
-    } catch {
-      /* 静默 */
-    }
-  }
+    });
 
-  async function loadGuestbook() {
-    const list = $('gb-list') as HTMLUListElement;
-    const empty = $('gb-empty');
-    list.innerHTML = '';
-    empty.hidden = true;
-    try {
-      const res = await fetch(`${API}/messages?page=1&size=100`);
-      if (!res.ok) throw new Error();
-      const { messages = [] } = await res.json();
-      if (messages.length === 0) {
-        empty.hidden = false;
-        return;
-      }
-      for (const m of messages) list.append(renderMsg(m));
-    } catch {
-      list.innerHTML = '<li class="gb-error">Failed to load messages.</li>';
+    function resetForm() {
+      editingSlug = '';
+      fields.title.value = '';
+      fields.slug.value = '';
+      fields.desc.value = '';
+      fields.content.value = '';
+      slugTouched = false;
+      const box = $('preview-box');
+      box.hidden = true;
+      box.innerHTML = '';
+      fields.content.hidden = false;
+      $('preview-btn').textContent = 'Preview';
     }
-  }
 
-  $('refresh-gb-btn').addEventListener('click', loadGuestbook);
+    async function loadList() {
+      try {
+        const res = await fetch(`${API}/posts`);
+        if (!res.ok) return;
+        const { posts = [] } = await res.json();
+        const ul = $('post-list') as HTMLUListElement;
+        ul.innerHTML = '';
+        for (const p of posts) {
+          const li = document.createElement('li');
+          const info = document.createElement('div');
+          info.className = 'row-info';
+          const title = document.createElement('a');
+          title.href = `/posts/${p.slug}`;
+          title.className = 'row-title';
+          title.textContent = p.title;
+          const date = document.createElement('time');
+          date.className = 'row-date';
+          date.textContent = new Date(p.created_at).toLocaleDateString('zh-CN', {
+            year: 'numeric', month: 'long', day: 'numeric',
+          });
+          info.append(title, date);
+          const actions = document.createElement('div');
+          actions.className = 'row-actions';
+          const editBtn = document.createElement('button');
+          editBtn.type = 'button';
+          editBtn.className = 'btn ghost small';
+          editBtn.textContent = 'Edit';
+          editBtn.addEventListener('click', () => loadIntoEditor(p.slug));
+          const delBtn = document.createElement('button');
+          delBtn.type = 'button';
+          delBtn.className = 'btn ghost small danger';
+          delBtn.textContent = 'Delete';
+          delBtn.addEventListener('click', () => removePost(p.slug, p.title));
+          actions.append(editBtn, delBtn);
+          li.append(info, actions);
+          ul.append(li);
+        }
+        $('list-empty').hidden = posts.length > 0;
+      } catch {}
+    }
+
+    async function loadIntoEditor(slug: string) {
+      try {
+        const res = await fetch(`${API}/posts/${slug}`);
+        if (!res.ok) return;
+        const { post } = await res.json();
+        editingSlug = slug;
+        fields.title.value = post.title;
+        fields.slug.value = post.slug;
+        fields.desc.value = post.description || '';
+        fields.content.value = post.content;
+        slugTouched = true;
+        $('editor-status').textContent = `Editing “${post.title}”`;
+        $('editor-card').scrollIntoView({ behavior: 'smooth' });
+      } catch {}
+    }
+
+    async function removePost(slug: string, title: string) {
+      if (!confirm(`Delete “${title}”? This cannot be undone.`)) return;
+      try {
+        const res = await fetch(`${API}/posts/${slug}`, { method: 'DELETE', headers: authHeaders() });
+        if (res.status === 401) { showLogin('Session expired.'); return; }
+        if (res.ok) loadList();
+      } catch {}
+    }
+
+    // ---- Guestbook ----
+    interface Msg {
+      id: number; parent_id: number | null; nickname: string;
+      content: string; created_at: number; replies?: Msg[];
+    }
+    function timeAgo(ts: number): string {
+      const diff = Date.now() - ts;
+      if (diff < 60_000) return 'just now';
+      if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+      if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+      const d = new Date(ts);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }
+    function renderMsg(m: Msg, parentNick?: string): HTMLElement {
+      const el = document.createElement(m.parent_id == null ? 'li' : 'div');
+      el.className = m.parent_id == null ? 'gb-item' : 'gb-reply';
+      el.dataset.id = String(m.id);
+      const head = document.createElement('div');
+      head.className = 'gb-head';
+      const meta = document.createElement('div');
+      meta.className = 'gb-meta';
+      const nick = document.createElement('span');
+      nick.className = 'gb-nick';
+      nick.textContent = m.nickname;
+      meta.append(nick);
+      if (parentNick) {
+        const to = document.createElement('span');
+        to.className = 'gb-replyto';
+        to.textContent = `→ @${parentNick}`;
+        meta.append(to);
+      }
+      const time = document.createElement('span');
+      time.className = 'gb-time';
+      time.textContent = timeAgo(m.created_at);
+      meta.append(time);
+      head.append(meta);
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'btn ghost small danger';
+      delBtn.textContent = 'Delete';
+      delBtn.addEventListener('click', () => deleteMsg(m.id, m.nickname, el));
+      head.append(delBtn);
+      const content = document.createElement('div');
+      content.className = 'gb-content';
+      content.textContent = m.content;
+      const replies = document.createElement('div');
+      replies.className = 'gb-replies';
+      for (const r of m.replies || []) replies.append(renderMsg(r, m.nickname));
+      el.append(head, content, replies);
+      return el;
+    }
+    async function deleteMsg(id: number, nickname: string, el: HTMLElement) {
+      if (!confirm(`Delete message from @${nickname}? Replies will also be removed.`)) return;
+      try {
+        const res = await fetch(`${API}/messages/${id}`, { method: 'DELETE', headers: authHeaders() });
+        if (res.status === 401) { showLogin('Session expired.'); return; }
+        if (res.ok) { el.style.opacity = '0.3'; el.style.pointerEvents = 'none'; }
+      } catch {}
+    }
+    async function loadGuestbook() {
+      const list = $('gb-list') as HTMLUListElement;
+      const empty = $('gb-empty');
+      list.innerHTML = '';
+      empty.hidden = true;
+      try {
+        const res = await fetch(`${API}/messages?page=1&size=100`);
+        if (!res.ok) throw new Error();
+        const { messages = [] } = await res.json();
+        if (messages.length === 0) { empty.hidden = false; return; }
+        for (const m of messages) list.append(renderMsg(m));
+      } catch {
+        list.innerHTML = '<li class="gb-error">Failed to load messages.</li>';
+      }
+    }
+    $('refresh-gb-btn').addEventListener('click', loadGuestbook);
+
+    loadList();
+  }
 </script>
 
-<style>
-  .admin-page {
-    width: 100%;
-    min-height: 70vh;
-  }
+<style is:global>
+  .admin-page { width: 100%; min-height: 70vh; }
 
-  /* ---- 登录 ---- */
+  /* 登录 */
   .login-view {
     min-height: 100vh;
     display: flex;
@@ -484,63 +443,31 @@ import Layout from '../layouts/Layout.astro';
     font-size: 2rem;
     margin-bottom: 0.5rem;
   }
-  .hint,
-  .dim,
-  .status,
-  .empty {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-  }
-  .status {
-    margin-top: 0.75rem;
-    min-height: 1.2em;
-  }
-  #login-form {
-    display: flex;
-    gap: 0.75rem;
-    margin-top: 1.25rem;
-  }
-  #login-form input {
-    flex: 1;
-  }
+  .hint, .dim, .status, .empty { color: var(--text-secondary); font-size: 0.9rem; }
+  .status { margin-top: 0.75rem; min-height: 1.2em; }
+  #login-form { display: flex; gap: 0.75rem; margin-top: 1.25rem; }
+  #login-form input { flex: 1; }
 
-  /* ---- 后台顶栏 ---- */
-  .admin-view {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
+  /* 后台 */
+  .admin-view { min-height: 100vh; display: flex; flex-direction: column; }
   .admin-bar {
-    position: sticky;
-    top: 5rem;
-    z-index: 30;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    position: sticky; top: 5rem; z-index: 30;
+    display: flex; align-items: center; justify-content: space-between;
     padding: 1rem 2rem;
     background: var(--surface);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--surface-border);
   }
-  .bar-left {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-  .bar-logo {
-    font-size: 1.3rem;
-  }
+  .bar-left { display: flex; align-items: center; gap: 0.75rem; }
+  .bar-logo { font-size: 1.3rem; }
   .admin-bar h1 {
     width: fit-content;
     background: var(--heading-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    font-size: 1.3rem;
-    margin: 0;
+    font-size: 1.3rem; margin: 0;
   }
-
-  /* ---- 后台主体 ---- */
   .admin-body {
     display: grid;
     grid-template-columns: 200px minmax(0, 1fr);
@@ -551,68 +478,36 @@ import Layout from '../layouts/Layout.astro';
     padding: 1.5rem;
     gap: 1.5rem;
   }
-
-  /* 侧边导航 */
   .admin-nav {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    position: sticky;
-    top: 9rem;
-    align-self: start;
+    display: flex; flex-direction: column; gap: 0.35rem;
+    position: sticky; top: 9rem; align-self: start;
   }
   .nav-item {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
+    display: flex; align-items: center; gap: 0.7rem;
     padding: 0.7rem 1rem;
     border: 1px solid transparent;
     border-radius: 10px;
     background: transparent;
     color: var(--text-secondary);
-    font: inherit;
-    font-size: 0.95rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.18s ease;
-    text-align: left;
+    font: inherit; font-size: 0.95rem; font-weight: 500;
+    cursor: pointer; transition: all 0.18s ease; text-align: left;
   }
-  .nav-item:hover {
-    background: var(--surface);
-    color: var(--text);
-  }
+  .nav-item:hover { background: var(--surface); color: var(--text); }
   .nav-item.active {
     background: var(--surface);
     border-color: var(--surface-border);
     color: var(--accent-text);
   }
-  .nav-icon {
-    font-size: 1.1rem;
-  }
-
-  /* 内容区 */
-  .admin-content {
-    min-width: 0;
-  }
-  .tab-panel {
-    display: none;
-  }
-  .tab-panel.active {
-    display: block;
-  }
+  .nav-icon { font-size: 1.1rem; }
+  .admin-content { min-width: 0; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
   .panel-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 1.25rem;
   }
-  .panel-head h2 {
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: var(--text);
-  }
+  .panel-head h2 { font-size: 1.4rem; font-weight: 700; color: var(--text); }
 
-  /* ---- 卡片 ---- */
   .card {
     background: var(--surface);
     border: 1px solid var(--surface-border);
@@ -621,15 +516,9 @@ import Layout from '../layouts/Layout.astro';
     margin-bottom: 1.5rem;
     box-shadow: var(--card-shadow);
   }
-  .card h3 {
-    font-size: 1.1rem;
-    margin-bottom: 1rem;
-  }
+  .card h3 { font-size: 1.1rem; margin-bottom: 1rem; }
 
-  /* ---- 表单 ---- */
-  input[type='text'],
-  input[type='password'],
-  textarea {
+  input[type='text'], input[type='password'], textarea {
     width: 100%;
     background: var(--surface);
     border: 1px solid var(--surface-border);
@@ -639,231 +528,85 @@ import Layout from '../layouts/Layout.astro';
     font: inherit;
     transition: border-color 0.2s ease;
   }
-  input:focus,
-  textarea:focus {
-    outline: none;
-    border-color: var(--btn-primary-bg);
-  }
+  input:focus, textarea:focus { outline: none; border-color: var(--btn-primary-bg); }
   textarea {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.9rem;
-    line-height: 1.65;
-    resize: vertical;
-    min-height: 14rem;
+    font-size: 0.9rem; line-height: 1.65;
+    resize: vertical; min-height: 14rem;
   }
-  .field {
-    margin-bottom: 1rem;
-    flex: 1;
-    min-width: 0;
-  }
-  .field label {
-    display: block;
-    margin-bottom: 0.4rem;
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-  }
-  .field-row {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
+  .field { margin-bottom: 1rem; flex: 1; min-width: 0; }
+  .field label { display: block; margin-bottom: 0.4rem; font-size: 0.85rem; color: var(--text-secondary); }
+  .field-row { display: flex; gap: 1rem; flex-wrap: wrap; }
   .toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.4rem;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 0.4rem; flex-wrap: wrap; gap: 0.5rem;
   }
-  .toolbar label {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-  }
-  .toolbar-actions {
-    display: flex;
-    gap: 0.5rem;
-  }
+  .toolbar label { font-size: 0.85rem; color: var(--text-secondary); }
+  .toolbar-actions { display: flex; gap: 0.5rem; }
   .preview {
     border: 1px dashed var(--surface-border);
     border-radius: 10px;
     padding: 1rem 1.25rem;
-    min-height: 14rem;
-    max-height: 32rem;
+    min-height: 14rem; max-height: 32rem;
     overflow-y: auto;
   }
 
-  /* ---- 按钮 ---- */
   .btn {
     border: 1px solid var(--surface-border);
     background: var(--surface);
     color: var(--text);
     border-radius: 10px;
     padding: 0.55rem 1.1rem;
-    font: inherit;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    white-space: nowrap;
+    font: inherit; cursor: pointer;
+    transition: all 0.2s ease; white-space: nowrap;
   }
-  .btn:hover {
-    background: var(--surface-hover);
-    border-color: var(--surface-border-hover);
-  }
-  .btn.primary {
-    background: var(--btn-primary-bg);
-    color: var(--btn-primary-text);
-    border-color: transparent;
-  }
-  .btn.primary:hover {
-    background: var(--btn-primary-bg-hover);
-  }
-  .btn.small {
-    padding: 0.35rem 0.8rem;
-    font-size: 0.85rem;
-  }
-  .btn:disabled {
-    opacity: 0.6;
-    cursor: wait;
-  }
-  .btn.danger:hover {
-    border-color: #e5484d;
-    color: #e5484d;
-  }
+  .btn:hover { background: var(--surface-hover); border-color: var(--surface-border-hover); }
+  .btn.primary { background: var(--btn-primary-bg); color: var(--btn-primary-text); border-color: transparent; }
+  .btn.primary:hover { background: var(--btn-primary-bg-hover); }
+  .btn.small { padding: 0.35rem 0.8rem; font-size: 0.85rem; }
+  .btn:disabled { opacity: 0.6; cursor: wait; }
+  .btn.danger:hover { border-color: #e5484d; color: #e5484d; }
 
-  /* ---- Posts 列表 ---- */
-  #post-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
+  #post-list { list-style: none; padding: 0; margin: 0; }
   #post-list li {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.85rem 0.25rem;
-    border-bottom: 1px solid var(--surface-border);
-    flex-wrap: wrap;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; padding: 0.85rem 0.25rem;
+    border-bottom: 1px solid var(--surface-border); flex-wrap: wrap;
   }
-  #post-list li:last-child {
-    border-bottom: none;
-  }
-  .row-info {
-    display: flex;
-    align-items: baseline;
-    gap: 1rem;
-    flex-wrap: wrap;
-    min-width: 0;
-  }
-  .row-title {
-    color: var(--text);
-    text-decoration: none;
-    font-weight: 600;
-    transition: color 0.2s ease;
-  }
-  .row-title:hover {
-    color: var(--btn-primary-bg);
-  }
-  .row-date {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-  }
-  .row-actions {
-    display: flex;
-    gap: 0.5rem;
-  }
+  #post-list li:last-child { border-bottom: none; }
+  .row-info { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; min-width: 0; }
+  .row-title { color: var(--text); text-decoration: none; font-weight: 600; transition: color 0.2s ease; }
+  .row-title:hover { color: var(--btn-primary-bg); }
+  .row-date { font-size: 0.8rem; color: var(--text-secondary); }
+  .row-actions { display: flex; gap: 0.5rem; }
 
-  /* ---- Guestbook 列表 ---- */
-  #gb-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
-  .gb-item {
-    padding: 1rem 0.25rem;
-    border-bottom: 1px solid var(--surface-border);
-  }
-  .gb-item:last-child {
-    border-bottom: none;
-  }
+  #gb-list { list-style: none; padding: 0; margin: 0; }
+  .gb-item { padding: 1rem 0.25rem; border-bottom: 1px solid var(--surface-border); }
+  .gb-item:last-child { border-bottom: none; }
   .gb-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 0.75rem;
-    margin-bottom: 0.3rem;
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 0.75rem; margin-bottom: 0.3rem;
   }
-  .gb-meta {
-    display: flex;
-    align-items: baseline;
-    gap: 0.6rem;
-    flex-wrap: wrap;
-  }
-  .gb-nick {
-    font-weight: 600;
-    color: var(--accent-text);
-    overflow-wrap: anywhere;
-  }
-  .gb-replyto {
-    font-size: 0.8rem;
-    color: var(--accent-text);
-    opacity: 0.8;
-  }
-  .gb-time {
-    font-size: 0.78rem;
-    color: var(--text-secondary);
-    flex-shrink: 0;
-  }
-  .gb-content {
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    color: var(--text);
-    font-size: 0.95rem;
-    line-height: 1.6;
-  }
+  .gb-meta { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+  .gb-nick { font-weight: 600; color: var(--accent-text); overflow-wrap: anywhere; }
+  .gb-replyto { font-size: 0.8rem; color: var(--accent-text); opacity: 0.8; }
+  .gb-time { font-size: 0.78rem; color: var(--text-secondary); flex-shrink: 0; }
+  .gb-content { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); font-size: 0.95rem; line-height: 1.6; }
   .gb-replies {
-    margin-top: 0.75rem;
-    margin-left: 1rem;
-    padding-left: 1rem;
+    margin-top: 0.75rem; margin-left: 1rem; padding-left: 1rem;
     border-left: 2px solid var(--surface-border);
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+    display: flex; flex-direction: column; gap: 0.75rem;
   }
-  .gb-reply {
-    padding: 0.5rem 0;
-  }
-  .gb-reply .gb-content {
-    font-size: 0.9rem;
-  }
-  .gb-error {
-    color: var(--text-secondary);
-    padding: 1rem 0;
-    text-align: center;
-  }
+  .gb-reply { padding: 0.5rem 0; }
+  .gb-reply .gb-content { font-size: 0.9rem; }
+  .gb-error { color: var(--text-secondary); padding: 1rem 0; text-align: center; }
 
-  /* 移动端 */
   @media (max-width: 768px) {
-    .admin-body {
-      grid-template-columns: 1fr;
-      padding: 1rem;
-    }
-    .admin-nav {
-      position: static;
-      flex-direction: row;
-      overflow-x: auto;
-    }
-    .nav-item {
-      flex-shrink: 0;
-    }
-    .admin-bar {
-      padding: 0.8rem 1rem;
-    }
-    #post-list li {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-    #login-form {
-      flex-direction: column;
-    }
+    .admin-body { grid-template-columns: 1fr; padding: 1rem; }
+    .admin-nav { position: static; flex-direction: row; overflow-x: auto; }
+    .nav-item { flex-shrink: 0; }
+    .admin-bar { padding: 0.8rem 1rem; }
+    #post-list li { flex-direction: column; align-items: flex-start; }
+    #login-form { flex-direction: column; }
   }
 </style>
