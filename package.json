@@ -15,9 +15,11 @@
     "sync:posts:watch": "node scripts/sync-dynamic-posts.mjs --watch"
   },
   "dependencies": {
+    "@astrojs/markdown-remark": "^7.3.1",
     "astro": "^7.3.1",
     "dotted-map": "^3.1.0",
-    "marked": "^18.0.13"
+    "marked": "^18.0.13",
+    "remark-breaks": "^4.0.0"
   },
   "allowScripts": {
     "esbuild": true

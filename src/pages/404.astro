@@ -22,16 +22,19 @@ import Layout from '../layouts/Layout.astro';
 
   const API = API_BASE;
 
-  (async () => {
+  async function renderPost() {
     const m = location.pathname.match(/^\/posts\/([a-z0-9][a-z0-9-]*)\/?$/);
     if (!m) return;
     const nf = document.getElementById('nf');
     if (!nf) return;
+    // 已渲染过则跳过（避免 ClientRouter 重复触发）
+    if (nf.dataset.rendered === m[1]) return;
     try {
       const res = await fetch(`${API}/posts/${m[1]}`);
       if (!res.ok) return;
       const { post } = await res.json();
 
+      nf.dataset.rendered = m[1];
       document.title = `${post.title} | Posts`;
       nf.classList.add('post-view');
       nf.innerHTML = `
@@ -51,7 +54,11 @@ import Layout from '../layouts/Layout.astro';
     } catch {
       /* 网络失败：保持 404 展示 */
     }
-  })();
+  }
+
+  // 首次加载 + ClientRouter 每次导航后都触发
+  document.addEventListener('astro:page-load', renderPost);
+  renderPost();
 </script>
 
 <style>
