@@ -426,28 +426,47 @@ const dateLabel = (d?: Date) =>
 
   let waveAnims: Animation[] = [];
   let waveTimer = 0;
+  let keepLooping = false;
 
+  // 立即停止：重新开始或离开页面时调用
   const stopWave = () => {
     window.clearTimeout(waveTimer);
     waveTimer = 0;
+    keepLooping = false;
     waveAnims.forEach((a) => a.cancel());
     waveAnims = [];
+  };
+
+  // 指针移走：不立即 cancel，让当前这一轮波播完再在下一轮边界停掉
+  const releaseWave = () => {
+    window.clearTimeout(waveTimer);
+    waveTimer = 0;
+    keepLooping = false;
   };
 
   const runWave = (loop: boolean) => {
     const host = document.querySelector<HTMLElement>('.hero-pixels');
     if (!host) return;
-    stopWave();
+    stopWave(); // 重新开始时立即清掉旧的
+    keepLooping = loop;
     const duration = loop ? LOOP_MS : HOP_MS; // 桌面：1s 的周期里只跳一次
     const frames = buildHop(duration);
     host.querySelectorAll('span').forEach((span, i) => {
-      waveAnims.push(
-        span.animate(frames, {
-          duration,
-          delay: i * HOP_STAGGER, // 依次从左往右起跳
-          iterations: loop ? Number.POSITIVE_INFINITY : 1,
-        })
-      );
+      const anim = span.animate(frames, {
+        duration,
+        delay: i * HOP_STAGGER, // 依次从左往右起跳
+        iterations: loop ? Number.POSITIVE_INFINITY : 1,
+      });
+      // 循环模式下：每轮到下一轮边界时，若 keepLooping 已为 false 则停掉（当前这一轮已播完）
+      if (loop) {
+        anim.oniteration = () => {
+          if (!keepLooping) {
+            anim.cancel();
+            waveAnims = waveAnims.filter((a) => a !== anim);
+          }
+        };
+      }
+      waveAnims.push(anim);
     });
   };
 
@@ -464,7 +483,7 @@ const dateLabel = (d?: Date) =>
         window.clearTimeout(waveTimer);
         waveTimer = window.setTimeout(() => runWave(true), 300); // 停留 0.3s 才起跳
       });
-      host.addEventListener('mouseleave', stopWave);
+      host.addEventListener('mouseleave', releaseWave); // 移走后让这一轮播完
     } else {
       host.addEventListener('click', () => runWave(false)); // 点一次走一波
     }

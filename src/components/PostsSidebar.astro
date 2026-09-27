@@ -118,6 +118,7 @@ const posts = (await getCollection('posts')).sort(
     display: grid;
     gap: 0.5rem;
     align-content: start; /* 内容靠顶，不随面板高度拉伸分布 */
+    padding-left: 3rem; /* 避开左侧 2.4rem 的开关按钮，防止标题被挡 */
     opacity: 0;
     transform: translateX(-8px);
     transition: opacity 0.22s ease, transform 0.22s ease;
@@ -223,7 +224,7 @@ const posts = (await getCollection('posts')).sort(
       width: 240px;
       height: 100dvh;
       max-height: 100dvh;
-      padding: 7.7rem 1rem 1rem; /* 按钮底边 7.3rem(4.9+2.4) + 0.4rem 间距 */
+      padding: 7.7rem 1rem 1rem 3.5rem; /* 左内边距避开 fixed 开关按钮（left:1rem + 宽2.4rem + 间距） */
       overflow-y: auto;
       overscroll-behavior: contain;
       opacity: 0;

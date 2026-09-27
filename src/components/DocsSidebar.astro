@@ -130,6 +130,7 @@ const categories = [...byCategory.entries()]
     display: grid;
     gap: 0.4rem;
     align-content: start;
+    padding-left: 3rem; /* 避开左侧 2.4rem 的开关按钮，防止标题被挡 */
     opacity: 0;
     transform: translateX(-8px);
     transition: opacity 0.22s ease, transform 0.22s ease;
@@ -285,7 +286,7 @@ const categories = [...byCategory.entries()]
       width: 240px;
       height: 100dvh;
       max-height: 100dvh;
-      padding: 7.7rem 1rem 1rem;
+      padding: 7.7rem 1rem 1rem 3.5rem; /* 左内边距避开 fixed 开关按钮 */
       overflow-y: auto;
       overscroll-behavior: contain;
       opacity: 0;
