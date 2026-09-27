@@ -1,6 +1,6 @@
 ---
 import Layout from './Layout.astro';
-import PostsSidebar from '../components/PostsSidebar.astro';
+import DocsSidebar from '../components/DocsSidebar.astro';
 
 interface Props {
   title: string;
@@ -12,21 +12,18 @@ const { title, description, currentSlug } = Astro.props;
 ---
 
 <Layout title={title} description={description}>
-  <div class="posts-layout" data-open="false">
-    <PostsSidebar currentSlug={currentSlug} />
-    <div class="posts-content">
+  <div class="docs-layout" data-open="false">
+    <DocsSidebar currentSlug={currentSlug} />
+    <div class="docs-content">
       <slot />
     </div>
   </div>
 </Layout>
 
 <style>
-  /* 两列网格：[侧栏列][内容列]
-     开关按钮 fixed 定位，不占 grid 空间 → 收起时内容可真正居中；
-     侧栏列宽 --sb-w 由 data-open 驱动 0↔240px，撑开时把内容列往右挤（push） */
-  .posts-layout {
+  .docs-layout {
     --sb-w: 0px;
-    position: relative; /* 开关按钮 absolute 定位的参照 */
+    position: relative;
     display: grid;
     grid-template-columns: var(--sb-w) minmax(0, 1fr);
     column-gap: 0;
@@ -35,22 +32,21 @@ const { title, description, currentSlug } = Astro.props;
     padding: 7rem 1.5rem 4rem;
     transition: grid-template-columns 0.34s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  .posts-layout[data-open='true'] {
+  .docs-layout[data-open='true'] {
     --sb-w: 240px;
   }
-  .posts-content {
+  .docs-content {
     min-width: 0;
     padding-left: 2rem;
   }
   @media (max-width: 768px) {
-    .posts-layout {
+    .docs-layout {
       grid-template-columns: 1fr;
       gap: 0;
-      /* 顶部留出固定开关按钮（4.9rem + 2rem），避免压住首行内容 */
       padding: 7.1rem 1.1rem 4rem;
       transition: none;
     }
-    .posts-content {
+    .docs-content {
       padding-left: 0;
       width: 100%;
     }

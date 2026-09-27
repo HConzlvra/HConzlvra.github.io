@@ -1,6 +1,6 @@
 ---
 // Docs 首页：整理类正经文章的目录，按分类分组 + 分类筛选
-import Layout from '../../layouts/Layout.astro';
+import DocsLayout from '../../layouts/DocsLayout.astro';
 import { getCollection } from 'astro:content';
 
 // 分类 > 文档 两级结构；分类按名称排序，分类内 order 升序、再按日期降序
@@ -27,7 +27,7 @@ const dateLabel = (d?: Date) =>
   d ? `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` : '';
 ---
 
-<Layout title="Docs | HConzlvra_" description="Docs — organized articles and reference notes, grouped by category.">
+<DocsLayout title="Docs | HConzlvra_" description="Docs — organized articles and reference notes, grouped by category.">
   <section class="docs-page enter-left">
     <h1>Docs</h1>
     <p class="intro">Articles and reference notes I've actually sat down and organized.</p>
@@ -66,13 +66,12 @@ const dateLabel = (d?: Date) =>
 
     {docs.length === 0 && <p class="empty">No docs yet.</p>}
   </section>
-</Layout>
+</DocsLayout>
 
 <style>
   .docs-page {
     max-width: 980px;
     margin: 0 auto;
-    padding: 7rem 1.5rem 4rem;
   }
   .docs-page h1 {
     width: fit-content;

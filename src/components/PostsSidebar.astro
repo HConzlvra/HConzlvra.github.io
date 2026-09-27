@@ -65,18 +65,17 @@ const posts = (await getCollection('posts')).sort(
 <div class="sidebar-scrim" aria-hidden="true"></div>
 
 <style>
-  /* ============ 开关按钮（两端共用） ============ */
+  /* ============ 开关按钮：absolute 定位（相对 .posts-layout），不占 grid 空间 → 收起时内容居中 ============ */
   .sidebar-toggle {
-    position: sticky;
-    top: 6rem;
-    align-self: start;
+    position: absolute;
+    top: 7rem;
+    left: 1.5rem;
     z-index: 40;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 2.4rem;
     height: 2.4rem;
-    margin-right: 0.9rem;
     padding: 0;
     border: 1px solid var(--surface-border);
     border-radius: 999px;
@@ -108,12 +107,11 @@ const posts = (await getCollection('posts')).sort(
     transform: rotate(180deg);
   }
 
-  /* ============ 侧栏面板：电脑端 push（grid 第二列） ============ */
+  /* ============ 侧栏面板：电脑端 push（grid 第一列） ============ */
   .posts-sidebar {
     align-self: start;
     overflow: hidden;
     height: fit-content;
-    margin-right: 2rem;
   }
   .sidebar-panel {
     width: 240px;

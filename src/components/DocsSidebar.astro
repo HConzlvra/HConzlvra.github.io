@@ -1,212 +1,406 @@
 ---
 import { getCollection } from 'astro:content';
 
-const docs = await getCollection('docs');
+interface Props {
+  currentSlug?: string;
+}
+const { currentSlug = '' } = Astro.props;
+
+const docs = (await getCollection('docs'));
 const byCategory = new Map<string, typeof docs>();
 for (const d of docs) {
   const c = d.data.category;
   if (!byCategory.has(c)) byCategory.set(c, []);
   byCategory.get(c)!.push(d);
 }
-const categories = [...byCategory.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+const sortDocs = (list: typeof docs) =>
+  [...list].sort((a, b) => {
+    const oa = a.data.order ?? 0;
+    const ob = b.data.order ?? 0;
+    if (oa !== ob) return oa - ob;
+    return (b.data.pubDate?.valueOf() ?? 0) - (a.data.pubDate?.valueOf() ?? 0);
+  });
+const categories = [...byCategory.entries()]
+  .sort((a, b) => a[0].localeCompare(b[0]))
+  .map(([name, list]) => ({ name, docs: sortDocs(list) }));
 ---
 
+<!-- 开关按钮：与 PostsSidebar 同款圆形玻璃按钮，fixed 定位不占布局空间 -->
+<button
+  class="docs-toggle"
+  type="button"
+  aria-expanded="false"
+  aria-controls="docs-sidebar-panel"
+  aria-label="切换文档目录"
+>
+  <svg class="toggle-icon" viewBox="0 0 24 24" aria-hidden="true">
+    <rect class="ic-bar" x="3" y="4" width="4" height="16" rx="1.5" />
+    <rect class="ic-panel" x="9" y="4" width="12" height="16" rx="2" />
+  </svg>
+</button>
+
 <aside class="docs-sidebar">
-  <button class="sidebar-toggle" type="button" aria-expanded="false" aria-controls="docs-sidebar-panel">
-    <span>Docs</span>
-    <span class="sidebar-caret" aria-hidden="true">▾</span>
-  </button>
   <div class="sidebar-panel" id="docs-sidebar-panel">
     <div class="sidebar-header">
       <span class="sidebar-title">Docs</span>
     </div>
-    <nav class="sidebar-links">
-      <a href="/docs" class="sidebar-link active">
-        <span class="link-title">All</span>
-        <span class="link-count">{docs.length} entries</span>
-      </a>
-      {categories.map(([name, list]) => (
-        <a href={`/docs#${encodeURIComponent(name)}`} class="sidebar-link">
-          <span class="link-title">{name}</span>
-          <span class="link-count">{list.length}</span>
-        </a>
+    <nav class="sidebar-groups">
+      {categories.map(({ name, docs: list }) => (
+        <div class="sidebar-group">
+          <button
+            class="group-toggle"
+            type="button"
+            aria-expanded="true"
+            data-group={name}
+          >
+            <span class="group-name">{name}</span>
+            <span class="group-count">{list.length}</span>
+            <span class="group-caret" aria-hidden="true">▾</span>
+          </button>
+          <ul class="group-items">
+            {list.map((d) => (
+              <li>
+                <a
+                  href={`/docs/${d.id}`}
+                  class:list={['group-link', currentSlug === d.id && 'active']}
+                  aria-current={currentSlug === d.id ? 'page' : undefined}
+                >
+                  {d.data.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
       ))}
+      {categories.length === 0 && <p class="sidebar-empty">暂无文档</p>}
     </nav>
   </div>
 </aside>
 
+<div class="sidebar-scrim" aria-hidden="true"></div>
+
 <style>
+  /* ============ 开关按钮 ============ */
+  .docs-toggle {
+    position: absolute;
+    top: 7rem;
+    left: 1.5rem;
+    z-index: 40;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    padding: 0;
+    border: 1px solid var(--surface-border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .docs-toggle:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+  }
+  .toggle-icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .toggle-icon .ic-bar,
+  .toggle-icon .ic-panel {
+    fill: currentColor;
+  }
+  :global(.docs-layout[data-open='true']) .toggle-icon {
+    transform: rotate(180deg);
+  }
+
+  /* ============ 侧栏面板 ============ */
   .docs-sidebar {
-    position: sticky;
-    top: 90px;
     align-self: start;
+    overflow: hidden;
+    height: fit-content;
   }
   .sidebar-panel {
+    width: 240px;
     display: grid;
-    gap: 0.75rem;
+    gap: 0.4rem;
+    align-content: start;
+    opacity: 0;
+    transform: translateX(-8px);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    transition-delay: 0s;
+  }
+  :global(.docs-layout[data-open='true']) .sidebar-panel {
+    opacity: 1;
+    transform: none;
+    transition-delay: 0.1s;
   }
   .sidebar-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding-bottom: 0.5rem;
+    padding-bottom: 0.35rem;
     border-bottom: 1px solid var(--surface-border);
   }
   .sidebar-title {
-    font-size: 0.8rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--text-secondary);
   }
-  .sidebar-caret {
-    font-size: 0.8rem;
+
+  /* 分类分组（可折叠） */
+  .sidebar-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .sidebar-group {
+    display: flex;
+    flex-direction: column;
+  }
+  .group-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.5rem;
+    border: none;
+    background: none;
     color: var(--text-secondary);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: color 0.2s ease, background 0.2s ease;
+  }
+  .group-toggle:hover {
+    color: var(--text);
+    background: var(--surface);
+  }
+  .group-name {
+    flex: 1;
+    text-align: left;
+  }
+  .group-count {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    opacity: 0.7;
+  }
+  .group-caret {
+    font-size: 0.65rem;
     transition: transform 0.2s ease;
   }
-  .sidebar-toggle {
-    display: none;
+  .sidebar-group.collapsed .group-caret {
+    transform: rotate(-90deg);
   }
-  .sidebar-links {
-    display: grid;
-    gap: 0.25rem;
+  .group-items {
+    list-style: none;
+    padding: 0.2rem 0 0.35rem;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    overflow: hidden;
+    transition: max-height 0.25s ease, opacity 0.2s ease;
   }
-  .sidebar-link {
-    position: relative;
-    display: grid;
-    gap: 0.15rem;
-    padding: 0.6rem 0.75rem 0.7rem;
-    border-radius: 8px;
+  .sidebar-group.collapsed .group-items {
+    max-height: 0 !important;
+    opacity: 0;
+    padding-bottom: 0;
+  }
+  .group-link {
+    display: block;
+    padding: 0.35rem 0.75rem 0.4rem 1rem;
+    border-radius: 6px;
     text-decoration: none;
     color: var(--text);
-    transition: background 0.2s ease;
-  }
-  .sidebar-link::after {
-    content: '';
-    position: absolute;
-    left: 0.75rem;
-    right: 0.75rem;
-    bottom: 0.2rem;
-    height: 2px;
-    border-radius: 1px;
-    background: var(--btn-primary-bg);
-    transform: scaleX(0);
-    transform-origin: left center;
-    transition: transform 0.3s ease;
-  }
-  .sidebar-link:hover {
-    background: var(--surface);
-  }
-  .sidebar-link:hover::after,
-  .sidebar-link.active::after {
-    transform: scaleX(1);
-  }
-  .sidebar-link.active {
-    background: var(--surface);
-  }
-  .link-title {
-    font-weight: 600;
     font-size: 0.9rem;
     line-height: 1.4;
+    transition: background 0.18s ease, color 0.18s ease;
+    position: relative;
   }
-  .link-count {
-    font-size: 0.72rem;
-    color: var(--text-secondary);
+  .group-link::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 1px;
+    background: var(--surface-border);
+    transition: background 0.18s ease;
+  }
+  .group-link:hover {
+    background: var(--surface);
+    color: var(--accent-text);
+  }
+  .group-link:hover::before {
+    background: var(--btn-primary-bg);
+  }
+  .group-link.active {
+    background: var(--surface);
+    color: var(--accent-text);
+    font-weight: 600;
+  }
+  .group-link.active::before {
+    background: var(--btn-primary-bg);
   }
 
+  .sidebar-empty {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    padding: 0.5rem;
+  }
+
+  /* 遮罩仅移动端用 */
+  .sidebar-scrim {
+    display: none;
+  }
+
+  /* ============ 移动端：覆盖式抽屉 ============ */
   @media (max-width: 768px) {
-    .docs-sidebar {
+    .docs-toggle {
       position: fixed;
-      top: 4.5rem;
-      left: 0;
-      z-index: 80;
-      pointer-events: auto;
+      top: 4.9rem;
+      left: 1rem;
+      z-index: 95;
     }
-    .sidebar-toggle {
-      display: inline-flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.45rem;
-      min-width: 5.4rem;
-      padding: 0.55rem 0.8rem;
-      border: 1px solid var(--surface-border);
-      border-radius: 0 10px 10px 0;
-      background: rgba(17, 17, 22, 0.96);
-      color: var(--text);
-      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
-      cursor: pointer;
-      font: inherit;
-      font-size: 0.8rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      position: relative;
-      z-index: 90;
-      touch-action: manipulation;
-    }
-    .docs-sidebar.open .sidebar-toggle {
-      transform: translateX(min(72vw, 18rem));
+    .docs-sidebar {
+      position: static;
+      overflow: visible;
+      height: auto;
     }
     .sidebar-panel {
       position: fixed;
-      top: 4.5rem;
+      top: 0;
       left: 0;
-      width: min(72vw, 18rem);
-      max-height: calc(100vh - 5.5rem);
+      width: 240px;
+      height: 100dvh;
+      max-height: 100dvh;
+      padding: 7.7rem 1rem 1rem;
       overflow-y: auto;
-      padding: 1rem 0.8rem 0.9rem;
-      background: rgba(17, 17, 22, 0.96);
-      border-right: 1px solid var(--surface-border);
-      border-radius: 0 16px 16px 0;
-      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
-      transform: translateX(-110%);
+      overscroll-behavior: contain;
       opacity: 0;
+      transform: translateX(-104%);
       pointer-events: none;
-      transition: transform 0.25s ease, opacity 0.2s ease;
-      gap: 0.6rem;
-      z-index: 85;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.22s ease;
+      z-index: 90;
+      border-right: 1px solid var(--surface-border);
+      backdrop-filter: blur(22px) saturate(1.2);
+      -webkit-backdrop-filter: blur(22px) saturate(1.2);
     }
-    .docs-sidebar.open .sidebar-panel {
+    :global(html[data-theme='light']) .sidebar-panel {
+      background: rgba(245, 242, 251, 0.94);
+    }
+    :global(html[data-theme='dark']) .sidebar-panel {
+      background: rgba(14, 12, 24, 0.96);
+    }
+    :global(.docs-layout[data-open='true']) .sidebar-panel {
       transform: translateX(0);
       opacity: 1;
       pointer-events: auto;
     }
-    .sidebar-header {
-      padding-bottom: 0.45rem;
+    .sidebar-scrim {
+      display: block;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.32);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 85;
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
     }
-    .sidebar-links {
-      gap: 0.5rem;
+    :global(.docs-layout[data-open='true']) .sidebar-scrim {
+      opacity: 1;
+      pointer-events: auto;
     }
-    .sidebar-link {
-      min-width: 0;
-      background: var(--surface);
-      border: 1px solid var(--surface-border);
-      border-radius: 10px;
-      padding: 0.65rem 0.7rem 0.8rem;
-    }
-    .link-title {
-      font-size: 0.8rem;
-    }
-    .link-count {
-      font-size: 0.68rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .docs-toggle,
+    .sidebar-panel,
+    .sidebar-scrim,
+    .toggle-icon,
+    .group-caret,
+    .group-items {
+      transition: none !important;
     }
   }
 </style>
 
 <script>
-  const docsSidebar = document.querySelector('.docs-sidebar');
-  const docsToggle = docsSidebar?.querySelector('.sidebar-toggle');
-  if (docsSidebar && docsToggle) {
-    const close = () => {
-      docsSidebar.classList.remove('open');
-      docsToggle.setAttribute('aria-expanded', 'false');
+  function setupDocsSidebar() {
+    const layout = document.querySelector('.docs-layout');
+    if (!layout || layout.dataset.bound === '1') return;
+    layout.dataset.bound = '1';
+
+    const toggle = layout.querySelector('.docs-toggle');
+    const scrim = layout.querySelector('.sidebar-scrim');
+    if (!toggle) return;
+
+    const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
+    const STORAGE_KEY = 'docs-sidebar-open';
+
+    const applyState = (open: boolean) => {
+      layout.setAttribute('data-open', open ? 'true' : 'false');
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     };
-    docsToggle.addEventListener('click', () => {
-      const isOpen = docsSidebar.classList.toggle('open');
-      docsToggle.setAttribute('aria-expanded', String(isOpen));
+
+    const restore = () => {
+      if (!isMobile()) {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        applyState(saved === '1');
+      } else {
+        applyState(false);
+      }
+    };
+    restore();
+
+    const setOpen = (open: boolean) => {
+      applyState(open);
+      if (!isMobile()) localStorage.setItem(STORAGE_KEY, open ? '1' : '0');
+    };
+
+    toggle.addEventListener('click', () => {
+      setOpen(layout.getAttribute('data-open') !== 'true');
     });
-    docsSidebar.querySelectorAll('.sidebar-link').forEach((link) => {
-      link.addEventListener('click', close);
+
+    if (scrim) scrim.addEventListener('click', () => setOpen(false));
+
+    // 分类折叠：点击组标题切换展开/收起
+    layout.querySelectorAll('.group-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const group = btn.closest('.sidebar-group');
+        if (!group) return;
+        group.classList.toggle('collapsed');
+        const expanded = !group.classList.contains('collapsed');
+        btn.setAttribute('aria-expanded', String(expanded));
+      });
+    });
+
+    // 移动端点链接收起
+    layout.addEventListener('click', (e) => {
+      const a = (e.target as Element)?.closest('.group-link');
+      if (a && isMobile()) setOpen(false);
+    });
+
+    const mq = window.matchMedia('(max-width: 768px)');
+    mq.addEventListener('change', (e) => {
+      if (e.matches) applyState(false);
+      else restore();
     });
   }
+
+  document.addEventListener('astro:page-load', setupDocsSidebar);
+  setupDocsSidebar();
 </script>

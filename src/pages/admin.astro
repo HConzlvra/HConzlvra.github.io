@@ -1,5 +1,5 @@
 ---
-// 文章后台：密码（= Cloudflare ADMIN_KEY）验证后可发布/编辑/删除文章（存 D1，主站动态拉取）
+// 集成后台：Posts 发布/编辑/删除 + Guestbook 留言管理
 // 不进导航栏、noindex，仅自己使用
 import Layout from '../layouts/Layout.astro';
 ---
@@ -8,56 +8,99 @@ import Layout from '../layouts/Layout.astro';
   <meta slot="head" name="robots" content="noindex, nofollow" />
   <div class="admin-page">
     <!-- 登录视图 -->
-    <section class="card view" id="login-view">
-      <h1>Admin</h1>
-      <p class="hint">Enter the admin key to continue.</p>
-      <form id="login-form">
-        <input type="password" id="key-input" placeholder="Admin key" autocomplete="current-password" />
-        <button type="submit" class="btn primary">Log in</button>
-      </form>
-      <p class="status" id="login-status"></p>
+    <section class="login-view" id="login-view">
+      <div class="login-card">
+        <h1>Admin</h1>
+        <p class="hint">Enter the admin key to continue.</p>
+        <form id="login-form">
+          <input type="password" id="key-input" placeholder="Admin key" autocomplete="current-password" />
+          <button type="submit" class="btn primary">Log in</button>
+        </form>
+        <p class="status" id="login-status"></p>
+      </div>
     </section>
 
     <!-- 后台视图 -->
-    <section class="view" id="admin-view" hidden>
-      <div class="admin-head">
-        <h1>Posts Admin</h1>
+    <section class="admin-view" id="admin-view" hidden>
+      <!-- 顶栏 -->
+      <header class="admin-bar">
+        <div class="bar-left">
+          <span class="bar-logo">⚙</span>
+          <h1>Admin Dashboard</h1>
+        </div>
         <button type="button" class="btn ghost" id="logout-btn">Log out</button>
-      </div>
+      </header>
 
-      <div class="card editor">
-        <div class="field">
-          <label for="f-title">Title</label>
-          <input id="f-title" type="text" maxlength="120" placeholder="Post title" />
-        </div>
-        <div class="field-row">
-          <div class="field">
-            <label for="f-slug">Slug <span class="dim">(lowercase / digits / hyphens)</span></label>
-            <input id="f-slug" type="text" placeholder="my-first-post" />
-          </div>
-          <div class="field">
-            <label for="f-desc">Description <span class="dim">(optional)</span></label>
-            <input id="f-desc" type="text" maxlength="300" placeholder="One-line summary" />
-          </div>
-        </div>
-        <div class="field">
-          <div class="toolbar">
-            <label for="f-content">Content (Markdown)</label>
-            <div class="toolbar-actions">
-              <button type="button" class="btn ghost small" id="preview-btn">Preview</button>
-              <button type="button" class="btn primary small" id="publish-btn">Publish</button>
+      <div class="admin-body">
+        <!-- 侧边导航 -->
+        <nav class="admin-nav">
+          <button type="button" class="nav-item active" data-tab="posts">
+            <span class="nav-icon">📝</span>
+            <span>Posts</span>
+          </button>
+          <button type="button" class="nav-item" data-tab="guestbook">
+            <span class="nav-icon">💬</span>
+            <span>Guestbook</span>
+          </button>
+        </nav>
+
+        <!-- 内容区 -->
+        <div class="admin-content">
+          <!-- Posts 面板 -->
+          <div class="tab-panel active" id="tab-posts">
+            <div class="panel-head">
+              <h2>Posts</h2>
+              <button type="button" class="btn ghost small" id="new-post-btn">+ New post</button>
+            </div>
+
+            <div class="card editor" id="editor-card">
+              <div class="field">
+                <label for="f-title">Title</label>
+                <input id="f-title" type="text" maxlength="120" placeholder="Post title" />
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label for="f-slug">Slug <span class="dim">(lowercase / digits / hyphens)</span></label>
+                  <input id="f-slug" type="text" placeholder="my-first-post" />
+                </div>
+                <div class="field">
+                  <label for="f-desc">Description <span class="dim">(optional)</span></label>
+                  <input id="f-desc" type="text" maxlength="300" placeholder="One-line summary" />
+                </div>
+              </div>
+              <div class="field">
+                <div class="toolbar">
+                  <label for="f-content">Content (Markdown)</label>
+                  <div class="toolbar-actions">
+                    <button type="button" class="btn ghost small" id="preview-btn">Preview</button>
+                    <button type="button" class="btn primary small" id="publish-btn">Publish</button>
+                  </div>
+                </div>
+                <textarea id="f-content" rows="16" placeholder="# Heading&#10;&#10;Write your post in Markdown…"></textarea>
+                <div class="preview prose" id="preview-box" hidden></div>
+              </div>
+              <p class="status" id="editor-status"></p>
+            </div>
+
+            <div class="card list">
+              <h3>Published posts</h3>
+              <ul id="post-list"></ul>
+              <p class="empty" id="list-empty" hidden>No posts yet.</p>
             </div>
           </div>
-          <textarea id="f-content" rows="16" placeholder="# Heading&#10;&#10;Write your post in Markdown…"></textarea>
-          <div class="preview prose" id="preview-box" hidden></div>
-        </div>
-        <p class="status" id="editor-status"></p>
-      </div>
 
-      <div class="card list">
-        <h2>Published posts</h2>
-        <ul id="post-list"></ul>
-        <p class="empty" id="list-empty" hidden>No posts yet.</p>
+          <!-- Guestbook 面板 -->
+          <div class="tab-panel" id="tab-guestbook">
+            <div class="panel-head">
+              <h2>Guestbook</h2>
+              <button type="button" class="btn ghost small" id="refresh-gb-btn">↻ Refresh</button>
+            </div>
+            <div class="card list">
+              <ul id="gb-list"></ul>
+              <p class="empty" id="gb-empty" hidden>No messages yet.</p>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   </div>
@@ -79,8 +122,8 @@ import Layout from '../layouts/Layout.astro';
   };
 
   let adminKey = '';
-  let slugTouched = false; // 用户手动改过 slug 后，不再从标题自动生成
-  let editingSlug = ''; // 正在编辑的文章 slug（空 = 新文章）
+  let slugTouched = false;
+  let editingSlug = '';
 
   const authHeaders = (json = false): Record<string, string> => {
     const h: Record<string, string> = { Authorization: `Bearer ${adminKey}` };
@@ -99,6 +142,18 @@ import Layout from '../layouts/Layout.astro';
     $('admin-view').hidden = false;
     loadList();
   }
+
+  // ---- Tab 切换 ----
+  document.querySelectorAll('.nav-item').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tab = (btn as HTMLElement).dataset.tab;
+      document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('.tab-panel').forEach((p) =>
+        p.classList.toggle('active', (p as HTMLElement).id === `tab-${tab}`)
+      );
+      if (tab === 'guestbook') loadGuestbook();
+    });
+  });
 
   // ---- 登录 / 登出 ----
   $('login-form').addEventListener('submit', async (e) => {
@@ -123,7 +178,6 @@ import Layout from '../layouts/Layout.astro';
     showLogin();
   });
 
-  // 启动时若有保存的密钥则自动验证
   const saved = sessionStorage.getItem(KEY_STORE);
   if (saved) {
     adminKey = saved;
@@ -132,8 +186,7 @@ import Layout from '../layouts/Layout.astro';
       .catch(() => showLogin());
   }
 
-  // ---- 编辑器 ----
-  // 标题 → 自动生成 slug（仅在小写字母/数字之外的部分截断）
+  // ---- Posts 编辑器 ----
   fields.title.addEventListener('input', () => {
     if (!slugTouched && !editingSlug) {
       fields.slug.value = fields.title.value
@@ -147,7 +200,6 @@ import Layout from '../layouts/Layout.astro';
     slugTouched = fields.slug.value !== '';
   });
 
-  // 预览切换
   $('preview-btn').addEventListener('click', () => {
     const box = $('preview-box');
     const showing = box.hidden;
@@ -157,7 +209,12 @@ import Layout from '../layouts/Layout.astro';
     $('preview-btn').textContent = showing ? 'Edit' : 'Preview';
   });
 
-  // 发布（新建或更新，upsert）
+  $('new-post-btn').addEventListener('click', () => {
+    resetForm();
+    $('editor-status').textContent = '';
+    $('editor-card').scrollIntoView({ behavior: 'smooth' });
+  });
+
   $('publish-btn').addEventListener('click', async () => {
     const status = $('editor-status');
     const slug = fields.slug.value.trim();
@@ -215,7 +272,7 @@ import Layout from '../layouts/Layout.astro';
     $('preview-btn').textContent = 'Preview';
   }
 
-  // ---- 列表 ----
+  // ---- Posts 列表 ----
   async function loadList() {
     try {
       const res = await fetch(`${API}/posts`);
@@ -273,7 +330,7 @@ import Layout from '../layouts/Layout.astro';
       fields.content.value = post.content;
       slugTouched = true;
       $('editor-status').textContent = `Editing “${post.title}”`;
-      document.querySelector('.editor')?.scrollIntoView({ behavior: 'smooth' });
+      $('editor-card').scrollIntoView({ behavior: 'smooth' });
     } catch {
       /* 静默 */
     }
@@ -292,41 +349,139 @@ import Layout from '../layouts/Layout.astro';
       /* 静默 */
     }
   }
+
+  // ---- Guestbook 管理 ----
+  interface Msg {
+    id: number;
+    parent_id: number | null;
+    nickname: string;
+    content: string;
+    created_at: number;
+    replies?: Msg[];
+  }
+
+  function timeAgo(ts: number): string {
+    const diff = Date.now() - ts;
+    if (diff < 60_000) return 'just now';
+    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
+
+  function renderMsg(m: Msg, parentNick?: string): HTMLElement {
+    const el = document.createElement(m.parent_id == null ? 'li' : 'div');
+    el.className = m.parent_id == null ? 'gb-item' : 'gb-reply';
+    el.dataset.id = String(m.id);
+
+    const head = document.createElement('div');
+    head.className = 'gb-head';
+    const meta = document.createElement('div');
+    meta.className = 'gb-meta';
+    const nick = document.createElement('span');
+    nick.className = 'gb-nick';
+    nick.textContent = m.nickname;
+    meta.append(nick);
+    if (parentNick) {
+      const to = document.createElement('span');
+      to.className = 'gb-replyto';
+      to.textContent = `→ @${parentNick}`;
+      meta.append(to);
+    }
+    const time = document.createElement('span');
+    time.className = 'gb-time';
+    time.textContent = timeAgo(m.created_at);
+    meta.append(time);
+    head.append(meta);
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn ghost small danger';
+    delBtn.textContent = 'Delete';
+    delBtn.addEventListener('click', () => deleteMsg(m.id, m.nickname, el));
+    head.append(delBtn);
+
+    const content = document.createElement('div');
+    content.className = 'gb-content';
+    content.textContent = m.content;
+
+    const replies = document.createElement('div');
+    replies.className = 'gb-replies';
+    for (const r of m.replies || []) replies.append(renderMsg(r, m.nickname));
+
+    el.append(head, content, replies);
+    return el;
+  }
+
+  async function deleteMsg(id: number, nickname: string, el: HTMLElement) {
+    if (!confirm(`Delete message from @${nickname}? Replies will also be removed.`)) return;
+    try {
+      const res = await fetch(`${API}/messages/${id}`, { method: 'DELETE', headers: authHeaders() });
+      if (res.status === 401) {
+        showLogin('Session expired, please log in again.');
+        return;
+      }
+      if (res.ok) {
+        el.style.opacity = '0.3';
+        el.style.pointerEvents = 'none';
+      }
+    } catch {
+      /* 静默 */
+    }
+  }
+
+  async function loadGuestbook() {
+    const list = $('gb-list') as HTMLUListElement;
+    const empty = $('gb-empty');
+    list.innerHTML = '';
+    empty.hidden = true;
+    try {
+      const res = await fetch(`${API}/messages?page=1&size=100`);
+      if (!res.ok) throw new Error();
+      const { messages = [] } = await res.json();
+      if (messages.length === 0) {
+        empty.hidden = false;
+        return;
+      }
+      for (const m of messages) list.append(renderMsg(m));
+    } catch {
+      list.innerHTML = '<li class="gb-error">Failed to load messages.</li>';
+    }
+  }
+
+  $('refresh-gb-btn').addEventListener('click', loadGuestbook);
 </script>
 
 <style>
   .admin-page {
-    max-width: 820px;
-    margin: 0 auto;
-    padding: 7.5rem 1.5rem 4rem;
     width: 100%;
     min-height: 70vh;
   }
-  .card {
+
+  /* ---- 登录 ---- */
+  .login-view {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+  .login-card {
+    width: 100%;
+    max-width: 420px;
     background: var(--surface);
     border: 1px solid var(--surface-border);
     border-radius: 16px;
-    padding: 1.75rem;
-    margin-bottom: 1.5rem;
+    padding: 2.5rem;
     box-shadow: var(--card-shadow);
   }
-  .admin-page h1 {
-    width: fit-content; /* 渐变随文字宽度收缩：短标题也能显示完整渐变 */
+  .login-card h1 {
+    width: fit-content;
     background: var(--heading-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    font-size: 2.2rem;
-    margin-bottom: 1rem;
-  }
-  .admin-page h2 {
-    font-size: 1.2rem;
-    margin-bottom: 1rem;
-  }
-  .admin-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    font-size: 2rem;
     margin-bottom: 0.5rem;
   }
   .hint,
@@ -340,16 +495,138 @@ import Layout from '../layouts/Layout.astro';
     margin-top: 0.75rem;
     min-height: 1.2em;
   }
-
-  /* 表单 */
   #login-form {
     display: flex;
     gap: 0.75rem;
-    margin-top: 1rem;
+    margin-top: 1.25rem;
   }
   #login-form input {
     flex: 1;
   }
+
+  /* ---- 后台顶栏 ---- */
+  .admin-view {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .admin-bar {
+    position: sticky;
+    top: 5rem;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 2rem;
+    background: var(--surface);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--surface-border);
+  }
+  .bar-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .bar-logo {
+    font-size: 1.3rem;
+  }
+  .admin-bar h1 {
+    width: fit-content;
+    background: var(--heading-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 1.3rem;
+    margin: 0;
+  }
+
+  /* ---- 后台主体 ---- */
+  .admin-body {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    flex: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 1.5rem;
+    gap: 1.5rem;
+  }
+
+  /* 侧边导航 */
+  .admin-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    position: sticky;
+    top: 9rem;
+    align-self: start;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.7rem 1rem;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    text-align: left;
+  }
+  .nav-item:hover {
+    background: var(--surface);
+    color: var(--text);
+  }
+  .nav-item.active {
+    background: var(--surface);
+    border-color: var(--surface-border);
+    color: var(--accent-text);
+  }
+  .nav-icon {
+    font-size: 1.1rem;
+  }
+
+  /* 内容区 */
+  .admin-content {
+    min-width: 0;
+  }
+  .tab-panel {
+    display: none;
+  }
+  .tab-panel.active {
+    display: block;
+  }
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+  }
+  .panel-head h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  /* ---- 卡片 ---- */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    border-radius: 16px;
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--card-shadow);
+  }
+  .card h3 {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+  }
+
+  /* ---- 表单 ---- */
   input[type='text'],
   input[type='password'],
   textarea {
@@ -415,7 +692,7 @@ import Layout from '../layouts/Layout.astro';
     overflow-y: auto;
   }
 
-  /* 按钮 */
+  /* ---- 按钮 ---- */
   .btn {
     border: 1px solid var(--surface-border);
     background: var(--surface);
@@ -452,7 +729,7 @@ import Layout from '../layouts/Layout.astro';
     color: #e5484d;
   }
 
-  /* 列表 */
+  /* ---- Posts 列表 ---- */
   #post-list {
     list-style: none;
     padding: 0;
@@ -495,7 +772,92 @@ import Layout from '../layouts/Layout.astro';
     gap: 0.5rem;
   }
 
-  @media (max-width: 640px) {
+  /* ---- Guestbook 列表 ---- */
+  #gb-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .gb-item {
+    padding: 1rem 0.25rem;
+    border-bottom: 1px solid var(--surface-border);
+  }
+  .gb-item:last-child {
+    border-bottom: none;
+  }
+  .gb-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.3rem;
+  }
+  .gb-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .gb-nick {
+    font-weight: 600;
+    color: var(--accent-text);
+    overflow-wrap: anywhere;
+  }
+  .gb-replyto {
+    font-size: 0.8rem;
+    color: var(--accent-text);
+    opacity: 0.8;
+  }
+  .gb-time {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+  .gb-content {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: var(--text);
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+  .gb-replies {
+    margin-top: 0.75rem;
+    margin-left: 1rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--surface-border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .gb-reply {
+    padding: 0.5rem 0;
+  }
+  .gb-reply .gb-content {
+    font-size: 0.9rem;
+  }
+  .gb-error {
+    color: var(--text-secondary);
+    padding: 1rem 0;
+    text-align: center;
+  }
+
+  /* 移动端 */
+  @media (max-width: 768px) {
+    .admin-body {
+      grid-template-columns: 1fr;
+      padding: 1rem;
+    }
+    .admin-nav {
+      position: static;
+      flex-direction: row;
+      overflow-x: auto;
+    }
+    .nav-item {
+      flex-shrink: 0;
+    }
+    .admin-bar {
+      padding: 0.8rem 1rem;
+    }
     #post-list li {
       flex-direction: column;
       align-items: flex-start;
