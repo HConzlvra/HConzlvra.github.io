@@ -18,6 +18,8 @@ import Layout from '../layouts/Layout.astro';
   import { marked } from 'marked';
   import { API_BASE } from '../lib/api';
 
+  marked.setOptions({ breaks: true });
+
   const API = API_BASE;
 
   (async () => {
