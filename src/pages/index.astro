@@ -1013,6 +1013,13 @@ const dateLabel = (d?: Date) =>
       max-width: 100%; /* 窄屏防御 */
       line-height: 1.18; /* 行距收紧，三行大字成为一个紧凑字块 */
       margin-bottom: 0.85rem; /* 与 welcome 副标题之间留一点呼吸感，不挤 */
+      /* 关掉父级这一层渐变：移动端的渐变由下面两个 span 各自负责（每行独立且带 scaleY 拉伸）。
+         父级若仍保留 background-clip: text，它的文字遮罩在部分浏览器里不跟随子元素的
+         transform，会在原位多画一份"未拉伸"的渐变字，与拉伸后的子元素重叠成双层重影 */
+      background: none;
+      -webkit-background-clip: border-box;
+      background-clip: border-box;
+      -webkit-text-fill-color: currentColor;
     }
     /* 恢复到最初的移动端 hero 字体：不再做额外拉伸 */
     .hero h1 .lines-hi {
