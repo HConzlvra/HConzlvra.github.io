@@ -437,11 +437,29 @@ const dateLabel = (d?: Date) =>
     waveAnims = [];
   };
 
-  // 指针移走：不立即 cancel，让当前这一轮波播完再在下一轮边界停掉
+  // 指针移走：不立即 cancel，而是让每个动画跑完当前这一轮后自然结束
   const releaseWave = () => {
     window.clearTimeout(waveTimer);
     waveTimer = 0;
     keepLooping = false;
+    waveAnims.forEach((anim) => {
+      try {
+        const timing = anim.effect.getTiming();
+        const delay = (timing.delay as number) || 0;
+        const duration = (timing.duration as number) || 0;
+        if (duration <= 0) { anim.cancel(); return; }
+        const activeTime = anim.currentTime - delay;
+        if (activeTime <= 0) {
+          anim.cancel(); // 还在 delay 阶段没起跳，直接取消
+        } else {
+          const currentIter = Math.floor(activeTime / duration);
+          anim.effect.updateTiming({ iterations: currentIter + 1 }); // 跑完当前这一轮就结束
+        }
+      } catch {
+        anim.cancel();
+      }
+    });
+    waveAnims = [];
   };
 
   const runWave = (loop: boolean) => {
@@ -457,15 +475,6 @@ const dateLabel = (d?: Date) =>
         delay: i * HOP_STAGGER, // 依次从左往右起跳
         iterations: loop ? Number.POSITIVE_INFINITY : 1,
       });
-      // 循环模式下：每轮到下一轮边界时，若 keepLooping 已为 false 则停掉（当前这一轮已播完）
-      if (loop) {
-        anim.oniteration = () => {
-          if (!keepLooping) {
-            anim.cancel();
-            waveAnims = waveAnims.filter((a) => a !== anim);
-          }
-        };
-      }
       waveAnims.push(anim);
     });
   };
