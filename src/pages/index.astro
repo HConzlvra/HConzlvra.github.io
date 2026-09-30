@@ -107,6 +107,13 @@ const dateLabel = (d?: Date) =>
         </a>
       </div>
     </div>
+
+    <!-- 趣味小徽章：Destroy this website（页脚正上方） -->
+    <div class="destroy-badge">
+      <a href="https://destroy.spritefusion.com/?from=badge" target="_blank" rel="noopener noreferrer">
+        <img src="https://destroy.spritefusion.com/badge.svg" alt="Destroy this website" width="180" height="40" />
+      </a>
+    </div>
   </section>
 </Layout>
 
@@ -978,6 +985,28 @@ const dateLabel = (d?: Date) =>
     font-size: 0.88rem;
     color: var(--text-secondary);
     line-height: 1.5;
+  }
+
+  /* ---- 趣味徽章：Destroy this website（页脚正上方，居中） ---- */
+  .destroy-badge {
+    display: flex;
+    justify-content: center;
+    margin-top: 3.5rem;
+  }
+  .destroy-badge a {
+    display: inline-block;
+    line-height: 0;
+    opacity: 0.8;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  .destroy-badge a:hover {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  .destroy-badge img {
+    display: block;
+    max-width: 100%;
+    height: auto;
   }
 
   /* 移动端专用换行：桌面 display:none 彻底隐藏（渲染与不存在时一致），
