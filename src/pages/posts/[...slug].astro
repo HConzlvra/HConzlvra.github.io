@@ -39,6 +39,10 @@ const { Content } = await render(post);
 </PostsLayout>
 
 <style>
+  /* 顶距收紧：布局已为开关按钮留出空间，正文不再额外空一大截 */
+  .post-article.prose {
+    padding-top: 0.5rem;
+  }
   .post-header {
     margin-bottom: 2rem;
     padding-bottom: 1.5rem;

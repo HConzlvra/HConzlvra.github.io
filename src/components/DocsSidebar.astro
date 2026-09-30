@@ -83,14 +83,14 @@ const categories = [...byCategory.entries()]
   /* ============ 开关按钮 ============ */
   .docs-toggle {
     position: absolute;
-    top: 5.5rem;
+    top: 4.1rem;
     left: 1.5rem;
     z-index: 40;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.4rem;
-    height: 2.4rem;
+    width: 2.2rem;
+    height: 2.2rem;
     padding: 0;
     border: 1px solid var(--surface-border);
     border-radius: 999px;
@@ -130,7 +130,6 @@ const categories = [...byCategory.entries()]
     display: grid;
     gap: 0.4rem;
     align-content: start;
-    padding-top: 1.6rem; /* 标题放到开关按钮下方，不再把内容左推 */
     opacity: 0;
     transform: translateX(-8px);
     transition: opacity 0.22s ease, transform 0.22s ease;
@@ -270,7 +269,7 @@ const categories = [...byCategory.entries()]
   @media (max-width: 768px) {
     .docs-toggle {
       position: fixed;
-      top: 4.9rem;
+      top: 4.05rem;
       left: 1rem;
       z-index: 95;
     }
@@ -286,7 +285,7 @@ const categories = [...byCategory.entries()]
       width: 240px;
       height: 100dvh;
       max-height: 100dvh;
-      padding: 7.7rem 1rem 1rem; /* 标题放到开关按钮下方，无需左侧避让 */
+      padding: 6.4rem 1rem 1rem; /* 标题放到开关按钮下方，无需左侧避让 */
       overflow-y: auto;
       overscroll-behavior: contain;
       opacity: 0;

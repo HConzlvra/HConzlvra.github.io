@@ -68,14 +68,14 @@ const posts = (await getCollection('posts')).sort(
   /* ============ 开关按钮：absolute 定位（相对 .posts-layout），不占 grid 空间 → 收起时内容居中 ============ */
   .sidebar-toggle {
     position: absolute;
-    top: 5.5rem;
+    top: 4.1rem;
     left: 1.5rem;
     z-index: 40;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.4rem;
-    height: 2.4rem;
+    width: 2.2rem;
+    height: 2.2rem;
     padding: 0;
     border: 1px solid var(--surface-border);
     border-radius: 999px;
@@ -118,7 +118,6 @@ const posts = (await getCollection('posts')).sort(
     display: grid;
     gap: 0.5rem;
     align-content: start; /* 内容靠顶，不随面板高度拉伸分布 */
-    padding-top: 1.6rem; /* 标题放到开关按钮下方，不再把内容左推 */
     opacity: 0;
     transform: translateX(-8px);
     transition: opacity 0.22s ease, transform 0.22s ease;
@@ -204,7 +203,7 @@ const posts = (await getCollection('posts')).sort(
     /* 开关：fixed 钉在左上角，位置永不移动（收起/展开都在同一处） */
     .sidebar-toggle {
       position: fixed;
-      top: 4.9rem;
+      top: 4.05rem;
       left: 1rem;
       margin-right: 0;
       z-index: 95;
@@ -224,7 +223,7 @@ const posts = (await getCollection('posts')).sort(
       width: 240px;
       height: 100dvh;
       max-height: 100dvh;
-      padding: 7.7rem 1rem 1rem; /* 标题放到开关按钮下方，无需左侧避让 */
+      padding: 6.4rem 1rem 1rem; /* 标题放到开关按钮下方，无需左侧避让 */
       overflow-y: auto;
       overscroll-behavior: contain;
       opacity: 0;

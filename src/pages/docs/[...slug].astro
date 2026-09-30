@@ -42,6 +42,10 @@ const { Content } = await render(doc);
     max-width: 820px;
     margin: 0 auto;
   }
+  /* 顶距收紧：布局已为开关按钮留出空间，正文不再额外空一大截 */
+  .doc-page.prose {
+    padding-top: 0.5rem;
+  }
   .doc-back {
     color: var(--accent-text);
     text-decoration: none;
@@ -51,7 +55,7 @@ const { Content } = await render(doc);
     text-decoration: underline;
   }
   .doc-header {
-    margin: 0.75rem 0 2rem;
+    margin: 0.25rem 0 2rem;
     padding-bottom: 1.5rem;
     border-bottom: 1px solid var(--surface-border);
   }

@@ -65,9 +65,15 @@ import Layout from '../layouts/Layout.astro';
   .nf {
     max-width: 820px;
     margin: 0 auto;
-    padding: 8rem 1.5rem 4rem;
+    padding: 5.5rem 1.5rem 4rem;
     width: 100%;
     min-height: 60vh;
+  }
+  /* 移动端：顶部留出悬浮导航（约 60px），正文上移 */
+  @media (max-width: 768px) {
+    .nf {
+      padding: 6.2rem 1.1rem 4rem;
+    }
   }
   .nf h1 {
     width: fit-content; /* 渐变随文字宽度收缩：短标题也能显示完整渐变 */
@@ -94,8 +100,18 @@ import Layout from '../layouts/Layout.astro';
   .nf.post-view {
     max-width: 760px;
   }
+  /* 文章标题：实色（与静态文章页一致，取消渐变） */
   .nf.post-view h1 {
+    color: var(--text);
+    background: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    -webkit-text-fill-color: var(--text);
     font-size: 2.4rem;
+  }
+  /* 正文区顶距收紧：标题在上方 header 内，正文不再额外空一大截 */
+  .nf .post-article {
+    padding-top: 0.5rem;
   }
   .post-header {
     margin-bottom: 2rem;
