@@ -45,7 +45,7 @@ import Layout from '../layouts/Layout.astro';
         <article class="prose post-article" id="md"></article>`;
       (nf.querySelector('.post-title') as HTMLElement).textContent = post.title;
       const dateEl = nf.querySelector('.post-date') as HTMLElement;
-      dateEl.textContent = new Date(post.created_at).toLocaleDateString('zh-CN', {
+      dateEl.textContent = new Date(post.created_at).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',

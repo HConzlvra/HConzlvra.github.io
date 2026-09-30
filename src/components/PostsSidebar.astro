@@ -50,7 +50,7 @@ const posts = (await getCollection('posts')).sort(
               <span class="link-title">{post.data.title}</span>
               {post.data.pubDate && (
                 <time class="link-date" datetime={post.data.pubDate.toISOString()}>
-                  {post.data.pubDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' })}
+                  {post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                 </time>
               )}
             </a>
@@ -334,7 +334,7 @@ const posts = (await getCollection('posts')).sort(
     import('../lib/api').then(({ API_BASE }) => {
       const API = API_BASE;
       const fmt = (ts: number) =>
-        new Date(ts).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' });
+        new Date(ts).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
       fetch(`${API}/posts`)
         .then((res) => (res.ok ? res.json() : null))

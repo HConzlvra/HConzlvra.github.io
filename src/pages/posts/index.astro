@@ -28,7 +28,7 @@ const posts = (await getCollection('posts')).sort(
                   <span class="item-title">{post.data.title}</span>
                   {post.data.pubDate && (
                     <time class="item-date" datetime={post.data.pubDate.toISOString()}>
-                      {post.data.pubDate.toLocaleDateString('zh-CN', {
+                      {post.data.pubDate.toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric',
@@ -134,7 +134,7 @@ const posts = (await getCollection('posts')).sort(
   const API = API_BASE;
 
   const fmt = (iso: string) =>
-    new Date(iso).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+    new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   function itemEl(it: { href: string; title: string; date: string; desc: string }) {
     const li = document.createElement('li');
