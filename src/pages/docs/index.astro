@@ -1,195 +1,636 @@
 ---
-// Docs 首页：整理类正经文章的目录，按分类分组 + 分类筛选
 import DocsLayout from '../../layouts/DocsLayout.astro';
 import { getCollection } from 'astro:content';
 
-// 分类 > 文档 两级结构；分类按名称排序，分类内 order 升序、再按日期降序
 const docs = await getCollection('docs');
 const byCategory = new Map<string, typeof docs>();
-for (const d of docs) {
-  const c = d.data.category;
-  if (!byCategory.has(c)) byCategory.set(c, []);
-  byCategory.get(c)!.push(d);
+for (const doc of docs) {
+  const category = doc.data.category;
+  if (!byCategory.has(category)) byCategory.set(category, []);
+  byCategory.get(category)!.push(doc);
 }
+
 const sortDocs = (list: typeof docs) =>
   [...list].sort((a, b) => {
-    const oa = a.data.order ?? 0;
-    const ob = b.data.order ?? 0;
-    if (oa !== ob) return oa - ob;
+    const orderDifference = (a.data.order ?? 0) - (b.data.order ?? 0);
+    if (orderDifference !== 0) return orderDifference;
     return (b.data.pubDate?.valueOf() ?? 0) - (a.data.pubDate?.valueOf() ?? 0);
   });
+
 const categories = [...byCategory.entries()]
   .sort((a, b) => a[0].localeCompare(b[0]))
   .map(([name, list]) => ({ name, docs: sortDocs(list) }));
 
-const pad2 = (n: number) => String(n).padStart(2, '0');
-const dateLabel = (d?: Date) =>
-  d ? `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` : '';
+const pad2 = (value: number) => String(value).padStart(2, '0');
+const dateLabel = (date?: Date) =>
+  date ? `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}` : '';
 ---
 
-<DocsLayout title="Docs | HConzlvra_" description="Docs — organized articles and reference notes, grouped by category.">
+<DocsLayout title="Docs | HConzlvra_" description="A personal library of organized articles and reference notes.">
   <section class="docs-page enter-left">
-    <h1>Docs</h1>
-    <p class="intro">Articles and reference notes I've actually sat down and organized.</p>
+    <header class="archive-hero">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="eyebrow-mark"></span> KNOWLEDGE ARCHIVE <span>/</span> VOL. 01</p>
+        <h1>Field <em>notes.</em></h1>
+        <p class="hero-subtitle">整理过的文章、指南与参考笔记。</p>
+        <p class="hero-description">A small library for ideas worth returning to — collected, connected, and kept close.</p>
+      </div>
+      <aside class="archive-mark" aria-label={`${docs.length} documents in ${categories.length} categories`}>
+        <span class="mark-caption">COLLECTED WORKS</span>
+        <span class="mark-count">{pad2(docs.length)}</span>
+        <span class="mark-rule"></span>
+        <span class="mark-foot"><span>{pad2(categories.length)}</span> CATEGORIES</span>
+        <span class="mark-orbit" aria-hidden="true"></span>
+      </aside>
+    </header>
 
-    <!-- 分类筛选：点击只显示对应分类 -->
-    <div class="chips" id="chips" role="group" aria-label="Filter by category">
-      <button class="chip active" data-cat="all" type="button">All</button>
-      {categories.map(({ name }) => (
-        <button class="chip" data-cat={name} type="button">{name}</button>
-      ))}
+    <div class="index-bar">
+      <div class="index-label">
+        <span class="index-kicker">BROWSE THE INDEX</span>
+        <span class="index-total">{docs.length} {docs.length === 1 ? 'entry' : 'entries'}</span>
+      </div>
+      <div class="chips" id="chips" role="group" aria-label="Filter documents by category">
+        <button class="chip active" data-cat="all" aria-pressed="true" type="button">All <span>{pad2(docs.length)}</span></button>
+        {categories.map(({ name, docs: list }, index) => (
+          <button class="chip" data-cat={name} aria-pressed="false" type="button">
+            {name} <span>{pad2(index + 1)}</span>
+          </button>
+        ))}
+      </div>
     </div>
 
-    {
-      categories.map(({ name, docs: list }) => (
+    <div class="collection-list">
+      {categories.map(({ name, docs: list }, index) => (
         <section class="cat-group" data-cat={name}>
-          <h2>
-            {name}
-            <span class="cat-count">
-              {list.length} {list.length > 1 ? 'docs' : 'doc'}
-            </span>
-          </h2>
-          <ul>
-            {list.map((d) => (
+          <header class="collection-heading">
+            <div class="collection-name">
+              <span class="collection-index">{pad2(index + 1)} <i>/</i> COLLECTION</span>
+              <h2>{name}<span class="heading-period">.</span></h2>
+            </div>
+            <span class="cat-count">{pad2(list.length)} {list.length === 1 ? 'DOCUMENT' : 'DOCUMENTS'}</span>
+          </header>
+          <ul class="doc-grid">
+            {list.map((doc, docIndex) => (
               <li>
-                <time>{dateLabel(d.data.pubDate)}</time>
-                <div class="doc-info">
-                  <a href={`/docs/${d.id}`}>{d.data.title}</a>
-                  {d.data.description && <p>{d.data.description}</p>}
-                </div>
+                <a class="doc-card" href={`/docs/${doc.id}`}>
+                  <span class="doc-card-top">
+                    <span class="doc-number">{pad2(docIndex + 1)}</span>
+                    {doc.data.pubDate && (
+                      <time class="doc-date" datetime={doc.data.pubDate.toISOString()}>{dateLabel(doc.data.pubDate)}</time>
+                    )}
+                  </span>
+                  <span class="doc-copy">
+                    <span class="doc-title">{doc.data.title}</span>
+                    {doc.data.description && <span class="doc-description">{doc.data.description}</span>}
+                  </span>
+                  <span class="doc-arrow" aria-hidden="true">↗</span>
+                </a>
               </li>
             ))}
           </ul>
         </section>
-      ))
-    }
+      ))}
+    </div>
 
-    {docs.length === 0 && <p class="empty">No docs yet.</p>}
+    {docs.length === 0 && (
+      <p class="empty-state"><span class="empty-glyph">✳</span><span>The shelves are quiet for now.</span><span>New notes will find their way here.</span></p>
+    )}
+    <footer class="archive-footer"><span>END OF INDEX</span><span>HCONZLVRA_ <i>✳</i></span></footer>
   </section>
 </DocsLayout>
 
 <style>
   .docs-page {
-    max-width: 980px;
+    width: min(100%, 1120px);
     margin: 0 auto;
-  }
-  .docs-page h1 {
-    font-size: 2.2rem;
-    margin-bottom: 0.5rem;
-  }
-  .intro {
-    color: var(--text-secondary);
-    margin-bottom: 1.75rem;
+    padding-bottom: 1rem;
   }
 
-  /* ---- 分类筛选 ---- */
+  .archive-hero {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 3rem;
+    min-height: 20rem;
+    padding: 1.5rem 0 2.7rem;
+    border-bottom: 1px solid var(--surface-border);
+  }
+
+  .hero-copy {
+    position: relative;
+    z-index: 1;
+    max-width: 46rem;
+  }
+
+  .eyebrow,
+  .index-kicker,
+  .collection-index,
+  .mark-caption,
+  .mark-foot,
+  .archive-footer {
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+  }
+
+  .eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    color: var(--text-secondary);
+  }
+
+  .eyebrow > span:not(.eyebrow-mark) {
+    color: var(--btn-primary-bg);
+  }
+
+  .eyebrow-mark {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: var(--btn-primary-bg);
+    box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--btn-primary-bg) 16%, transparent);
+  }
+
+  .archive-hero h1 {
+    width: fit-content;
+    margin: 1.25rem 0 0.8rem -0.07em;
+    background: var(--heading-gradient);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-size: clamp(3.4rem, 8vw, 6.8rem);
+    font-weight: 750;
+    letter-spacing: -0.075em;
+    line-height: 0.95;
+  }
+
+  .archive-hero h1 em {
+    font-family: ui-serif, Georgia, 'Times New Roman', serif;
+    font-weight: 500;
+    letter-spacing: -0.08em;
+  }
+
+  .hero-subtitle {
+    margin-top: 1.15rem;
+    color: var(--text);
+    font-size: clamp(1rem, 1.35vw, 1.2rem);
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+
+  .hero-description {
+    max-width: 35rem;
+    margin-top: 0.55rem;
+    color: var(--text-secondary);
+    font-size: 0.94rem;
+    line-height: 1.75;
+  }
+
+  .archive-mark {
+    position: relative;
+    display: flex;
+    flex: 0 0 12rem;
+    flex-direction: column;
+    align-items: flex-start;
+    overflow: hidden;
+    min-height: 11rem;
+    padding: 1.3rem 1.4rem;
+    border: 1px solid var(--surface-border);
+    border-radius: 1rem 1rem 1rem 0.25rem;
+    background: var(--surface);
+    box-shadow: var(--card-shadow);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .mark-caption,
+  .mark-foot {
+    position: relative;
+    z-index: 1;
+    color: var(--text-secondary);
+    font-size: 0.58rem;
+    letter-spacing: 0.12em;
+  }
+
+  .mark-count {
+    position: relative;
+    z-index: 1;
+    margin: 0.25rem 0;
+    color: var(--accent-text);
+    font-size: 4.3rem;
+    font-weight: 700;
+    letter-spacing: -0.09em;
+    line-height: 1;
+  }
+
+  .mark-rule {
+    width: 100%;
+    height: 1px;
+    margin: 0.65rem 0 0.8rem;
+    background: var(--surface-border);
+  }
+
+  .mark-foot span {
+    margin-right: 0.45rem;
+    color: var(--btn-primary-bg);
+  }
+
+  .mark-orbit {
+    position: absolute;
+    right: -2.3rem;
+    top: -2.1rem;
+    width: 7.5rem;
+    aspect-ratio: 1;
+    border: 1px solid color-mix(in srgb, var(--btn-primary-bg) 35%, transparent);
+    border-radius: 50%;
+  }
+
+  .mark-orbit::before,
+  .mark-orbit::after {
+    position: absolute;
+    content: '';
+    border: 1px solid color-mix(in srgb, var(--btn-primary-bg) 24%, transparent);
+    border-radius: 50%;
+  }
+
+  .mark-orbit::before {
+    inset: 0.7rem;
+  }
+
+  .mark-orbit::after {
+    inset: 1.4rem;
+  }
+
+  .index-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 1.7rem 0 1.3rem;
+    border-bottom: 1px solid var(--surface-border);
+  }
+
+  .index-label {
+    display: grid;
+    flex: 0 0 auto;
+    gap: 0.3rem;
+  }
+
+  .index-kicker {
+    color: var(--text-secondary);
+    font-size: 0.6rem;
+  }
+
+  .index-total {
+    color: var(--text);
+    font-size: 0.86rem;
+    font-weight: 600;
+  }
+
   .chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.6rem;
-    margin-bottom: 2.25rem;
+    justify-content: flex-end;
+    gap: 0.45rem;
   }
+
   .chip {
-    padding: 0.42rem 1.05rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.48rem 0.8rem;
+    border: 1px solid transparent;
     border-radius: 999px;
-    border: 1px solid var(--surface-border);
-    background: var(--surface);
+    background: transparent;
     color: var(--text-secondary);
     font: inherit;
-    font-size: 0.88rem;
+    font-size: 0.8rem;
     cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  .chip:hover {
-    color: var(--text);
-    border-color: var(--surface-border-hover);
-  }
-  .chip.active {
-    background: var(--btn-primary-bg);
-    border-color: var(--btn-primary-bg);
-    color: var(--btn-primary-text);
+    transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
   }
 
-  /* ---- 分类分组 ---- */
+  .chip span {
+    color: var(--text-secondary);
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    font-size: 0.62rem;
+    opacity: 0.75;
+  }
+
+  .chip:hover {
+    border-color: var(--surface-border-hover);
+    color: var(--text);
+    transform: translateY(-1px);
+  }
+
+  .chip.active {
+    border-color: var(--surface-border);
+    background: var(--surface);
+    color: var(--accent-text);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+
+  .collection-list {
+    display: grid;
+    gap: 2.6rem;
+    padding-top: 0.45rem;
+  }
+
   .cat-group {
-    margin-bottom: 2rem;
+    min-width: 0;
   }
-  .cat-group h2 {
+
+  .collection-heading {
     display: flex;
-    align-items: baseline;
-    gap: 0.75rem;
-    font-size: 1.5rem;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .collection-name {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .collection-index {
+    color: var(--text-secondary);
+    font-size: 0.58rem;
+  }
+
+  .collection-index i {
+    color: var(--btn-primary-bg);
+    font-style: normal;
+  }
+
+  .collection-heading h2 {
+    width: fit-content;
+    background: var(--heading-gradient);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-size: clamp(1.55rem, 3vw, 2rem);
     font-weight: 700;
-    margin-bottom: 0.5rem;
+    letter-spacing: -0.045em;
+    line-height: 1.15;
   }
+
+  .heading-period {
+    color: var(--btn-primary-bg);
+    -webkit-text-fill-color: var(--btn-primary-bg);
+  }
+
   .cat-count {
-    font-size: 0.78rem;
-    font-weight: 500;
+    padding-bottom: 0.25rem;
     color: var(--text-secondary);
-    -webkit-text-fill-color: var(--text-secondary);
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
   }
-  .cat-group ul {
+
+  .doc-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
     list-style: none;
-    padding: 0;
-    margin: 0;
   }
-  .cat-group li {
-    display: flex;
-    align-items: baseline;
-    gap: 1.1rem;
-    padding: 0.85rem 0.25rem;
-    border-bottom: 1px dashed var(--surface-border);
-  }
-  .cat-group li:last-child {
-    border-bottom: none;
-  }
-  .cat-group time {
-    flex-shrink: 0;
-    min-width: 5.2em;
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    font-variant-numeric: tabular-nums;
-  }
-  .doc-info a {
+
+  .doc-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1.5rem;
+    min-height: 10.5rem;
+    padding: 1.2rem 1.3rem 1.1rem;
+    overflow: hidden;
+    border: 1px solid var(--surface-border);
+    border-radius: 0.8rem 0.8rem 0.8rem 0.2rem;
+    background: var(--surface);
     color: var(--text);
     text-decoration: none;
-    font-weight: 600;
-    font-size: 1.08rem;
-    transition: color 0.2s ease;
-  }
-  .doc-info a:hover {
-    color: var(--accent-text);
-  }
-  .doc-info p {
-    margin: 0.25rem 0 0;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    line-height: 1.55;
-  }
-  .empty {
-    color: var(--text-secondary);
-    padding: 2rem 0;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.025);
+    transition: transform 0.25s ease, border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
   }
 
-  @media (max-width: 640px) {
-    .cat-group li {
+  .doc-card::before {
+    position: absolute;
+    content: '';
+    inset: auto 1.3rem 0;
+    height: 1px;
+    background: var(--heading-gradient);
+    opacity: 0.55;
+    transform: scaleX(0.1);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+  }
+
+  .doc-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--surface-border-hover);
+    background: var(--surface-hover);
+    box-shadow: var(--card-shadow);
+  }
+
+  .doc-card:hover::before {
+    transform: scaleX(1);
+  }
+
+  .doc-card-top {
+    display: flex;
+    grid-column: 1 / -1;
+    align-items: center;
+    justify-content: space-between;
+    height: 1.1rem;
+  }
+
+  .doc-number {
+    color: var(--btn-primary-bg);
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+  }
+
+  .doc-date {
+    color: var(--text-secondary);
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    font-size: 0.65rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .doc-copy {
+    display: grid;
+    align-content: start;
+    gap: 0.4rem;
+  }
+
+  .doc-title {
+    font-size: 1.08rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.35;
+    transition: color 0.2s ease;
+  }
+
+  .doc-card:hover .doc-title {
+    color: var(--accent-text);
+  }
+
+  .doc-description {
+    color: var(--text-secondary);
+    font-size: 0.84rem;
+    line-height: 1.6;
+  }
+
+  .doc-arrow {
+    align-self: end;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    transition: color 0.2s ease, transform 0.2s ease;
+  }
+
+  .doc-card:hover .doc-arrow {
+    color: var(--btn-primary-bg);
+    transform: translate(2px, -2px);
+  }
+
+  .empty-state {
+    display: grid;
+    justify-items: center;
+    gap: 0.35rem;
+    padding: 5rem 1rem;
+    color: var(--text-secondary);
+    text-align: center;
+    font-size: 0.9rem;
+  }
+
+  .empty-glyph {
+    margin-bottom: 0.5rem;
+    color: var(--btn-primary-bg);
+    font-size: 1.8rem;
+  }
+
+  .archive-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2.5rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--surface-border);
+    color: var(--text-secondary);
+    font-size: 0.58rem;
+  }
+
+  .archive-footer i {
+    margin-left: 0.3rem;
+    color: var(--btn-primary-bg);
+    font-style: normal;
+  }
+
+  @media (max-width: 820px) {
+    .archive-hero {
+      min-height: 18rem;
+      gap: 1.5rem;
+    }
+
+    .archive-mark {
+      flex-basis: 10rem;
+    }
+
+    .index-bar {
+      align-items: flex-start;
       flex-direction: column;
-      gap: 0.25rem;
+      gap: 1rem;
+    }
+
+    .chips {
+      justify-content: flex-start;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .archive-hero {
+      min-height: 0;
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 1.5rem;
+      padding: 1rem 0 1.6rem;
+    }
+
+    .archive-hero h1 {
+      margin-top: 1rem;
+      font-size: clamp(3.2rem, 17vw, 5rem);
+    }
+
+    .archive-mark {
+      display: grid;
+      flex: none;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      width: 100%;
+      min-height: 0;
+      padding: 0.85rem 1rem;
+      border-radius: 0.7rem 0.7rem 0.7rem 0.2rem;
+      column-gap: 0.8rem;
+    }
+
+    .mark-caption {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .mark-count {
+      grid-column: 2;
+      grid-row: 1 / 3;
+      margin: 0;
+      font-size: 2.8rem;
+    }
+
+    .mark-rule {
+      display: none;
+    }
+
+    .mark-foot {
+      grid-column: 3;
+      grid-row: 1 / 3;
+    }
+
+    .collection-heading {
+      align-items: flex-start;
+    }
+
+    .doc-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chip,
+    .doc-card,
+    .doc-card::before,
+    .doc-arrow {
+      transition-duration: 0.01ms;
     }
   }
 </style>
 
 <script>
-  // 分类筛选（document 级事件委托：ClientRouter 软导航后无需重新绑定）
-  document.addEventListener('click', (e) => {
-    const btn = e.target instanceof Element ? e.target.closest('#chips .chip') : null;
-    if (!btn) return;
-    const chips = btn.closest('#chips')!;
-    chips.querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', c === btn));
-    const cat = (btn as HTMLElement).dataset.cat;
-    document.querySelectorAll('.cat-group').forEach((g) => {
-      (g as HTMLElement).style.display =
-        cat === 'all' || g.dataset.cat === cat ? '' : 'none';
+  document.addEventListener('click', (event) => {
+    const button = event.target instanceof Element ? event.target.closest('#chips .chip') : null;
+    if (!button) return;
+
+    const chips = button.closest('#chips');
+    if (!chips) return;
+
+    chips.querySelectorAll('.chip').forEach((chip) => {
+      const selected = chip === button;
+      chip.classList.toggle('active', selected);
+      chip.setAttribute('aria-pressed', String(selected));
+    });
+
+    const category = (button as HTMLElement).dataset.cat;
+    document.querySelectorAll<HTMLElement>('.cat-group').forEach((group) => {
+      group.hidden = category !== 'all' && group.dataset.cat !== category;
     });
   });
 </script>
