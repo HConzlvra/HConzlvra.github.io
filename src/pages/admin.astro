@@ -1,5 +1,5 @@
 ---
-// 集成后台：Posts 发布/编辑/删除 + Guestbook 留言管理
+// 集成后台：Posts、Bruh 文段与 Guestbook 管理
 // 安全：静态 HTML 只含登录表单，整个后台界面在密钥验证通过后由 JS 动态注入
 // 不进导航栏、noindex，仅自己使用
 import Layout from '../layouts/Layout.astro';
@@ -70,6 +70,7 @@ import Layout from '../layouts/Layout.astro';
   // ---- 注入后台界面（仅在验证通过后执行） ----
   function enterAdmin() {
     const page = document.getElementById('admin-page')!;
+    if (document.getElementById('admin-view')) return;
     // 移除登录视图
     document.getElementById('login-view')?.remove();
 
@@ -91,6 +92,9 @@ import Layout from '../layouts/Layout.astro';
             </button>
             <button type="button" class="nav-item" data-tab="guestbook">
               <span class="nav-icon">💬</span><span>Guestbook</span>
+            </button>
+            <button type="button" class="nav-item" data-tab="bruh">
+              <span class="nav-icon">✳</span><span>Bruh</span>
             </button>
           </nav>
           <div class="admin-content">
@@ -130,10 +134,10 @@ import Layout from '../layouts/Layout.astro';
               <div class="card list">
                 <div class="panel-head">
                   <h3>Published posts</h3>
-                  <button type="button" class="btn ghost small" id="sync-posts-btn">↻ Sync all to GitHub</button>
                 </div>
                 <ul id="post-list"></ul>
                 <p class="empty" id="list-empty" hidden>No posts yet.</p>
+                <p class="status" id="list-status" aria-live="polite"></p>
               </div>
             </div>
             <div class="tab-panel" id="tab-guestbook">
@@ -144,6 +148,27 @@ import Layout from '../layouts/Layout.astro';
               <div class="card list">
                 <ul id="gb-list"></ul>
                 <p class="empty" id="gb-empty" hidden>No messages yet.</p>
+              </div>
+            </div>
+            <div class="tab-panel" id="tab-bruh">
+              <div class="panel-head">
+                <div><h2>Bruh passages</h2><p class="hint">Each passage appears as its own card on the Bruh page.</p></div>
+              </div>
+              <div class="card editor">
+                <div class="field">
+                  <label for="bruh-content">Passage</label>
+                  <textarea id="bruh-content" rows="7" maxlength="10000" placeholder="Write one passage…"></textarea>
+                </div>
+                <div class="toolbar-actions">
+                  <button type="button" class="btn ghost small" id="bruh-cancel" hidden>Cancel edit</button>
+                  <button type="button" class="btn primary small" id="bruh-save">Publish passage</button>
+                </div>
+                <p class="status" id="bruh-status" aria-live="polite"></p>
+              </div>
+              <div class="card list">
+                <div class="panel-head"><h3>Published passages</h3><button type="button" class="btn ghost small" id="refresh-bruh">↻ Refresh</button></div>
+                <ul id="bruh-list"></ul>
+                <p class="empty" id="bruh-empty" hidden>No passages yet.</p>
               </div>
             </div>
           </div>
@@ -164,7 +189,7 @@ import Layout from '../layouts/Layout.astro';
       content: $('f-content') as HTMLTextAreaElement,
     };
 
-    function showLogin(msg = '') {
+    function showLogin() {
       document.getElementById('admin-view')?.remove();
       location.reload();
     }
@@ -184,6 +209,7 @@ import Layout from '../layouts/Layout.astro';
           p.classList.toggle('active', (p as HTMLElement).id === `tab-${tab}`)
         );
         if (tab === 'guestbook') loadGuestbook();
+        if (tab === 'bruh') loadBruhEntries();
       });
     });
 
@@ -216,40 +242,6 @@ import Layout from '../layouts/Layout.astro';
       $('editor-card').scrollIntoView({ behavior: 'smooth' });
     });
 
-    $('sync-posts-btn').addEventListener('click', async () => {
-      const button = $('sync-posts-btn') as HTMLButtonElement;
-      button.disabled = true;
-      button.textContent = 'Syncing…';
-      try {
-        const res = await fetch(`${API}/admin/sync-posts`, {
-          method: 'POST',
-          headers: authHeaders(),
-        });
-        const data = await res.json();
-        if (res.status === 401) {
-          sessionStorage.removeItem(KEY_STORE);
-          adminKey = '';
-          showLogin('Session expired, please log in again.');
-          return;
-        }
-        if (!res.ok) {
-          alert(data.error || 'GitHub sync failed.');
-          return;
-        }
-        const failures = Array.isArray(data.failed) ? data.failed : [];
-        alert(
-          failures.length
-            ? `Synced ${data.synced} posts. Failed:\n${failures.map((item: { slug: string; error?: string }) => `${item.slug}: ${item.error || 'Unknown error'}`).join('\n')}`
-            : `Synced ${data.synced} posts to GitHub. Pages will rebuild.`
-        );
-      } catch {
-        alert('Network error — please try again.');
-      } finally {
-        button.disabled = false;
-        button.textContent = '↻ Sync all to GitHub';
-      }
-    });
-
     $('publish-btn').addEventListener('click', async () => {
       const status = $('editor-status');
       const slug = fields.slug.value.trim();
@@ -273,7 +265,7 @@ import Layout from '../layouts/Layout.astro';
         if (res.status === 401) {
           sessionStorage.removeItem(KEY_STORE);
           adminKey = '';
-          showLogin('Session expired, please log in again.');
+          showLogin();
           return;
         }
         const data = await res.json();
@@ -313,7 +305,7 @@ import Layout from '../layouts/Layout.astro';
     async function loadList() {
       try {
         const res = await fetch(`${API}/posts`);
-        if (!res.ok) return;
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const { posts = [] } = await res.json();
         const ul = $('post-list') as HTMLUListElement;
         ul.innerHTML = '';
@@ -348,13 +340,15 @@ import Layout from '../layouts/Layout.astro';
           ul.append(li);
         }
         $('list-empty').hidden = posts.length > 0;
-      } catch {}
+      } catch {
+        $('list-status').textContent = 'Could not load posts. Check the API connection and retry.';
+      }
     }
 
     async function loadIntoEditor(slug: string) {
       try {
         const res = await fetch(`${API}/posts/${slug}`);
-        if (!res.ok) return;
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const { post } = await res.json();
         editingSlug = slug;
         fields.title.value = post.title;
@@ -364,16 +358,21 @@ import Layout from '../layouts/Layout.astro';
         slugTouched = true;
         $('editor-status').textContent = `Editing “${post.title}”`;
         $('editor-card').scrollIntoView({ behavior: 'smooth' });
-      } catch {}
+      } catch {
+        $('editor-status').textContent = 'Could not load this post for editing.';
+      }
     }
 
     async function removePost(slug: string, title: string) {
       if (!confirm(`Delete “${title}”? This cannot be undone.`)) return;
       try {
         const res = await fetch(`${API}/posts/${slug}`, { method: 'DELETE', headers: authHeaders() });
-        if (res.status === 401) { showLogin('Session expired.'); return; }
+        if (res.status === 401) { showLogin(); return; }
         if (res.ok) loadList();
-      } catch {}
+        else $('list-status').textContent = 'Could not delete this post.';
+      } catch {
+        $('list-status').textContent = 'Network error — could not delete this post.';
+      }
     }
 
     // ---- Guestbook ----
@@ -431,9 +430,11 @@ import Layout from '../layouts/Layout.astro';
       if (!confirm(`Delete message from @${nickname}? Replies will also be removed.`)) return;
       try {
         const res = await fetch(`${API}/messages/${id}`, { method: 'DELETE', headers: authHeaders() });
-        if (res.status === 401) { showLogin('Session expired.'); return; }
+        if (res.status === 401) { showLogin(); return; }
         if (res.ok) { el.style.opacity = '0.3'; el.style.pointerEvents = 'none'; }
-      } catch {}
+      } catch {
+        el.querySelector('.gb-content')?.append(' — delete failed');
+      }
     }
     async function loadGuestbook() {
       const list = $('gb-list') as HTMLUListElement;
@@ -447,10 +448,98 @@ import Layout from '../layouts/Layout.astro';
         if (messages.length === 0) { empty.hidden = false; return; }
         for (const m of messages) list.append(renderMsg(m));
       } catch {
-        list.innerHTML = '<li class="gb-error">Failed to load messages.</li>';
+        const error = document.createElement('li');
+        error.className = 'gb-error';
+        error.textContent = 'Failed to load messages. Please refresh and try again.';
+        list.append(error);
       }
     }
     $('refresh-gb-btn').addEventListener('click', loadGuestbook);
+
+    interface BruhEntry { id: number; content: string; created_at: number; updated_at: number }
+    let editingBruhId: number | null = null;
+    const bruhContent = $('bruh-content') as HTMLTextAreaElement;
+    const bruhSave = $('bruh-save') as HTMLButtonElement;
+    const bruhStatus = $('bruh-status');
+
+    function resetBruhEditor() {
+      editingBruhId = null;
+      bruhContent.value = '';
+      bruhSave.textContent = 'Publish passage';
+      $('bruh-cancel').hidden = true;
+    }
+
+    async function loadBruhEntries() {
+      const list = $('bruh-list') as HTMLUListElement;
+      const empty = $('bruh-empty');
+      list.replaceChildren();
+      empty.hidden = true;
+      try {
+        const res = await fetch(`${API}/bruh`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const { entries = [] } = await res.json() as { entries: BruhEntry[] };
+        empty.hidden = entries.length > 0;
+        for (const entry of entries) {
+          const item = document.createElement('li');
+          const preview = document.createElement('p');
+          preview.className = 'row-title bruh-preview';
+          preview.textContent = entry.content;
+          const actions = document.createElement('div');
+          actions.className = 'row-actions';
+          const edit = document.createElement('button');
+          edit.type = 'button'; edit.className = 'btn ghost small'; edit.textContent = 'Edit';
+          edit.addEventListener('click', () => {
+            editingBruhId = entry.id;
+            bruhContent.value = entry.content;
+            bruhSave.textContent = 'Save changes';
+            $('bruh-cancel').hidden = false;
+            bruhStatus.textContent = 'Editing passage';
+            bruhContent.focus();
+          });
+          const remove = document.createElement('button');
+          remove.type = 'button'; remove.className = 'btn ghost small danger'; remove.textContent = 'Delete';
+          remove.addEventListener('click', async () => {
+            if (!confirm('Delete this Bruh passage?')) return;
+            const response = await fetch(`${API}/bruh/${entry.id}`, { method: 'DELETE', headers: authHeaders() });
+            if (response.status === 401) { showLogin(); return; }
+            if (!response.ok) { bruhStatus.textContent = 'Delete failed. Please retry.'; return; }
+            if (editingBruhId === entry.id) resetBruhEditor();
+            loadBruhEntries();
+          });
+          actions.append(edit, remove);
+          item.append(preview, actions);
+          list.append(item);
+        }
+      } catch {
+        bruhStatus.textContent = 'Could not load Bruh passages. Check the API connection and retry.';
+      }
+    }
+
+    bruhSave.addEventListener('click', async () => {
+      const content = bruhContent.value.trim();
+      if (!content) { bruhStatus.textContent = 'Write a passage before publishing.'; return; }
+      bruhSave.disabled = true;
+      bruhStatus.textContent = editingBruhId === null ? 'Publishing…' : 'Saving…';
+      try {
+        const response = await fetch(editingBruhId === null ? `${API}/bruh` : `${API}/bruh/${editingBruhId}`, {
+          method: editingBruhId === null ? 'POST' : 'PUT',
+          headers: authHeaders(true),
+          body: JSON.stringify({ content }),
+        });
+        if (response.status === 401) { showLogin(); return; }
+        const data = await response.json();
+        if (!response.ok) { bruhStatus.textContent = data.error || 'Could not save this passage.'; return; }
+        bruhStatus.textContent = editingBruhId === null ? 'Passage published.' : 'Passage updated.';
+        resetBruhEditor();
+        loadBruhEntries();
+      } catch {
+        bruhStatus.textContent = 'Network error — please retry.';
+      } finally {
+        bruhSave.disabled = false;
+      }
+    });
+    $('bruh-cancel').addEventListener('click', resetBruhEditor);
+    $('refresh-bruh').addEventListener('click', loadBruhEntries);
 
     loadList();
   }
@@ -610,12 +699,16 @@ import Layout from '../layouts/Layout.astro';
   .btn.danger:hover { border-color: #e5484d; color: #e5484d; }
 
   #post-list { list-style: none; padding: 0; margin: 0; }
+  #bruh-list { list-style: none; padding: 0; margin: 0; }
   #post-list li {
     display: flex; align-items: center; justify-content: space-between;
     gap: 1rem; padding: 0.85rem 0.25rem;
     border-bottom: 1px solid var(--surface-border); flex-wrap: wrap;
   }
   #post-list li:last-child { border-bottom: none; }
+  #bruh-list li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem .25rem; border-bottom: 1px solid var(--surface-border); }
+  #bruh-list li:last-child { border-bottom: none; }
+  .bruh-preview { max-width: 68ch; margin: 0; font-weight: 450; white-space: pre-wrap; overflow-wrap: anywhere; }
   .row-info { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; min-width: 0; }
   .row-title { color: var(--text); text-decoration: none; font-weight: 600; transition: color 0.2s ease; }
   .row-title:hover { color: var(--btn-primary-bg); }

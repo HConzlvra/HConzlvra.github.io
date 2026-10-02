@@ -47,7 +47,9 @@ Feel free to check [our documentation](https://docs.astro.build) or jump into ou
 
 ## Admin post publishing and GitHub sync
 
-Admin-published posts are stored in the API's D1 database and are also synced as Markdown files to `src/content/posts/<slug>.md` in this repository. Each GitHub commit to `main` triggers the GitHub Pages workflow, so the post receives a static page and appears in the posts sidebar after deployment.
+Admin-published posts are stored in the API's D1 database and synced as Markdown files to `src/content/posts/<slug>.md` in this repository. Each successful GitHub write triggers the GitHub Pages workflow, so the post receives a static page and appears in the posts sidebar after deployment. If GitHub sync fails, the post remains in D1 and the admin reports the GitHub API error; fix the token permissions and publish/update the post again.
+
+The old build-time D1 polling script and bulk-sync button have been removed. They only copied D1 posts into a temporary local build checkout and did not write them back to GitHub. New posts now use the API's per-post GitHub Contents write. The Bruh admin tab stores standalone passages in D1; the Bruh page combines those entries with the paragraphs in `src/content/pages/bruh.md`, showing each as a separate card.
 
 The API runs in the Cloudflare Pages Direct Upload project that serves `guestbook-9z8.pages.dev`. Configure these Production variables in Cloudflare Pages → project → Settings → Variables and Secrets:
 
@@ -65,4 +67,4 @@ Never put the GitHub token in frontend code, `.env` files committed to GitHub, o
 | `CLOUDFLARE_ACCOUNT_ID` | The Cloudflare account ID |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token scoped to this account's Pages project deployment permission |
 
-Publishing or editing a post creates or updates its Markdown file; deleting a post removes its Markdown file. Use **Sync all to GitHub** in the admin post list once to backfill posts that were already in D1 before this integration was deployed.
+Publishing or editing a post creates or updates its Markdown file; deleting a post removes its Markdown file. Posts already in D1 from before this integration must be published or edited individually to create their repository Markdown file.

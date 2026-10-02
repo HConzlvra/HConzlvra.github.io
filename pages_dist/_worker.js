@@ -9,6 +9,7 @@
 //   DELETE /api/messages/:id              删除留言及其全部子孙回复（需 Authorization: Bearer <ADMIN_KEY>）
 //   POST   /api/visit                     访客上报（sendBeacon 空 body；定位由 request.cf 在边缘解析）
 //   GET    /api/stats                      归档页汇总：访客数 / 地图点位 / 动态文章数与字数 / 留言数
+//   GET/POST/PUT/DELETE /api/bruh          管理员管理 Bruh 文段
 //
 // 安全设计：
 //   - CORS 仅放行白名单站点，其余来源不带 CORS 头（浏览器自行拦截）
@@ -60,7 +61,7 @@ function corsHeadersFor(request) {
   if (!ALLOWED_ORIGINS.has(origin)) return {}; // 非白名单：不带 CORS 头
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
@@ -255,6 +256,20 @@ async function ensurePostsTable(env) {
   postsTableReady = true;
 }
 
+let bruhTableReady = false;
+async function ensureBruhTable(env) {
+  if (bruhTableReady) return;
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS bruh_entries (
+       id         INTEGER PRIMARY KEY AUTOINCREMENT,
+       content    TEXT NOT NULL,
+       created_at INTEGER NOT NULL,
+       updated_at INTEGER NOT NULL
+     )`
+  ).run();
+  bruhTableReady = true;
+}
+
 // 管理员鉴权：Bearer <ADMIN_KEY>（留言删除与文章写入共用同一个密钥）
 // 常数时间比较，避免时序侧信道
 function isAdmin(request, env) {
@@ -288,6 +303,17 @@ function encodeBase64Utf8(value) {
   return btoa(binary);
 }
 
+async function githubApiError(response, action) {
+  let detail = '';
+  try {
+    const payload = await response.clone().json();
+    if (typeof payload.message === 'string') detail = payload.message;
+  } catch {
+    detail = '';
+  }
+  return new Error(`${action} (HTTP ${response.status}${detail ? `: ${detail}` : ''}).`);
+}
+
 async function syncPostToGitHub(post, env) {
   const token = String(env.GITHUB_TOKEN || '');
   const owner = String(env.GITHUB_OWNER || '');
@@ -311,7 +337,7 @@ async function syncPostToGitHub(post, env) {
   if (existing.ok) {
     sha = (await existing.json()).sha;
   } else if (existing.status !== 404) {
-    throw new Error(`GitHub could not check the Markdown file (HTTP ${existing.status}).`);
+    throw await githubApiError(existing, 'GitHub could not check the Markdown file');
   }
 
   const response = await fetch(url, {
@@ -325,7 +351,7 @@ async function syncPostToGitHub(post, env) {
     }),
   });
   if (!response.ok) {
-    throw new Error(`GitHub could not save the Markdown file (HTTP ${response.status}).`);
+    throw await githubApiError(response, 'GitHub could not save the Markdown file');
   }
 }
 
@@ -348,14 +374,14 @@ async function deletePostFromGitHub(slug, env) {
   };
   const existing = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers });
   if (existing.status === 404) return;
-  if (!existing.ok) throw new Error(`GitHub could not check the Markdown file (HTTP ${existing.status}).`);
+  if (!existing.ok) throw await githubApiError(existing, 'GitHub could not check the Markdown file');
   const { sha } = await existing.json();
   const response = await fetch(url, {
     method: 'DELETE',
     headers,
     body: JSON.stringify({ message: `Delete post: ${slug}`, sha, branch }),
   });
-  if (!response.ok) throw new Error(`GitHub could not delete the Markdown file (HTTP ${response.status}).`);
+  if (!response.ok) throw await githubApiError(response, 'GitHub could not delete the Markdown file');
 }
 
 async function listPosts(env, cors) {
@@ -436,28 +462,6 @@ async function savePost(request, env, cors) {
   return json({ post, repositorySync }, 201, cors);
 }
 
-async function syncAllPosts(request, env, cors) {
-  if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
-  await ensurePostsTable(env);
-  const { results } = await env.DB.prepare(
-    'SELECT slug, title, description, content, created_at FROM posts ORDER BY created_at DESC'
-  ).all();
-  const failed = [];
-  let synced = 0;
-  for (const post of results || []) {
-    try {
-      await syncPostToGitHub(post, env);
-      synced += 1;
-    } catch (error) {
-      failed.push({
-        slug: post.slug,
-        error: error instanceof Error ? error.message : 'GitHub sync failed.',
-      });
-    }
-  }
-  return json({ synced, failed }, 200, cors);
-}
-
 async function deletePost(request, env, cors, slug) {
   if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
   await ensurePostsTable(env);
@@ -472,6 +476,57 @@ async function deletePost(request, env, cors, slug) {
   }
   const { meta } = await env.DB.prepare('DELETE FROM posts WHERE slug = ?').bind(slug).run();
   if (meta.changes === 0) return json({ error: 'Post not found' }, 404, cors);
+  return json({ ok: true }, 200, cors);
+}
+
+async function listBruhEntries(env, cors) {
+  await ensureBruhTable(env);
+  const { results } = await env.DB.prepare(
+    'SELECT id, content, created_at, updated_at FROM bruh_entries ORDER BY id DESC'
+  ).all();
+  return json({ entries: results || [] }, 200, cors);
+}
+
+async function saveBruhEntry(request, env, cors, id) {
+  if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
+  await ensureBruhTable(env);
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: 'Request body must be valid JSON' }, 400, cors);
+  }
+
+  const content = cleanText(String(body?.content ?? '')).trim();
+  if (!content) return json({ error: 'Text cannot be empty' }, 400, cors);
+  if (countPoints(content) > 10_000)
+    return json({ error: 'Text must be at most 10,000 characters' }, 400, cors);
+
+  const now = Date.now();
+  if (id) {
+    const entry = await env.DB.prepare(
+      'UPDATE bruh_entries SET content = ?, updated_at = ? WHERE id = ? RETURNING id, content, created_at, updated_at'
+    )
+      .bind(content, now, Number(id))
+      .first();
+    if (!entry) return json({ error: 'Bruh entry not found' }, 404, cors);
+    return json({ entry }, 200, cors);
+  }
+
+  const entry = await env.DB.prepare(
+    'INSERT INTO bruh_entries (content, created_at, updated_at) VALUES (?, ?, ?) RETURNING id, content, created_at, updated_at'
+  )
+    .bind(content, now, now)
+    .first();
+  return json({ entry }, 201, cors);
+}
+
+async function deleteBruhEntry(request, env, cors, id) {
+  if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
+  await ensureBruhTable(env);
+  const { meta } = await env.DB.prepare('DELETE FROM bruh_entries WHERE id = ?').bind(Number(id)).run();
+  if (meta.changes === 0) return json({ error: 'Bruh entry not found' }, 404, cors);
   return json({ ok: true }, 200, cors);
 }
 
@@ -598,9 +653,14 @@ export default {
 
     if (path === '/api/posts' && request.method === 'GET') return listPosts(env, cors);
     if (path === '/api/posts' && request.method === 'POST') return savePost(request, env, cors);
-    if (path === '/api/admin/sync-posts' && request.method === 'POST') return syncAllPosts(request, env, cors);
     if (pm && request.method === 'GET') return getPost(env, cors, pm[1]);
     if (pm && request.method === 'DELETE') return deletePost(request, env, cors, pm[1]);
+
+    const bm = path.match(/^\/api\/bruh\/(\d+)$/);
+    if (path === '/api/bruh' && request.method === 'GET') return listBruhEntries(env, cors);
+    if (path === '/api/bruh' && request.method === 'POST') return saveBruhEntry(request, env, cors);
+    if (bm && request.method === 'PUT') return saveBruhEntry(request, env, cors, bm[1]);
+    if (bm && request.method === 'DELETE') return deleteBruhEntry(request, env, cors, bm[1]);
 
     if (path === '/api/admin/verify' && request.method === 'GET')
       return isAdmin(request, env) ? json({ ok: true }, 200, cors) : json({ error: 'Unauthorized' }, 401, cors);

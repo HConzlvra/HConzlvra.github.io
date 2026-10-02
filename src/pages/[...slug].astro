@@ -12,16 +12,96 @@ export async function getStaticPaths() {
 
 const { page } = Astro.props;
 const { Content } = await render(page);
+const isBruh = page.id === 'bruh';
+const paragraphCount = isBruh
+  ? page.body.trim().split(/\n\s*\n/).filter((block) => block.trim() && !block.trim().startsWith('---')).length
+  : 0;
 ---
 
 <Layout title={`${page.data.title} | HConzlvra_`} description={page.data.description}>
-  <article class="prose page-prose enter-left">
-    <Content />
-  </article>
+  {isBruh ? (
+    <main class="bruh-page enter-left">
+      <header class="bruh-hero">
+        <div class="bruh-kicker"><span>THE MISCELLANY</span><span>VOL. 01 / ONGOING</span></div>
+        <h1>Bruh<span>.</span></h1>
+        <p>Some thoughts refuse to become essays. They still deserve a place to land.</p>
+        <div class="bruh-count"><strong>{paragraphCount}</strong><span>fragments in the archive</span></div>
+      </header>
+      <section class="bruh-grid bruh-source" aria-label="Bruh archive">
+        <Content />
+      </section>
+      <section class="bruh-grid" id="bruh-admin-entries" aria-label="New Bruh passages"></section>
+    </main>
+  ) : (
+    <article class="prose page-prose enter-left">
+      <Content />
+    </article>
+  )}
 </Layout>
+
+<script>
+  import { API_BASE } from '../lib/api';
+
+  document.addEventListener('astro:page-load', async () => {
+    const host = document.getElementById('bruh-admin-entries');
+    if (!host || host.dataset.loaded === 'true') return;
+    host.dataset.loaded = 'true';
+    try {
+      const response = await fetch(`${API_BASE}/bruh`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const { entries = [] } = await response.json();
+      const count = document.querySelector('.bruh-count strong');
+      if (count) count.textContent = String(Number(count.textContent) + entries.length);
+      for (const entry of entries) {
+        const card = document.createElement('article');
+        card.className = 'bruh-card bruh-admin-card';
+        const label = document.createElement('span');
+        label.className = 'bruh-card-label';
+        label.textContent = 'FROM THE DESK';
+        const time = document.createElement('time');
+        time.dateTime = new Date(entry.created_at).toISOString();
+        time.textContent = new Date(entry.created_at).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+        const content = document.createElement('p');
+        content.textContent = entry.content;
+        card.append(label, time, content);
+        host.append(card);
+      }
+    } catch {
+      host.dataset.loaded = 'false';
+    }
+  });
+</script>
 
 <style>
   .page-prose {
     padding-top: 7rem;
+  }
+
+  .bruh-page { max-width: 1100px; margin: 0 auto; padding: 7.5rem 1.5rem 5rem; }
+  .bruh-hero { position: relative; overflow: hidden; padding: clamp(2rem, 7vw, 5.5rem); margin-bottom: 2rem; border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent); border-radius: 1.5rem 1.5rem 5rem 1.5rem; background: radial-gradient(ellipse at 85% 15%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 38%), linear-gradient(135deg, color-mix(in srgb, var(--surface) 88%, #19120e), color-mix(in srgb, var(--surface) 75%, #47351e)); }
+  .bruh-kicker { display: flex; justify-content: space-between; gap: 1rem; color: var(--accent-text); font-size: .7rem; font-weight: 800; letter-spacing: .18em; }
+  .bruh-hero h1 { margin: 1.4rem 0 .2rem; font-size: clamp(4rem, 13vw, 9rem); line-height: .85; letter-spacing: -.09em; }
+  .bruh-hero h1 span { color: var(--accent); }
+  .bruh-hero > p { max-width: 32rem; margin: 1.5rem 0 2.5rem; color: var(--text-secondary); font-size: clamp(1rem, 2vw, 1.2rem); }
+  .bruh-count { display: inline-flex; align-items: baseline; gap: .65rem; padding: .55rem .9rem; border: 1px solid var(--surface-border); border-radius: 99px; background: color-mix(in srgb, var(--surface) 70%, transparent); color: var(--text-secondary); font-size: .8rem; }
+  .bruh-count strong { color: var(--text); font-size: 1.2rem; }
+  .bruh-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: stretch; }
+  .bruh-source { counter-reset: fragment; }
+  :global(.bruh-card) { position: relative; min-width: 0; padding: 1.5rem; border: 1px solid var(--surface-border); border-radius: 1rem; background: var(--surface); box-shadow: var(--card-shadow); }
+  :global(.bruh-source > p) { counter-increment: fragment; margin: 0; color: var(--text); line-height: 1.85; white-space: pre-wrap; overflow-wrap: anywhere; }
+  :global(.bruh-source > p)::before { content: "FRAGMENT / " counter(fragment, decimal-leading-zero); display: block; margin-bottom: .9rem; color: var(--accent-text); font-size: .64rem; font-weight: 800; letter-spacing: .16em; }
+  :global(.bruh-source > p:nth-child(4n + 1)) { border-radius: 1.4rem .45rem 1.4rem .45rem; }
+  :global(.bruh-source > p:nth-child(4n + 2)) { transform: translateY(1.2rem); background: color-mix(in srgb, var(--surface) 80%, var(--accent)); }
+  :global(.bruh-source > p:nth-child(4n + 3)) { border-radius: .45rem 1.4rem .45rem 1.4rem; }
+  :global(.bruh-source > p:nth-child(4n)) { transform: translateY(.6rem); }
+  .bruh-admin-card { display: flex; flex-direction: column; gap: .8rem; border-color: color-mix(in srgb, var(--accent) 40%, var(--surface-border)); }
+  .bruh-card-label { color: var(--accent-text); font-size: .64rem; font-weight: 800; letter-spacing: .16em; }
+  .bruh-admin-card time { color: var(--text-secondary); font-size: .75rem; }
+  .bruh-admin-card p { margin: 0; line-height: 1.85; white-space: pre-wrap; overflow-wrap: anywhere; }
+  @media (max-width: 700px) {
+    .bruh-page { padding: 6rem 1rem 3rem; }
+    .bruh-grid { grid-template-columns: 1fr; gap: .8rem; }
+    :global(.bruh-source > p:nth-child(n)) { transform: none; }
+    .bruh-kicker { font-size: .58rem; }
   }
 </style>
