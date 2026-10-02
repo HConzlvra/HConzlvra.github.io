@@ -239,7 +239,7 @@ import Layout from '../layouts/Layout.astro';
         const failures = Array.isArray(data.failed) ? data.failed : [];
         alert(
           failures.length
-            ? `Synced ${data.synced} posts. Failed: ${failures.map((item: { slug: string }) => item.slug).join(', ')}`
+            ? `Synced ${data.synced} posts. Failed:\n${failures.map((item: { slug: string; error?: string }) => `${item.slug}: ${item.error || 'Unknown error'}`).join('\n')}`
             : `Synced ${data.synced} posts to GitHub. Pages will rebuild.`
         );
       } catch {
