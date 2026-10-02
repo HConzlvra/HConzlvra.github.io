@@ -264,6 +264,100 @@ function isAdmin(request, env) {
   return token.length === key.length && token === key;
 }
 
+function postMarkdown(post) {
+  const quote = (value) => JSON.stringify(String(value ?? ''));
+  const createdAt = new Date(Number(post.created_at) || Date.now()).toISOString();
+  return [
+    '---',
+    `title: ${quote(post.title)}`,
+    `description: ${quote(post.description)}`,
+    `pubDate: ${quote(createdAt)}`,
+    '---',
+    '',
+    String(post.content ?? '').trim(),
+    '',
+  ].join('\n');
+}
+
+function encodeBase64Utf8(value) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+  return btoa(binary);
+}
+
+async function syncPostToGitHub(post, env) {
+  const token = String(env.GITHUB_TOKEN || '');
+  const owner = String(env.GITHUB_OWNER || '');
+  const repo = String(env.GITHUB_REPO || '');
+  const branch = String(env.GITHUB_BRANCH || 'main');
+  if (!token || !owner || !repo) {
+    throw new Error('GitHub sync is not configured on the API service.');
+  }
+
+  const path = `src/content/posts/${post.slug}.md`;
+  const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path}`;
+  const headers = {
+    Accept: 'application/vnd.github+json',
+    Authorization: `Bearer ${token}`,
+    'X-GitHub-Api-Version': '2022-11-28',
+    'Content-Type': 'application/json',
+  };
+
+  const existing = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers });
+  let sha;
+  if (existing.ok) {
+    sha = (await existing.json()).sha;
+  } else if (existing.status !== 404) {
+    throw new Error(`GitHub could not check the Markdown file (HTTP ${existing.status}).`);
+  }
+
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({
+      message: `${sha ? 'Update' : 'Publish'} post: ${post.slug}`,
+      content: encodeBase64Utf8(postMarkdown(post)),
+      branch,
+      ...(sha ? { sha } : {}),
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`GitHub could not save the Markdown file (HTTP ${response.status}).`);
+  }
+}
+
+async function deletePostFromGitHub(slug, env) {
+  const token = String(env.GITHUB_TOKEN || '');
+  const owner = String(env.GITHUB_OWNER || '');
+  const repo = String(env.GITHUB_REPO || '');
+  const branch = String(env.GITHUB_BRANCH || 'main');
+  if (!token || !owner || !repo) {
+    throw new Error('GitHub sync is not configured on the API service.');
+  }
+
+  const path = `src/content/posts/${slug}.md`;
+  const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path}`;
+  const headers = {
+    Accept: 'application/vnd.github+json',
+    Authorization: `Bearer ${token}`,
+    'X-GitHub-Api-Version': '2022-11-28',
+    'Content-Type': 'application/json',
+  };
+  const existing = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers });
+  if (existing.status === 404) return;
+  if (!existing.ok) throw new Error(`GitHub could not check the Markdown file (HTTP ${existing.status}).`);
+  const { sha } = await existing.json();
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers,
+    body: JSON.stringify({ message: `Delete post: ${slug}`, sha, branch }),
+  });
+  if (!response.ok) throw new Error(`GitHub could not delete the Markdown file (HTTP ${response.status}).`);
+}
+
 async function listPosts(env, cors) {
   await ensurePostsTable(env);
   const { results } = await env.DB.prepare(
@@ -329,12 +423,53 @@ async function savePost(request, env, cors) {
   )
     .bind(slug)
     .first();
-  return json({ post }, 201, cors);
+  let repositorySync;
+  try {
+    await syncPostToGitHub(post, env);
+    repositorySync = { ok: true };
+  } catch (error) {
+    repositorySync = {
+      ok: false,
+      error: error instanceof Error ? error.message : 'GitHub sync failed.',
+    };
+  }
+  return json({ post, repositorySync }, 201, cors);
+}
+
+async function syncAllPosts(request, env, cors) {
+  if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
+  await ensurePostsTable(env);
+  const { results } = await env.DB.prepare(
+    'SELECT slug, title, description, content, created_at FROM posts ORDER BY created_at DESC'
+  ).all();
+  const failed = [];
+  let synced = 0;
+  for (const post of results || []) {
+    try {
+      await syncPostToGitHub(post, env);
+      synced += 1;
+    } catch (error) {
+      failed.push({
+        slug: post.slug,
+        error: error instanceof Error ? error.message : 'GitHub sync failed.',
+      });
+    }
+  }
+  return json({ synced, failed }, 200, cors);
 }
 
 async function deletePost(request, env, cors, slug) {
   if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
   await ensurePostsTable(env);
+  try {
+    await deletePostFromGitHub(slug, env);
+  } catch (error) {
+    return json(
+      { error: error instanceof Error ? error.message : 'Could not sync deletion to GitHub.' },
+      502,
+      cors
+    );
+  }
   const { meta } = await env.DB.prepare('DELETE FROM posts WHERE slug = ?').bind(slug).run();
   if (meta.changes === 0) return json({ error: 'Post not found' }, 404, cors);
   return json({ ok: true }, 200, cors);
@@ -463,6 +598,7 @@ export default {
 
     if (path === '/api/posts' && request.method === 'GET') return listPosts(env, cors);
     if (path === '/api/posts' && request.method === 'POST') return savePost(request, env, cors);
+    if (path === '/api/admin/sync-posts' && request.method === 'POST') return syncAllPosts(request, env, cors);
     if (pm && request.method === 'GET') return getPost(env, cors, pm[1]);
     if (pm && request.method === 'DELETE') return deletePost(request, env, cors, pm[1]);
 

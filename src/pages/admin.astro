@@ -128,7 +128,10 @@ import Layout from '../layouts/Layout.astro';
                 <p class="status" id="editor-status"></p>
               </div>
               <div class="card list">
-                <h3>Published posts</h3>
+                <div class="panel-head">
+                  <h3>Published posts</h3>
+                  <button type="button" class="btn ghost small" id="sync-posts-btn">↻ Sync all to GitHub</button>
+                </div>
                 <ul id="post-list"></ul>
                 <p class="empty" id="list-empty" hidden>No posts yet.</p>
               </div>
@@ -213,6 +216,40 @@ import Layout from '../layouts/Layout.astro';
       $('editor-card').scrollIntoView({ behavior: 'smooth' });
     });
 
+    $('sync-posts-btn').addEventListener('click', async () => {
+      const button = $('sync-posts-btn') as HTMLButtonElement;
+      button.disabled = true;
+      button.textContent = 'Syncing…';
+      try {
+        const res = await fetch(`${API}/admin/sync-posts`, {
+          method: 'POST',
+          headers: authHeaders(),
+        });
+        const data = await res.json();
+        if (res.status === 401) {
+          sessionStorage.removeItem(KEY_STORE);
+          adminKey = '';
+          showLogin('Session expired, please log in again.');
+          return;
+        }
+        if (!res.ok) {
+          alert(data.error || 'GitHub sync failed.');
+          return;
+        }
+        const failures = Array.isArray(data.failed) ? data.failed : [];
+        alert(
+          failures.length
+            ? `Synced ${data.synced} posts. Failed: ${failures.map((item: { slug: string }) => item.slug).join(', ')}`
+            : `Synced ${data.synced} posts to GitHub. Pages will rebuild.`
+        );
+      } catch {
+        alert('Network error — please try again.');
+      } finally {
+        button.disabled = false;
+        button.textContent = '↻ Sync all to GitHub';
+      }
+    });
+
     $('publish-btn').addEventListener('click', async () => {
       const status = $('editor-status');
       const slug = fields.slug.value.trim();
@@ -244,9 +281,12 @@ import Layout from '../layouts/Layout.astro';
           status.textContent = data.error || 'Publish failed.';
           return;
         }
-        status.textContent = editingSlug
+        const publishedMessage = editingSlug
           ? `Updated “${data.post.title}” ✓`
           : `Published “${data.post.title}” ✓`;
+        status.textContent = data.repositorySync?.ok
+          ? `${publishedMessage} Markdown synced to GitHub; Pages will rebuild.`
+          : `${publishedMessage} GitHub sync failed: ${data.repositorySync?.error || 'not configured'}`;
         resetForm();
         loadList();
       } catch {
