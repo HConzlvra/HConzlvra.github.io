@@ -340,6 +340,7 @@ function githubForPosts(env) {
       Authorization: `Bearer ${token}`,
       'X-GitHub-Api-Version': '2022-11-28',
       'Content-Type': 'application/json',
+      'User-Agent': 'hconzlvra-guestbook-api', // GitHub 强制要求 User-Agent，缺失会直接 403
     },
   };
 }
