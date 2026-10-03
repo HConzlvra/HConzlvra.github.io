@@ -314,7 +314,7 @@ async function githubApiError(response, action) {
   return new Error(`${action} (HTTP ${response.status}${detail ? `: ${detail}` : ''}).`);
 }
 
-async function syncPostToGitHub(post, env) {
+async function syncPostToGitHub(post, env, { onlyIfMissing = false } = {}) {
   const token = String(env.GITHUB_TOKEN || '');
   const owner = String(env.GITHUB_OWNER || '');
   const repo = String(env.GITHUB_REPO || '');
@@ -335,6 +335,7 @@ async function syncPostToGitHub(post, env) {
   const existing = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers });
   let sha;
   if (existing.ok) {
+    if (onlyIfMissing) return false;
     sha = (await existing.json()).sha;
   } else if (existing.status !== 404) {
     throw await githubApiError(existing, 'GitHub could not check the Markdown file');
@@ -353,6 +354,7 @@ async function syncPostToGitHub(post, env) {
   if (!response.ok) {
     throw await githubApiError(response, 'GitHub could not save the Markdown file');
   }
+  return true;
 }
 
 async function deletePostFromGitHub(slug, env) {
@@ -496,6 +498,30 @@ async function deletePost(request, env, cors, slug) {
   }
 
   return json({ ok: true, databaseDeleted, repositorySync: { ok: true } }, 200, cors);
+}
+
+async function syncMissingPosts(request, env, cors) {
+  if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
+  await ensurePostsTable(env);
+  const { results = [] } = await env.DB.prepare(
+    'SELECT slug, title, description, content, created_at FROM posts ORDER BY created_at DESC'
+  ).all();
+
+  const failed = [];
+  let synced = 0;
+  let skipped = 0;
+  for (const post of results) {
+    try {
+      if (await syncPostToGitHub(post, env, { onlyIfMissing: true })) synced += 1;
+      else skipped += 1;
+    } catch (error) {
+      failed.push({
+        slug: post.slug,
+        error: error instanceof Error ? error.message : 'GitHub sync failed.',
+      });
+    }
+  }
+  return json({ synced, skipped, failed }, 200, cors);
 }
 
 async function listBruhEntries(env, cors) {
@@ -672,6 +698,8 @@ export default {
 
     if (path === '/api/posts' && request.method === 'GET') return listPosts(env, cors);
     if (path === '/api/posts' && request.method === 'POST') return savePost(request, env, cors);
+    if (path === '/api/admin/sync-missing-posts' && request.method === 'POST')
+      return syncMissingPosts(request, env, cors);
     if (pm && request.method === 'GET') return getPost(env, cors, pm[1]);
     if (pm && request.method === 'DELETE') return deletePost(request, env, cors, pm[1]);
 
