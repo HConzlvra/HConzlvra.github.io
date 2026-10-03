@@ -311,6 +311,12 @@ async function githubApiError(response, action) {
   } catch {
     detail = '';
   }
+  if (response.status === 403) {
+    detail = [
+      detail,
+      'Check the Cloudflare Pages GITHUB_TOKEN: it must be a GitHub token with Contents read/write access to the configured repository (not a Cloudflare API token).',
+    ].filter(Boolean).join(' ');
+  }
   return new Error(`${action} (HTTP ${response.status}${detail ? `: ${detail}` : ''}).`);
 }
 
