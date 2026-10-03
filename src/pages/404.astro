@@ -1,8 +1,6 @@
 ---
-// 404 页 + 动态文章兜底：
-// 主站是纯静态 GitHub Pages，/admin 后台发布的文章（存 D1）没有构建产物，
-// 访问 /posts/<动态slug> 会落到本页。这里检测路径并从文章 API 拉取，
-// 成功则原地渲染成文章页（URL 保持不变），失败保持 404 展示
+// 404 页：简单的未找到页面。
+// 文章已静态化为 .md 内容集合，未构建出的 slug 直接 404，不再做"动态文章兜底"。
 import Layout from '../layouts/Layout.astro';
 ---
 
@@ -13,53 +11,6 @@ import Layout from '../layouts/Layout.astro';
     <a href="/" class="nf-link">← Back home</a>
   </div>
 </Layout>
-
-<script>
-  import { marked } from 'marked';
-  import { API_BASE } from '../lib/api';
-
-  marked.setOptions({ breaks: true });
-
-  const API = API_BASE;
-
-  async function renderPost() {
-    const m = location.pathname.match(/^\/posts\/([a-z0-9][a-z0-9-]*)\/?$/);
-    if (!m) return;
-    const nf = document.getElementById('nf');
-    if (!nf) return;
-    // 已渲染过则跳过（避免 ClientRouter 重复触发）
-    if (nf.dataset.rendered === m[1]) return;
-    try {
-      const res = await fetch(`${API}/posts/${m[1]}`);
-      if (!res.ok) return;
-      const { post } = await res.json();
-
-      nf.dataset.rendered = m[1];
-      document.title = `${post.title} | Posts`;
-      nf.classList.add('post-view');
-      nf.innerHTML = `
-        <header class="post-header">
-          <h1 class="post-title"></h1>
-          <time class="post-date"></time>
-        </header>
-        <article class="prose post-article" id="md"></article>`;
-      (nf.querySelector('.post-title') as HTMLElement).textContent = post.title;
-      const dateEl = nf.querySelector('.post-date') as HTMLElement;
-      dateEl.textContent = new Date(post.created_at).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
-      document.getElementById('md')!.innerHTML = marked.parse(post.content) as string;
-    } catch {
-      /* 网络失败：保持 404 展示 */
-    }
-  }
-
-  // 首次加载 + ClientRouter 每次导航后都触发
-  document.addEventListener('astro:page-load', renderPost);
-  renderPost();
-</script>
 
 <style>
   .nf {
@@ -94,34 +45,5 @@ import Layout from '../layouts/Layout.astro';
   }
   .nf-link:hover {
     text-decoration: underline;
-  }
-
-  /* 兜底渲染动态文章时的版式（与静态文章页一致） */
-  .nf.post-view {
-    max-width: 760px;
-  }
-  /* 文章标题：实色（与静态文章页一致，取消渐变） */
-  .nf.post-view h1 {
-    color: var(--text);
-    background: none;
-    -webkit-background-clip: border-box;
-    background-clip: border-box;
-    -webkit-text-fill-color: var(--text);
-    font-size: 2.4rem;
-  }
-  /* 正文区顶距收紧：标题在上方 header 内，正文不再额外空一大截 */
-  .nf .post-article {
-    padding-top: 0.5rem;
-  }
-  .post-header {
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid var(--surface-border);
-  }
-  .post-date {
-    display: block;
-    margin-top: 0.5rem;
-    font-size: 0.85rem;
-    color: var(--text-secondary);
   }
 </style>

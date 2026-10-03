@@ -134,9 +134,9 @@ import Layout from '../layouts/Layout.astro';
               <div class="card list">
                 <div class="panel-head">
                   <h3>Published posts</h3>
-                  <button type="button" class="btn ghost small" id="sync-missing-btn">↻ Sync missing .md</button>
+                  <button type="button" class="btn ghost small" id="sync-btn">↻ Sync to GitHub</button>
                 </div>
-                <p class="hint sync-help">Create Markdown files for D1 posts that are missing from GitHub. Existing files are left unchanged.</p>
+                <p class="hint sync-help">Write every post in the database as a Markdown file in the repository, overwriting existing files.</p>
                 <p class="status" id="sync-status" aria-live="polite"></p>
                 <ul id="post-list"></ul>
                 <p class="empty" id="list-empty" hidden>No posts yet.</p>
@@ -245,13 +245,13 @@ import Layout from '../layouts/Layout.astro';
       $('editor-card').scrollIntoView({ behavior: 'smooth' });
     });
 
-    $('sync-missing-btn').addEventListener('click', async () => {
-      const button = $('sync-missing-btn') as HTMLButtonElement;
+    $('sync-btn').addEventListener('click', async () => {
+      const button = $('sync-btn') as HTMLButtonElement;
       const status = $('sync-status');
       button.disabled = true;
-      status.textContent = 'Checking D1 posts and GitHub Markdown files…';
+      status.textContent = 'Writing posts to the repository…';
       try {
-        const response = await fetch(`${API}/admin/sync-missing-posts`, {
+        const response = await fetch(`${API}/admin/sync-posts`, {
           method: 'POST',
           headers: authHeaders(),
         });
@@ -263,15 +263,15 @@ import Layout from '../layouts/Layout.astro';
           return;
         }
         if (!response.ok) {
-          status.textContent = data.error || 'Could not sync missing Markdown files.';
+          status.textContent = data.error || 'Could not sync posts to GitHub.';
           return;
         }
         const failures = Array.isArray(data.failed) ? data.failed : [];
         status.textContent = failures.length
-          ? `Created ${data.synced} file(s); ${data.skipped} already existed. Failed: ${failures.map((item: { slug: string; error: string }) => `${item.slug}: ${item.error}`).join(' | ')}`
-          : `Created ${data.synced} Markdown file(s); ${data.skipped} already existed. GitHub Pages will rebuild.`;
+          ? `Synced ${data.synced} post(s); ${failures.length} failed: ${failures.map((item: { slug: string; error: string }) => `${item.slug}: ${item.error}`).join(' | ')}`
+          : `Synced ${data.synced} post(s) to GitHub. The site will rebuild.`;
       } catch {
-        status.textContent = 'Network error — could not sync missing Markdown files.';
+        status.textContent = 'Network error — could not sync posts to GitHub.';
       } finally {
         button.disabled = false;
       }

@@ -1,8 +1,7 @@
 ---
 // Archive：全站归档 —— 站点统计（文章/字数/访客/留言）+ 访客地图 + 按年时间线。
-// 静态部分（文章列表、字数、世界地图）在构建期生成；
-// 动态部分（访客数、地图点位、/admin 发布的文章、留言数）运行时从 API 拉取，
-// 后端不可用时整页仍以静态内容正常展示
+// 文章列表、字数、世界地图、时间线均在构建期由内容集合静态生成；
+// 仅访客数、地图点位、留言数为运行时从 API 拉取，后端不可用时整页仍正常展示
 import Layout from '../layouts/Layout.astro';
 import { getCollection } from 'astro:content';
 import DottedMap from 'dotted-map';
@@ -307,8 +306,8 @@ const mapCfg = {
 <script>
   import { API_BASE } from '../lib/api';
 
-  // 动态部分：/api/stats（访客/留言/动态文章统计 + 地图点位）与 /api/posts（时间线合并）。
-  // 全部静默降级：后端不可用时保持静态内容
+  // 动态部分仅剩访客统计与地图点位（/api/stats）；文章已全部静态化，不再从 API 拉取。
+  // 后端不可用时保持静态内容
   const API = API_BASE;
 
   const $ = (id: string) => document.getElementById(id) as HTMLElement;
@@ -384,89 +383,20 @@ const mapCfg = {
     }
   }
 
-  // ---- 时间线合并：静态条目 + /admin 发布的动态文章，按日期降序按年重排 ----
-  function mergeTimeline(dyn: Array<{ slug: string; title: string; created_at: number }>) {
-    const timeline = document.getElementById('timeline');
-    if (!timeline) return;
-    const staticLis = [...timeline.querySelectorAll('li[data-slug]')] as HTMLElement[];
-    const staticSlugs = new Set(staticLis.map((li) => li.dataset.slug));
-    type Item = { slug: string; title: string; ts: number };
-    const items: Item[] = staticLis.map((li) => ({
-      slug: li.dataset.slug || '',
-      title: li.dataset.title || '',
-      ts: Number(li.dataset.ts) || 0,
-    }));
-    let added = false;
-    for (const p of dyn) {
-      if (staticSlugs.has(p.slug)) continue;
-      items.push({ slug: p.slug, title: p.title, ts: p.created_at });
-      added = true;
-    }
-    if (!added) return;
-    items.sort((a, b) => b.ts - a.ts);
-
-    timeline.innerHTML = '';
-    const byYear = new Map<number, Item[]>();
-    for (const it of items) {
-      const y = new Date(it.ts).getFullYear() || 1970;
-      if (!byYear.has(y)) byYear.set(y, []);
-      byYear.get(y)!.push(it);
-    }
-    const pad = (n: number) => String(n).padStart(2, '0');
-    for (const [year, list] of [...byYear.entries()].sort((a, b) => b[0] - a[0])) {
-      const sec = document.createElement('section');
-      sec.className = 'year-group';
-      const h2 = document.createElement('h2');
-      h2.append(document.createTextNode(String(year)));
-      const cnt = document.createElement('span');
-      cnt.className = 'year-count';
-      cnt.textContent = `${list.length} ${list.length > 1 ? 'posts' : 'post'}`;
-      h2.append(cnt);
-      const ul = document.createElement('ul');
-      for (const it of list) {
-        const li = document.createElement('li');
-        const d = new Date(it.ts);
-        const time = document.createElement('time');
-        time.textContent = `${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-        const a = document.createElement('a');
-        a.href = `/posts/${it.slug}`;
-        a.textContent = it.title;
-        li.append(time, a);
-        ul.append(li);
-      }
-      sec.append(h2, ul);
-      timeline.append(sec);
-    }
-  }
-
   (async () => {
     try {
-      const [statsRes, postsRes] = await Promise.all([
-        fetch(`${API}/stats`).catch(() => null),
-        fetch(`${API}/posts`).catch(() => null),
-      ]);
+      const statsRes = await fetch(`${API}/stats`).catch(() => null);
 
       if (statsRes && statsRes.ok) {
         const s = await statsRes.json();
         setNum($('stat-visits'), s.visits.total);
         setNum($('stat-messages'), s.messages);
-        // 文章数/字数 = 静态基数（服务端渲染值）+ 动态增量
-        setNum($('stat-posts'), s.posts.count + Number($('stat-posts').textContent!.replace(/[^0-9]/g, '')));
-        setNum(
-          $('stat-chars'),
-          s.posts.chars + Number($('stat-chars').textContent!.replace(/[^0-9]/g, ''))
-        );
         renderPins(s.visits.points || []);
         $('map-sub').textContent = s.visits.total
           ? `${s.visits.total.toLocaleString('en-US')} visits · ${s.visits.regions || 0} ${
               s.visits.regions === 1 ? 'region' : 'regions'
             }`
           : 'Waiting for the first pin…';
-      }
-
-      if (postsRes && postsRes.ok) {
-        const { posts = [] } = await postsRes.json();
-        mergeTimeline(posts);
       }
     } catch {
       /* 静默：保持静态内容 */

@@ -233,7 +233,7 @@ async function deleteMessage(request, env, cors, idStr) {
   return json({ ok: true }, 200, cors);
 }
 
-// ---- Posts（文章后台 API：主站为纯静态 GitHub Pages，文章存 D1，由 /admin 后台写入） ----
+// ---- Posts（文章后台 API：D1 只当编辑草稿库，发布/删除/手动同步都落盘到仓库 .md 文件） ----
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const POST_TITLE_MAX = 120;
 const POST_DESC_MAX = 300;
@@ -320,76 +320,74 @@ async function githubApiError(response, action) {
   return new Error(`${action} (HTTP ${response.status}${detail ? `: ${detail}` : ''}).`);
 }
 
-async function syncPostToGitHub(post, env, { onlyIfMissing = false } = {}) {
-  const token = String(env.GITHUB_TOKEN || '');
+// GitHub 仓库配置。D1 只是后台的编辑草稿库，唯一事实来源是仓库里的 .md 文件；
+// 发布 / 删除 / 手动同步都通过 GitHub Contents API 直接读写这些文件，
+// 文件 push 后触发 GitHub Actions 重建静态站点（前端不再从 API 拉文章）。
+function githubForPosts(env) {
   const owner = String(env.GITHUB_OWNER || '');
   const repo = String(env.GITHUB_REPO || '');
+  const token = String(env.GITHUB_TOKEN || '');
   const branch = String(env.GITHUB_BRANCH || 'main');
   if (!token || !owner || !repo) {
-    throw new Error('GitHub sync is not configured on the API service.');
+    throw new Error('GitHub sync is not configured: set GITHUB_TOKEN, GITHUB_OWNER and GITHUB_REPO on Cloudflare Pages.');
   }
-
-  const path = `src/content/posts/${post.slug}.md`;
-  const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path}`;
-  const headers = {
-    Accept: 'application/vnd.github+json',
-    Authorization: `Bearer ${token}`,
-    'X-GitHub-Api-Version': '2022-11-28',
-    'Content-Type': 'application/json',
+  return {
+    owner,
+    repo,
+    branch,
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${token}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Content-Type': 'application/json',
+    },
   };
-
-  const existing = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers });
-  let sha;
-  if (existing.ok) {
-    if (onlyIfMissing) return false;
-    sha = (await existing.json()).sha;
-  } else if (existing.status !== 404) {
-    throw await githubApiError(existing, 'GitHub could not check the Markdown file');
-  }
-
-  const response = await fetch(url, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify({
-      message: `${sha ? 'Update' : 'Publish'} post: ${post.slug}`,
-      content: encodeBase64Utf8(postMarkdown(post)),
-      branch,
-      ...(sha ? { sha } : {}),
-    }),
-  });
-  if (!response.ok) {
-    throw await githubApiError(response, 'GitHub could not save the Markdown file');
-  }
-  return true;
 }
 
-async function deletePostFromGitHub(slug, env) {
-  const token = String(env.GITHUB_TOKEN || '');
-  const owner = String(env.GITHUB_OWNER || '');
-  const repo = String(env.GITHUB_REPO || '');
-  const branch = String(env.GITHUB_BRANCH || 'main');
-  if (!token || !owner || !repo) {
-    throw new Error('GitHub sync is not configured on the API service.');
-  }
+const postFilePath = (slug) => `src/content/posts/${slug}.md`;
 
-  const path = `src/content/posts/${slug}.md`;
-  const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path}`;
-  const headers = {
-    Accept: 'application/vnd.github+json',
-    Authorization: `Bearer ${token}`,
-    'X-GitHub-Api-Version': '2022-11-28',
-    'Content-Type': 'application/json',
-  };
-  const existing = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers });
-  if (existing.status === 404) return;
-  if (!existing.ok) throw await githubApiError(existing, 'GitHub could not check the Markdown file');
-  const { sha } = await existing.json();
-  const response = await fetch(url, {
-    method: 'DELETE',
-    headers,
-    body: JSON.stringify({ message: `Delete post: ${slug}`, sha, branch }),
+function postContentsUrl(gh, slug) {
+  return `https://api.github.com/repos/${encodeURIComponent(gh.owner)}/${encodeURIComponent(gh.repo)}/contents/${postFilePath(slug)}`;
+}
+
+// 读取仓库里的 .md：存在则返回 { sha }，不存在（404）返回 null，其它错误抛出
+async function readPostFile(gh, slug) {
+  const response = await fetch(`${postContentsUrl(gh, slug)}?ref=${encodeURIComponent(gh.branch)}`, {
+    headers: gh.headers,
   });
-  if (!response.ok) throw await githubApiError(response, 'GitHub could not delete the Markdown file');
+  if (response.status === 404) return null;
+  if (!response.ok) throw await githubApiError(response, 'GitHub could not read the post file');
+  return response.json();
+}
+
+// 写入 .md 文件（存在则覆盖，不存在则新建）
+async function writePostFile(gh, post) {
+  const existing = await readPostFile(gh, post.slug);
+
+  const body = {
+    message: `${existing ? 'Update' : 'Publish'} post: ${post.slug}`,
+    content: encodeBase64Utf8(postMarkdown(post)),
+    branch: gh.branch,
+  };
+  if (existing) body.sha = existing.sha;
+
+  const response = await fetch(postContentsUrl(gh, post.slug), {
+    method: 'PUT',
+    headers: gh.headers,
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw await githubApiError(response, 'GitHub could not save the post file');
+}
+
+async function deletePostFile(gh, slug) {
+  const existing = await readPostFile(gh, slug);
+  if (!existing) return; // 文件本就不存在：视为已删除
+  const response = await fetch(postContentsUrl(gh, slug), {
+    method: 'DELETE',
+    headers: gh.headers,
+    body: JSON.stringify({ message: `Delete post: ${slug}`, sha: existing.sha, branch: gh.branch }),
+  });
+  if (!response.ok) throw await githubApiError(response, 'GitHub could not delete the post file');
 }
 
 async function listPosts(env, cors) {
@@ -459,7 +457,7 @@ async function savePost(request, env, cors) {
     .first();
   let repositorySync;
   try {
-    await syncPostToGitHub(post, env);
+    await writePostFile(githubForPosts(env), post);
     repositorySync = { ok: true };
   } catch (error) {
     repositorySync = {
@@ -487,7 +485,7 @@ async function deletePost(request, env, cors, slug) {
   }
 
   try {
-    await deletePostFromGitHub(slug, env);
+    await deletePostFile(githubForPosts(env), slug);
   } catch (error) {
     return json(
       {
@@ -506,20 +504,29 @@ async function deletePost(request, env, cors, slug) {
   return json({ ok: true, databaseDeleted, repositorySync: { ok: true } }, 200, cors);
 }
 
-async function syncMissingPosts(request, env, cors) {
+// 手动同步：把 D1 里全部文章完整回写到仓库 .md 文件（覆盖已有文件），
+// 用于修复发布时同步失败、或文件被误删/改坏的场景；返回失败项便于逐条排查。
+async function syncAllPosts(request, env, cors) {
   if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
   await ensurePostsTable(env);
+
+  let gh;
+  try {
+    gh = githubForPosts(env);
+  } catch (error) {
+    return json({ error: error instanceof Error ? error.message : 'GitHub sync is not configured.' }, 500, cors);
+  }
+
   const { results = [] } = await env.DB.prepare(
     'SELECT slug, title, description, content, created_at FROM posts ORDER BY created_at DESC'
   ).all();
 
   const failed = [];
   let synced = 0;
-  let skipped = 0;
   for (const post of results) {
     try {
-      if (await syncPostToGitHub(post, env, { onlyIfMissing: true })) synced += 1;
-      else skipped += 1;
+      await writePostFile(gh, post);
+      synced += 1;
     } catch (error) {
       failed.push({
         slug: post.slug,
@@ -527,7 +534,7 @@ async function syncMissingPosts(request, env, cors) {
       });
     }
   }
-  return json({ synced, skipped, failed }, 200, cors);
+  return json({ synced, failed }, 200, cors);
 }
 
 async function listBruhEntries(env, cors) {
@@ -704,8 +711,8 @@ export default {
 
     if (path === '/api/posts' && request.method === 'GET') return listPosts(env, cors);
     if (path === '/api/posts' && request.method === 'POST') return savePost(request, env, cors);
-    if (path === '/api/admin/sync-missing-posts' && request.method === 'POST')
-      return syncMissingPosts(request, env, cors);
+    if (path === '/api/admin/sync-posts' && request.method === 'POST')
+      return syncAllPosts(request, env, cors);
     if (pm && request.method === 'GET') return getPost(env, cors, pm[1]);
     if (pm && request.method === 'DELETE') return deletePost(request, env, cors, pm[1]);
 
