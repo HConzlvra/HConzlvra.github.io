@@ -686,6 +686,15 @@ const isActive = (href: string) =>
       width: 100%;
       max-width: none;
     }
+    /* 下拉面板贴满可用宽度：移动端导航栏左右各留 16px，面板不再额外收窄 */
+    .mobile-panel {
+      width: 100%;
+      max-width: none;
+    }
+    .mobile-panel a {
+      padding: 0.7rem 1rem;
+      font-size: 0.98rem;
+    }
     .links {
       display: none; /* 横向链接收进下拉菜单 */
     }

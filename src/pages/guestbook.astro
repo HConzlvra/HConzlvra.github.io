@@ -19,7 +19,12 @@ import Layout from '../layouts/Layout.astro';
         <span class="stamp-label">MESSAGES</span>
         <strong id="gb-count">—</strong>
         <span class="stamp-caption">AND COUNTING</span>
-        <span class="stamp-orbit" aria-hidden="true">✳</span>
+        <span class="stamp-orbit" aria-hidden="true">
+          <svg viewBox="0 0 100 100" width="1em" height="1em" fill="currentColor">
+            <path d="M50 2 57 43 98 50 57 57 50 98 43 57 2 50 43 43Z" />
+            <path d="M50 2 57 43 98 50 57 57 50 98 43 57 2 50 43 43Z" transform="rotate(45 50 50)" />
+          </svg>
+        </span>
       </aside>
     </header>
 
