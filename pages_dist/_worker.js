@@ -451,8 +451,10 @@ async function savePost(request, env, cors) {
     .bind(slug, title, description, content, now, now)
     .run();
 
+  // 注意：必须带 content，postMarkdown 依赖它生成写入仓库的 .md 正文，
+  // 缺了会导致 GitHub 上的文章只剩 frontmatter、正文为空
   const post = await env.DB.prepare(
-    'SELECT slug, title, description, created_at, updated_at FROM posts WHERE slug = ?'
+    'SELECT slug, title, description, content, created_at, updated_at FROM posts WHERE slug = ?'
   )
     .bind(slug)
     .first();
