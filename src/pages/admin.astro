@@ -368,8 +368,15 @@ import Layout from '../layouts/Layout.astro';
       try {
         const res = await fetch(`${API}/posts/${slug}`, { method: 'DELETE', headers: authHeaders() });
         if (res.status === 401) { showLogin(); return; }
-        if (res.ok) loadList();
-        else $('list-status').textContent = 'Could not delete this post.';
+        const data = await res.json().catch(() => ({}));
+        if (data.databaseDeleted || res.ok) {
+          await loadList();
+          $('list-status').textContent = data.repositorySync?.ok === false
+            ? `Removed “${title}” from the database, but GitHub cleanup failed: ${data.repositorySync.error}`
+            : `Removed “${title}” from the database and GitHub.`;
+        } else {
+          $('list-status').textContent = data.error || 'Could not delete this post from the database.';
+        }
       } catch {
         $('list-status').textContent = 'Network error — could not delete this post.';
       }

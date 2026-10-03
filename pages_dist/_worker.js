@@ -465,18 +465,37 @@ async function savePost(request, env, cors) {
 async function deletePost(request, env, cors, slug) {
   if (!isAdmin(request, env)) return json({ error: 'Unauthorized' }, 401, cors);
   await ensurePostsTable(env);
+
+  let databaseDeleted;
+  try {
+    const { meta } = await env.DB.prepare('DELETE FROM posts WHERE slug = ?').bind(slug).run();
+    databaseDeleted = meta.changes > 0;
+  } catch (error) {
+    return json(
+      { error: error instanceof Error ? error.message : 'Could not delete the post from the database.' },
+      500,
+      cors
+    );
+  }
+
   try {
     await deletePostFromGitHub(slug, env);
   } catch (error) {
     return json(
-      { error: error instanceof Error ? error.message : 'Could not sync deletion to GitHub.' },
+      {
+        ok: false,
+        databaseDeleted,
+        repositorySync: {
+          ok: false,
+          error: error instanceof Error ? error.message : 'Could not delete the Markdown file from GitHub.',
+        },
+      },
       502,
       cors
     );
   }
-  const { meta } = await env.DB.prepare('DELETE FROM posts WHERE slug = ?').bind(slug).run();
-  if (meta.changes === 0) return json({ error: 'Post not found' }, 404, cors);
-  return json({ ok: true }, 200, cors);
+
+  return json({ ok: true, databaseDeleted, repositorySync: { ok: true } }, 200, cors);
 }
 
 async function listBruhEntries(env, cors) {

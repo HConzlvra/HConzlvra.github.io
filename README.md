@@ -67,4 +67,4 @@ Never put the GitHub token in frontend code, `.env` files committed to GitHub, o
 | `CLOUDFLARE_ACCOUNT_ID` | The Cloudflare account ID |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token scoped to this account's Pages project deployment permission |
 
-Publishing or editing a post creates or updates its Markdown file; deleting a post removes its Markdown file. Posts already in D1 from before this integration must be published or edited individually to create their repository Markdown file.
+Publishing or editing a post creates or updates its Markdown file. Deletion removes the D1 row first so the runtime index is cleared even if GitHub cleanup fails; the admin then reports whether the repository file was also removed. Posts already in D1 from before this integration must be published or edited individually to create their repository Markdown file.
