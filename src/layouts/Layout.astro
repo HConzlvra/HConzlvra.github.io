@@ -182,8 +182,15 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
       // Touch: the finger is the pointer — dot lights up while touching and fades out
       //        via CSS transition after release; the render loop idles out once everything
       //        has dissolved (saves battery on phones).
-      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        const FINE = matchMedia('(pointer: fine)').matches;
+      const FINE = matchMedia('(pointer: fine)').matches;
+      const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      // Hide the native cursor only for real pointers (touch devices have none).
+      // 指针替换是功能性行为而非装饰动画，因此不受 reduced-motion 影响——
+      // 否则系统/浏览器开启"减少动态"后原生光标会重新出现
+      const hideNativeCursor = () => document.documentElement.classList.add('cursor-none');
+      if (FINE) hideNativeCursor();
+
+      if (!REDUCED) {
         // Touch-only devices (phones): no mouse will ever show up, so the dot
         // shows only while a finger is down. Hybrid laptops keep desktop behavior.
         const TOUCH_ONLY = matchMedia('(pointer: coarse)').matches && !FINE;
@@ -192,10 +199,6 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
         const COUNT = 6; // trail squares (excluding the pointer body)
         const LIFE_MIN = 300; // particle lifetime lower bound (ms)
         const LIFE_MAX = 380; // particle lifetime upper bound (ms): slight jitter
-
-        // Hide the native cursor only for real pointers (touch devices have none)
-        const hideNativeCursor = () => document.documentElement.classList.add('cursor-none');
-        if (FINE) hideNativeCursor();
 
         // Latest pointer coords: desktop starts centered so the dot shows on load
         let mx = window.innerWidth / 2;
@@ -357,6 +360,20 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
             dot!.style.opacity = '0';
           }
           wake();
+        });
+      } else if (FINE) {
+        // reduced-motion 兜底：不创建拖尾动画，仅用一个静态紫色方块替换原生光标，
+        // 跟随鼠标移动但无粒子、无溶解，符合"减少动态"的同时指针仍然被替换
+        const dot = document.createElement('div');
+        dot.id = 'cursor-dot';
+        document.body.appendChild(dot);
+        const move = (e: MouseEvent) => {
+          dot.style.transform = `translate(${e.clientX - 4.5}px, ${e.clientY - 4.5}px)`;
+        };
+        window.addEventListener('mousemove', move, { passive: true });
+        document.addEventListener('astro:after-swap', () => {
+          if (FINE) hideNativeCursor();
+          if (!dot.isConnected) document.body.appendChild(dot);
         });
       }
     </script>
