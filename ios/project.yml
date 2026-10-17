@@ -1,0 +1,20 @@
+name: HConzlvra
+options:
+  bundleIdPrefix: top.hconzlvra
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  HConzlvra:
+    type: application
+    platform: iOS
+    sources:
+      - App
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: top.hconzlvra.website
+        PRODUCT_NAME: HConzlvra
+        INFOPLIST_KEY_CFBundleDisplayName: HConzlvra
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        IPHONEOS_DEPLOYMENT_TARGET: "16.0"

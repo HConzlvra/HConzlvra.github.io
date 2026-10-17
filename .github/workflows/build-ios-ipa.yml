@@ -1,0 +1,39 @@
+name: Build unsigned iOS IPA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate --spec ios/project.yml --project ios
+      - name: Build unsigned iOS app
+        run: >-
+          xcodebuild
+          -project ios/HConzlvra.xcodeproj
+          -scheme HConzlvra
+          -configuration Release
+          -sdk iphoneos
+          -destination 'generic/platform=iOS'
+          -derivedDataPath build
+          CODE_SIGNING_ALLOWED=NO
+          build
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p artifact/Payload
+          cp -R build/Build/Products/Release-iphoneos/HConzlvra.app artifact/Payload/
+          cd artifact
+          zip -qr ../HConzlvra-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HConzlvra-unsigned-ipa
+          path: HConzlvra-unsigned.ipa
+          if-no-files-found: error
