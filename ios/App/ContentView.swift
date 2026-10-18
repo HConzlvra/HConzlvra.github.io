@@ -4,7 +4,7 @@ import WebKit
 
 private let siteURL = URL(string: "https://hconzlvra.top")!
 
-private enum SiteSection: String, CaseIterable, Identifiable {
+private enum SiteSection: String, CaseIterable, Identifiable, Hashable {
     case home = "Home"
     case about = "About"
     case posts = "Posts"
@@ -46,173 +46,237 @@ private enum SiteSection: String, CaseIterable, Identifiable {
     }
 }
 
+private enum AppTab: Hashable {
+    case home
+    case posts
+    case bruh
+    case more
+    case search
+}
+
 struct ContentView: View {
-    @State private var selectedSection: SiteSection? = .home
+    @State private var selectedTab: AppTab = .home
+    @State private var currentSection: SiteSection = .home
+    @State private var moreSection: SiteSection?
+    @State private var isMorePresented = false
     @State private var isDark = true
     @State private var searchText = ""
-    @State private var requestedURL = siteURL
-    @State private var navigationID = UUID()
+    @State private var searchURL = URL(string: "https://hconzlvra.top/search")!
     @State private var themeID = UUID()
 
     var body: some View {
-        WebView(
-            requestedURL: requestedURL,
-            navigationID: navigationID,
-            themeID: themeID,
-            selectedSection: $selectedSection,
-            isDark: $isDark
-        )
-        .background(Color.black)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            topBar
-                .padding(.horizontal, 16)
-                .padding(.top, 6)
-                .padding(.bottom, 8)
+        Group {
+            if #available(iOS 26.0, *) {
+                nativeTabView
+            } else {
+                compatibleTabView
+            }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            bottomBar
-                .padding(.horizontal, 10)
+        .overlay(alignment: .top) {
+            topBar
+                .padding(.horizontal, 18)
                 .padding(.top, 8)
-                .padding(.bottom, 4)
         }
         .preferredColorScheme(isDark ? .dark : .light)
+        .tint(Color(red: 0.82, green: 0.37, blue: 0.77))
+    }
+
+    @available(iOS 26.0, *)
+    private var nativeTabView: some View {
+        TabView(selection: $selectedTab) {
+            Tab("Home", systemImage: "house", value: .home) {
+                sitePage(.home)
+            }
+            Tab("Posts", systemImage: "text.alignleft", value: .posts) {
+                sitePage(.posts)
+            }
+            Tab("Bruh", systemImage: "sparkles", value: .bruh) {
+                sitePage(.bruh)
+            }
+            Tab("More", systemImage: "ellipsis", value: .more) {
+                morePages
+            }
+            Tab("Search", systemImage: "magnifyingglass", value: .search, role: .search) {
+                WebView(
+                    requestedURL: searchURL,
+                    themeID: themeID,
+                    selectedSection: $currentSection,
+                    isDark: $isDark
+                )
+            }
+        }
+        .searchable(text: $searchText, prompt: "搜索本站")
+        .onSubmit(of: .search, performSearch)
+        .onChange(of: selectedTab) { _, tab in
+            if tab == .more { isMorePresented = true }
+        }
+        .sheet(isPresented: $isMorePresented) {
+            moreMenu
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+    }
+
+    private var compatibleTabView: some View {
+        TabView(selection: $selectedTab) {
+            sitePage(.home)
+                .tabItem { Label("Home", systemImage: "house") }
+                .tag(AppTab.home)
+            sitePage(.posts)
+                .tabItem { Label("Posts", systemImage: "text.alignleft") }
+                .tag(AppTab.posts)
+            sitePage(.bruh)
+                .tabItem { Label("Bruh", systemImage: "sparkles") }
+                .tag(AppTab.bruh)
+            morePages
+                .tabItem { Label("More", systemImage: "ellipsis") }
+                .tag(AppTab.more)
+        }
     }
 
     private var topBar: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
+            if selectedTab == .more, moreSection != nil {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        moreSection = nil
+                        currentSection = .home
+                        isMorePresented = true
+                    }
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold))
+                        .frame(width: 30, height: 34)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("返回 More")
+            }
+            Text(currentTitle)
+                .font(.system(size: 27, weight: .bold, design: .rounded))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityAddTraits(.isHeader)
+
+            Text("HC")
+                .font(.system(size: 23, weight: .black, design: .serif).italic())
+                .foregroundStyle(Color(red: 0.87, green: 0.35, blue: 0.75))
+                .accessibilityLabel("HConzlvra")
+
             Button {
-                isDark.toggle()
-                themeID = UUID()
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isDark.toggle()
+                    themeID = UUID()
+                }
             } label: {
-                Image(systemName: isDark ? "sun.max.fill" : "moon.fill")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .frame(width: 44, height: 44)
-                    .modifier(LiquidGlass(shape: .circle))
+                Capsule()
+                    .fill(isDark ? Color(red: 0.16, green: 0.16, blue: 0.16) : Color(red: 0.89, green: 0.89, blue: 0.89))
+                    .frame(width: 42, height: 24)
+                    .overlay(alignment: isDark ? .trailing : .leading) {
+                        Circle()
+                            .fill(isDark ? Color.black.opacity(0.72) : Color.white)
+                            .frame(width: 19, height: 19)
+                            .overlay {
+                                Image(systemName: isDark ? "moon.fill" : "sun.max.fill")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(isDark ? .white : .black.opacity(0.75))
+                            }
+                            .padding(2.5)
+                    }
             }
             .buttonStyle(.plain)
             .accessibilityLabel(isDark ? "切换浅色主题" : "切换深色主题")
-
-            HStack(spacing: 9) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.secondary)
-
-                TextField("搜索本站", text: $searchText)
-                    .font(.system(size: 15))
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .submitLabel(.search)
-                    .onSubmit(performSearch)
-
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("清除搜索")
-                }
-
-                Button(action: performSearch) {
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.primary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("搜索")
-            }
-            .padding(.horizontal, 14)
-            .frame(height: 44)
-            .modifier(LiquidGlass(shape: .capsule))
+            .accessibilityAddTraits(.isButton)
+        }
+        .padding(.vertical, 8)
+        .background {
+            LinearGradient(
+                colors: [Color(uiColor: .systemBackground).opacity(0.94), Color(uiColor: .systemBackground).opacity(0.68), .clear],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea(edges: .top)
         }
     }
 
-    private var bottomBar: some View {
-        HStack(spacing: 0) {
-            ForEach(SiteSection.allCases) { section in
-                Button {
-                    selectedSection = section
-                    requestedURL = URL(string: siteURL.absoluteString + section.path) ?? siteURL
-                    navigationID = UUID()
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: section.symbol)
-                            .font(.system(size: 16, weight: selectedSection == section ? .semibold : .regular))
-                            .frame(height: 18)
-                        Text(section.rawValue)
-                            .font(.system(size: 9, weight: selectedSection == section ? .semibold : .medium))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
+    private var morePages: some View {
+        Group {
+            if let moreSection {
+                sitePage(moreSection)
+            } else {
+                List([SiteSection.about, .docs, .archive, .guestbook]) { section in
+                    Button {
+                        moreSection = section
+                        currentSection = section
+                    } label: {
+                        Label(section.rawValue, systemImage: section.symbol)
                     }
-                    .foregroundStyle(selectedSection == section ? Color.accentColor : Color.primary.opacity(0.78))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 48)
-                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(section.rawValue)
-                .accessibilityAddTraits(selectedSection == section ? .isSelected : [])
+                .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
             }
         }
-        .padding(.horizontal, 5)
-        .padding(.vertical, 4)
-        .modifier(LiquidGlass(shape: .capsule))
+    }
+
+    private var moreMenu: some View {
+        NavigationStack {
+            List([SiteSection.about, .docs, .archive, .guestbook]) { section in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        moreSection = section
+                        currentSection = section
+                        isMorePresented = false
+                    }
+                } label: {
+                    Label(section.rawValue, systemImage: section.symbol)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+            }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .navigationTitle("More")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    private var currentTitle: String {
+        if selectedTab == .search { return "Search" }
+        if selectedTab == .more && moreSection == nil { return "More" }
+        if selectedTab == .home { return "Home" }
+        if selectedTab == .posts { return "Posts" }
+        if selectedTab == .bruh { return "Bruh" }
+        return currentSection.rawValue
+    }
+
+    private func sitePage(_ section: SiteSection) -> some View {
+        WebView(
+            requestedURL: URL(string: siteURL.absoluteString + section.path) ?? siteURL,
+            themeID: themeID,
+            selectedSection: $currentSection,
+            isDark: $isDark
+        )
+        .id(section)
     }
 
     private func performSearch() {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty,
-              var components = URLComponents(string: siteURL.absoluteString + "/search") else {
-            return
-        }
+        guard !query.isEmpty, var components = URLComponents(string: siteURL.absoluteString + "/search") else { return }
         components.queryItems = [URLQueryItem(name: "q", value: query)]
         guard let url = components.url else { return }
-        selectedSection = nil
-        requestedURL = url
-        navigationID = UUID()
-    }
-}
-
-private struct LiquidGlass: ViewModifier {
-    enum Shape {
-        case circle
-        case capsule
+        searchURL = url
+        currentSection = .home
+        selectedTab = .search
     }
 
-    let shape: Shape
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            switch shape {
-            case .circle:
-                content.glassEffect(.regular.interactive(), in: Circle())
-            case .capsule:
-                content.glassEffect(.regular.interactive(), in: Capsule())
-            }
-        } else {
-            switch shape {
-            case .circle:
-                content
-                    .background(.ultraThinMaterial, in: Circle())
-                    .overlay(Circle().stroke(.white.opacity(0.18), lineWidth: 1))
-            case .capsule:
-                content
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .overlay(Capsule().stroke(.white.opacity(0.18), lineWidth: 1))
-            }
-        }
-    }
 }
 
 private struct WebView: UIViewRepresentable {
     let requestedURL: URL
-    let navigationID: UUID
     let themeID: UUID
-    @Binding var selectedSection: SiteSection?
+    @Binding var selectedSection: SiteSection
     @Binding var isDark: Bool
 
     func makeUIView(context: Context) -> WKWebView {
@@ -220,7 +284,7 @@ private struct WebView: UIViewRepresentable {
         let hideWebNavigation = """
         (() => {
           const style = document.createElement('style');
-          style.textContent = '#nav-wrap, .theme-toggle-float { display: none !important; } body { padding-bottom: 24px !important; }';
+          style.textContent = '#nav-wrap, .theme-toggle-float { display: none !important; }';
           (document.head || document.documentElement).appendChild(style);
         })();
         """
@@ -234,23 +298,24 @@ private struct WebView: UIViewRepresentable {
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear
-        webView.scrollView.contentInsetAdjustmentBehavior = .never
-        context.coordinator.lastNavigationID = navigationID
+        webView.scrollView.contentInsetAdjustmentBehavior = .automatic
+        context.coordinator.lastThemeID = themeID
+        context.coordinator.lastRequestedURL = requestedURL
         webView.load(URLRequest(url: requestedURL))
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.onSectionChange = { section in
+            guard let section else { return }
             DispatchQueue.main.async { selectedSection = section }
         }
         context.coordinator.onThemeChange = { dark in
             DispatchQueue.main.async { isDark = dark }
         }
 
-        if context.coordinator.lastNavigationID != navigationID {
-            context.coordinator.lastNavigationID = navigationID
-            webView.evaluateJavaScript("sessionStorage.removeItem('search-query')")
+        if context.coordinator.lastRequestedURL != requestedURL {
+            context.coordinator.lastRequestedURL = requestedURL
             webView.load(URLRequest(url: requestedURL))
         }
 
@@ -258,25 +323,15 @@ private struct WebView: UIViewRepresentable {
             context.coordinator.lastThemeID = themeID
             let theme = isDark ? "dark" : "light"
             context.coordinator.preferredTheme = theme
-            let script = """
-            (() => {
-              const root = document.documentElement;
-              root.classList.add('theme-anim');
-              root.setAttribute('data-theme', '\(theme)');
-              localStorage.setItem('theme', '\(theme)');
-              window.setTimeout(() => root.classList.remove('theme-anim'), 500);
-            })();
-            """
+            let script = "document.documentElement.setAttribute('data-theme', '\(theme)'); localStorage.setItem('theme', '\(theme)');"
             webView.evaluateJavaScript(script)
         }
     }
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
+    func makeCoordinator() -> Coordinator { Coordinator() }
 
     final class Coordinator: NSObject, WKNavigationDelegate {
-        var lastNavigationID: UUID?
+        var lastRequestedURL: URL?
         var lastThemeID: UUID?
         var preferredTheme: String?
         var onSectionChange: ((SiteSection?) -> Void)?
@@ -286,11 +341,8 @@ private struct WebView: UIViewRepresentable {
             guard let url = webView.url else { return }
             onSectionChange?(SiteSection.matching(path: url.path))
             if let preferredTheme {
-                let syncThemeScript = """
-                document.documentElement.setAttribute('data-theme', '\(preferredTheme)');
-                localStorage.setItem('theme', '\(preferredTheme)');
-                """
-                webView.evaluateJavaScript(syncThemeScript)
+                let script = "document.documentElement.setAttribute('data-theme', '\(preferredTheme)'); localStorage.setItem('theme', '\(preferredTheme)');"
+                webView.evaluateJavaScript(script)
             }
             webView.evaluateJavaScript("document.documentElement.getAttribute('data-theme')") { [weak self] value, _ in
                 guard let theme = value as? String else { return }
@@ -303,12 +355,10 @@ private struct WebView: UIViewRepresentable {
             decidePolicyFor navigationAction: WKNavigationAction,
             decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
         ) {
-            guard let url = navigationAction.request.url,
-                  let host = url.host?.lowercased() else {
+            guard let url = navigationAction.request.url, let host = url.host?.lowercased() else {
                 decisionHandler(.allow)
                 return
             }
-
             if host == "hconzlvra.top" || host == "www.hconzlvra.top" {
                 decisionHandler(.allow)
             } else if navigationAction.targetFrame == nil {
