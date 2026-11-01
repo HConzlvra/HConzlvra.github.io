@@ -81,6 +81,7 @@
   // 手指按下的地方也会浮现一片跟随手指的小范围点阵，边缘持续呼吸起伏。
   // 实现要点是逐点算透明度——被揭示的是格点个体，而不是画一个遮罩洞，
   // 所以无论范围怎么变，边界都是格点自身淡出，不会出现被"切开"的直边。
+  // 海浪照常运行：被揭示出来的每一颗格点和桌面端一样随波推开、变粗。
   interface Blob {
     x: number;
     y: number;
@@ -187,10 +188,41 @@
         }
       }
 
-      if (a < 0.04) continue; // 几乎不可见的点不画（移动端开销主要省在这）
+      if (a < 0.04) {
+        // 不可见时不参与物理：归位，下次显现从零位移开始（避免残留位移造成跳变）
+        d.dx = 0;
+        d.dy = 0;
+        d.r = baseR;
+        continue;
+      }
+
+      // 海浪：与桌面端完全同一套公式（波峰两侧推开、波峰核心变粗），逐点缓动跟随，
+      // 所以揭示出来的格点一样在随波起伏，而不是钉死的静态点
+      let tx = 0;
+      let ty = 0;
+      let tr = baseR;
+      for (const w of waves) {
+        const s = w.pos - (d.bx + d.by) * SQRT1_2;
+        const band = 1 - Math.abs(s) / WAVE_BAND;
+        if (band <= 0) continue;
+        const env = band * band * (3 - 2 * band);
+        const dir = Math.max(-1, Math.min(1, -s / WAVE_FLIP));
+        const push = dir * env * WAVE_PUSH * SQRT1_2;
+        tx += push;
+        ty += push;
+        const ar = 1 - Math.abs(s) / WAVE_GROW_BAND;
+        if (ar > 0) {
+          const er = ar * ar * (3 - 2 * ar);
+          tr += er * WAVE_GROW;
+        }
+      }
+      d.dx += (tx - d.dx) * 0.32;
+      d.dy += (ty - d.dy) * 0.32;
+      d.r += (tr - d.r) * 0.38;
+
       ctx.globalAlpha = a;
       ctx.beginPath();
-      ctx.arc(d.bx, d.by, baseR, 0, Math.PI * 2);
+      ctx.arc(d.bx + d.dx, d.by + d.dy, d.r, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
@@ -336,9 +368,9 @@
     if (mobile) {
       revealClock += dt; // 揭示团的呼吸/起伏靠它推进
       advanceBlobs(dt);
-    } else {
-      advanceWaves(dt);
     }
+    // 海浪两端都常驻：手机端被揭示的格点同样随波推开、变粗
+    advanceWaves(dt);
     draw();
     requestAnimationFrame(loop);
   };
