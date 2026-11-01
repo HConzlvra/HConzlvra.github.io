@@ -76,6 +76,126 @@
     waves = waves.filter((w) => w.pos < maxP + WAVE_BAND); // 完全驶出后回收
   };
 
+  // ---------- 移动端：格点个体揭示 ----------
+  // 手机端平时不显示点阵：只在随机位置"长出"一小片，存活几秒后自己消散；
+  // 手指按下的地方也会浮现一片跟随手指的小范围点阵，边缘持续呼吸起伏。
+  // 实现要点是逐点算透明度——被揭示的是格点个体，而不是画一个遮罩洞，
+  // 所以无论范围怎么变，边界都是格点自身淡出，不会出现被"切开"的直边。
+  interface Blob {
+    x: number;
+    y: number;
+    r: number; // 基准半径
+    amp: number; // 边缘起伏幅度
+    p1: number; // 起伏相位 A
+    p2: number; // 呼吸相位 B
+    t: number; // 已存活时间（秒）
+    life: number; // 总寿命
+    fin: number; // 淡入时长
+    fout: number; // 淡出时长
+  }
+  let blobs: Blob[] = [];
+  let blobTimer = 1.6; // 距下一团出现的倒计时（秒）
+  let revealClock = 0; // 揭示动画的公共时钟（秒）
+  let mobile = false; // 当前是否移动端布局（宽度 ≤ 768）
+
+  const rand = (a: number, b: number) => a + Math.random() * (b - a);
+  const smoothStep01 = (u: number) => u * u * (3 - 2 * u);
+  // 边缘羽化宽度：越大越柔，是"不割裂"的关键（逐点渐变而非硬边）
+  const FEATHER = 46;
+
+  // 手指导出的揭示团：位置缓动跟随手指，松手后整团淡出
+  const touchR = { active: false, x: 0, y: 0, tx: 0, ty: 0, a: 0 };
+
+  const spawnBlob = (): Blob => {
+    const life = rand(3.2, 6.2);
+    return {
+      x: rand(vw * 0.1, vw * 0.9),
+      y: rand(vh * 0.12, vh * 0.88),
+      r: rand(96, 172),
+      amp: rand(16, 32),
+      p1: rand(0, Math.PI * 2),
+      p2: rand(0, Math.PI * 2),
+      t: 0,
+      life,
+      fin: rand(0.7, 1.1),
+      fout: rand(0.9, 1.5),
+    };
+  };
+
+  // 团块显隐包络：淡入 → 停留 → 淡出，两端都是平滑的
+  const blobEnv = (b: Blob) => {
+    let e = 1;
+    if (b.t < b.fin) e = b.t / b.fin;
+    else if (b.t > b.life - b.fout) e = (b.life - b.t) / b.fout;
+    return smoothStep01(Math.max(0, Math.min(1, e)));
+  };
+
+  const advanceBlobs = (dt: number) => {
+    // 随机位置、随机间隔出现；最多同时两团，避免满屏都是点
+    blobTimer -= dt;
+    if (blobTimer <= 0) {
+      if (blobs.length < 2) blobs.push(spawnBlob());
+      blobTimer = rand(2.4, 6.5);
+    }
+    for (const b of blobs) b.t += dt;
+    blobs = blobs.filter((b) => b.t < b.life);
+
+    // 手指位置缓动跟随（拖动时不硬跳）
+    const k = touchR.active ? 0.28 : 0.1;
+    touchR.x += (touchR.tx - touchR.x) * k;
+    touchR.y += (touchR.ty - touchR.y) * k;
+    touchR.a += ((touchR.active ? 1 : 0) - touchR.a) * 0.16;
+  };
+
+  // 单个揭示团对某点的透明度：半径慢呼吸 + 边缘随位置/时间漂移的起伏，
+  // 再按距离做羽化 → 轮廓不规则、一直在变，且没有硬边
+  const blobAlphaAt = (x: number, y: number, b: Blob, time: number) => {
+    const env = blobEnv(b);
+    if (env < 0.02) return 0;
+    const dx = x - b.x;
+    const dy = y - b.y;
+    const d2 = dx * dx + dy * dy;
+    const R = b.r * (1 + 0.07 * Math.sin(time * 0.9 + b.p1));
+    const reach = R + b.amp + FEATHER * 0.5;
+    if (d2 > reach * reach) return 0; // 远处直接跳过，省掉 sqrt 与 sin
+    const dist = Math.sqrt(d2);
+    const wob = b.amp * Math.sin(dx * 0.026 + dy * 0.019 + b.p1 + time * 0.62);
+    const u = Math.max(0, Math.min(1, 0.5 + (R + wob - dist) / FEATHER));
+    return env * smoothStep01(u);
+  };
+
+  const drawReveal = () => {
+    if (!ctx) return;
+    const time = revealClock;
+    const tR = 102 * (1 + 0.09 * Math.sin(time * 1.25)); // 手指团半径呼吸
+    const tAmp = 15;
+
+    for (const d of dots) {
+      let a = 0;
+      for (const b of blobs) a = Math.max(a, blobAlphaAt(d.bx, d.by, b, time));
+
+      if (touchR.a > 0.02) {
+        const dx = d.bx - touchR.x;
+        const dy = d.by - touchR.y;
+        const d2 = dx * dx + dy * dy;
+        const reach = tR + tAmp + FEATHER * 0.5;
+        if (d2 < reach * reach) {
+          const dist = Math.sqrt(d2);
+          const wob = tAmp * Math.sin(dx * 0.035 + dy * 0.028 + time * 0.85);
+          const u = Math.max(0, Math.min(1, 0.5 + (tR + wob - dist) / FEATHER));
+          a = Math.max(a, touchR.a * smoothStep01(u));
+        }
+      }
+
+      if (a < 0.04) continue; // 几乎不可见的点不画（移动端开销主要省在这）
+      ctx.globalAlpha = a;
+      ctx.beginPath();
+      ctx.arc(d.bx, d.by, baseR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  };
+
   // ---------- 尺寸与点阵 ----------
   // 画布尺寸完全交给 CSS（.dot-grid 的 inset:0 + 100% 永远满视口，地址栏
   // 伸缩也实时跟随）。这里只读取实际渲染尺寸同步像素缓冲与点阵——
@@ -91,6 +211,18 @@
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
+
+    // 端点切换（缩放窗口跨过断点）：重置波浪/揭示团，避免带着旧的动画状态
+    const nextMobile = w <= 768;
+    if (nextMobile !== mobile) {
+      mobile = nextMobile;
+      waves = [];
+      waveTimer = 0.4;
+      blobs = [];
+      blobTimer = rand(1.2, 3.2);
+      touchR.active = false;
+      touchR.a = 0;
+    }
 
     // 移动端间距更小（点阵别太稀疏）；并按面积上限稀释，防止大屏/4K 点数爆炸
     // （三角形格单点占面积 = 间距 × 行高 × sin60°，分母乘 sin60° 补偿行高压缩带来的密度上升）
@@ -126,6 +258,12 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, vw, vh);
     ctx.fillStyle = dotColor;
+
+    // 移动端：整片点阵默认隐藏，只画被揭示的格点个体
+    if (mobile) {
+      drawReveal();
+      return;
+    }
 
     const PUSH = 14; // 光标最大位移距离（轻微挤压）
     const GROW = 2.6; // 光标最大增粗量
@@ -195,7 +333,12 @@
     }
     const dt = lastTime ? Math.min((now - lastTime) / 1000, 0.05) : 0.016;
     lastTime = now;
-    advanceWaves(dt);
+    if (mobile) {
+      revealClock += dt; // 揭示团的呼吸/起伏靠它推进
+      advanceBlobs(dt);
+    } else {
+      advanceWaves(dt);
+    }
     draw();
     requestAnimationFrame(loop);
   };
@@ -225,6 +368,12 @@
     // 每次（重新）进入主页重置海浪：0.4s 后第一波从左上角涌来
     waves = [];
     waveTimer = 0.4;
+    // 移动端揭示团也重新开始：先等一小会儿，再随机冒第一团
+    blobs = [];
+    blobTimer = rand(1.2, 3.2);
+    revealClock = 0;
+    touchR.active = false;
+    touchR.a = 0;
     kick();
   };
 
@@ -259,23 +408,37 @@
     }
   });
 
-  // 移动端：手指触摸或滑动都触发挤压
+  // 移动端：手指触摸或滑动都触发挤压（桌面端走挤压；手机端改为局部揭示）
   const onTouch = (e: TouchEvent) => {
     const t = e.touches[0];
-    if (t) {
+    if (!t) return;
+    if (mobile) {
+      // 首次落指直接定位（不要让揭示团从上一处滑过来），之后的移动缓动跟随
+      if (!touchR.active) {
+        touchR.x = t.clientX;
+        touchR.y = t.clientY;
+      }
+      touchR.tx = t.clientX;
+      touchR.ty = t.clientY;
+      touchR.active = true;
+    } else {
       mouse.x = t.clientX;
       mouse.y = t.clientY;
       mouse.active = true;
-      kick();
     }
+    kick();
   };
   window.addEventListener('touchstart', onTouch, { passive: true });
   window.addEventListener('touchmove', onTouch, { passive: true });
 
   const endTouch = () => {
-    mouse.active = false;
-    mouse.x = -1e4;
-    mouse.y = -1e4;
+    if (mobile) {
+      touchR.active = false; // 揭示团自己淡出，不移除
+    } else {
+      mouse.active = false;
+      mouse.x = -1e4;
+      mouse.y = -1e4;
+    }
     armSuppress();
     kick();
   };
