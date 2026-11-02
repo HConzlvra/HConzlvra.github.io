@@ -86,9 +86,20 @@
     x: number;
     y: number;
     r: number; // 基准半径
-    amp: number; // 边缘起伏幅度
-    p1: number; // 起伏相位 A
-    p2: number; // 呼吸相位 B
+    amp: number; // 边缘起伏幅度（按半径比例随机）
+    f1x: number; // 低频起伏的空间频率（方向 1）
+    f1y: number;
+    f2x: number; // 高频起伏的空间频率（方向 2）
+    f2y: number;
+    s1: number; // 低频起伏的漂移速度
+    s2: number; // 高频起伏的漂移速度
+    breathAmp: number; // 整体半径呼吸幅度
+    breathSpeed: number; // 呼吸速度
+    feather: number; // 该团的羽化宽度
+    vx: number; // 缓慢漂移速度
+    vy: number;
+    p1: number; // 相位 A
+    p2: number; // 相位 B
     t: number; // 已存活时间（秒）
     life: number; // 总寿命
     fin: number; // 淡入时长
@@ -109,11 +120,36 @@
 
   const spawnBlob = (): Blob => {
     const life = rand(3.2, 6.2);
+    const r = rand(78, 195);
+    // 每个团的起伏方向、频率、呼吸节奏、漂移速度都独立随机，
+    // 否则所有团共用同一套参数，看起来就像同一个模板在复制 → "伪随机"
+    const dir = rand(0, Math.PI * 2);
+    const f1 = rand(0.018, 0.042);
+    const f2 = rand(0.03, 0.06);
+    // 位置：随机取点，若与现有团太近就重挑 → 不会老在同一个地方反复冒
+    let x = 0;
+    let y = 0;
+    for (let i = 0; i < 5; i += 1) {
+      x = rand(vw * 0.12, vw * 0.88);
+      y = rand(vh * 0.14, vh * 0.86);
+      if (blobs.every((o) => Math.hypot(o.x - x, o.y - y) > (o.r + r) * 0.9)) break;
+    }
     return {
-      x: rand(vw * 0.1, vw * 0.9),
-      y: rand(vh * 0.12, vh * 0.88),
-      r: rand(96, 172),
-      amp: rand(16, 32),
+      x,
+      y,
+      r,
+      amp: r * rand(0.13, 0.3), // 按半径比例随机：有的圆润、有的碎
+      f1x: Math.cos(dir) * f1,
+      f1y: Math.sin(dir) * f1,
+      f2x: Math.cos(dir + 1.7) * f2,
+      f2y: Math.sin(dir + 1.7) * f2,
+      s1: rand(0.45, 1.05),
+      s2: rand(0.5, 1.25),
+      breathAmp: rand(0.05, 0.12),
+      breathSpeed: rand(0.55, 1.35),
+      feather: rand(36, 66),
+      vx: rand(-7, 7),
+      vy: rand(-7, 7),
       p1: rand(0, Math.PI * 2),
       p2: rand(0, Math.PI * 2),
       t: 0,
@@ -136,9 +172,17 @@
     blobTimer -= dt;
     if (blobTimer <= 0) {
       if (blobs.length < 2) blobs.push(spawnBlob());
-      blobTimer = rand(2.4, 6.5);
+      // 间隔本身也不规则：偶尔紧接着再来一小团，多数时候隔好几秒
+      blobTimer = Math.random() < 0.25 ? rand(1.2, 2.6) : rand(3.2, 7.5);
     }
-    for (const b of blobs) b.t += dt;
+    for (const b of blobs) {
+      b.t += dt;
+      // 缓慢漂移：团的位置一直在游走，而不是钉死在一个点上"原地呼吸"
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      if (b.x < vw * 0.06 || b.x > vw * 0.94) b.vx *= -1;
+      if (b.y < vh * 0.08 || b.y > vh * 0.92) b.vy *= -1;
+    }
     blobs = blobs.filter((b) => b.t < b.life);
 
     // 手指位置缓动跟随（拖动时不硬跳）
@@ -156,12 +200,16 @@
     const dx = x - b.x;
     const dy = y - b.y;
     const d2 = dx * dx + dy * dy;
-    const R = b.r * (1 + 0.07 * Math.sin(time * 0.9 + b.p1));
-    const reach = R + b.amp + FEATHER * 0.5;
+    const R = b.r * (1 + b.breathAmp * Math.sin(time * b.breathSpeed + b.p1));
+    const reach = R + b.amp + b.feather * 0.5;
     if (d2 > reach * reach) return 0; // 远处直接跳过，省掉 sqrt 与 sin
     const dist = Math.sqrt(d2);
-    const wob = b.amp * Math.sin(dx * 0.026 + dy * 0.019 + b.p1 + time * 0.62);
-    const u = Math.max(0, Math.min(1, 0.5 + (R + wob - dist) / FEATHER));
+    // 两组不同方向、不同频率的起伏叠加：轮廓不圆、不规则，并且各自漂移
+    const wob =
+      b.amp *
+      (Math.sin(dx * b.f1x + dy * b.f1y + b.p1 + time * b.s1) * 0.7 +
+        Math.sin(dx * b.f2x + dy * b.f2y - b.p2 + time * b.s2) * 0.35);
+    const u = Math.max(0, Math.min(1, 0.5 + (R + wob - dist) / b.feather));
     return env * smoothStep01(u);
   };
 
