@@ -264,6 +264,22 @@
           tr += er * WAVE_GROW;
         }
       }
+
+      // 触摸受力：与桌面端光标完全同一套公式（朝外推开 + 增粗，按距离平方衰减），
+      // 力度乘以 touchR.a → 松手时随揭示团一起平滑消退，格点自己回弹
+      if (touchR.a > 0.02) {
+        const ex = d.bx + d.dx - touchR.x;
+        const ey = d.by + d.dy - touchR.y;
+        const dist = Math.hypot(ex, ey);
+        if (dist < influence) {
+          const strength = (1 - dist / influence) * touchR.a;
+          const force = strength * strength;
+          tx += dist > 0.001 ? (ex / dist) * force * 14 : 0;
+          ty += dist > 0.001 ? (ey / dist) * force * 14 : 0;
+          tr += force * 2.6;
+        }
+      }
+
       d.dx += (tx - d.dx) * 0.32;
       d.dy += (ty - d.dy) * 0.32;
       d.r += (tr - d.r) * 0.38;
