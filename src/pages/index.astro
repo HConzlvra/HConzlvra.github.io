@@ -22,7 +22,7 @@ const dateLabel = (d?: Date) =>
          the cards start below the fold -->
     <div class="hero-screen">
       <section class="hero">
-        <h1 class="anim-up" style="--d: 0.05s"><span class="lines-hi" data-scramble>HI,<br class="br-mobile" /> THIS IS</span><br /><span class="name" data-scramble>HConzlvra_</span></h1>
+        <h1 class="anim-up" style="--d: 0.05s"><span class="lines-hi" data-scramble>HI,<br class="br-mobile" /> THIS IS</span><br /><span class="name name-write">HConzlvra_</span></h1>
         <p class="subtitle anim-up" style="--d: 0.18s">Welcome to my site.</p>
         <p class="tagline" data-type="300">There is a crack in everything. <br class="br-mobile" />That's how the light gets in.</p>
         <!-- 框体本身不做淡入上移：移动端的 L 形线要以"笔顺"自己画出来，
@@ -640,6 +640,11 @@ const dateLabel = (d?: Date) =>
       opacity: 1;
       animation: none;
     }
+    /* 减少动态：名字直接整行显示，不做擦除书写 */
+    .hero h1 .name-write {
+      animation: none;
+      clip-path: none;
+    }
     .hero-pixels span {
       opacity: 1;
       animation: none;
@@ -660,14 +665,27 @@ const dateLabel = (d?: Date) =>
   /* The name: bigger and heavier than line one, on its own line (break comes from <br>) */
   .hero h1 .name {
     display: inline-block;
-    font-family: 'Dancing Script', ui-serif, Georgia, 'Times New Roman', serif;
-    font-size: 1.55em; /* ≈ 大屏可达 10rem+ */
-    font-weight: 500; /* 可变字重：500 比默认 400 更有分量，又不至于像合成粗体 */
-    letter-spacing: -0.01em;
+    font-family: 'Norican', ui-serif, Georgia, 'Times New Roman', serif;
+    font-size: 1.78em; /* ≈ 大屏可达 12rem+：花体本身瘦，放大才舒展 */
+    font-weight: 400; /* Norican 只有 400，避免浏览器合成粗体把连笔糊掉 */
+    letter-spacing: 0; /* 连笔字不能加负字距，否则笔画会叠在一起 */
     /* inline-block + large font: the h1 line box would clip the descending
        underscore. Give the name its own roomy line box */
     line-height: 1.25;
     padding-bottom: 0.08em;
+  }
+  /* 名字的"书写"动画：用 clip-path 从左往右擦出，像笔一路写过去；
+     上下各留 0.5em 余量，避免花体的天鹅绞/下伸部被裁掉 */
+  .hero h1 .name-write {
+    animation: name-write 1.2s cubic-bezier(0.33, 0, 0.2, 1) 0.35s both;
+  }
+  @keyframes name-write {
+    from {
+      clip-path: inset(-0.5em 100% -0.5em 0);
+    }
+    to {
+      clip-path: inset(-0.5em -0.2em -0.5em 0);
+    }
   }
   .hero .subtitle {
     font-size: clamp(1.7rem, 2.7vw, 2.7rem);
@@ -1070,12 +1088,11 @@ const dateLabel = (d?: Date) =>
     }
     .hero h1 .name {
       display: block;
-      font-size: min(1.8em, 12.6vw);
-      font-weight: 500; /* 与桌面一致：可变字重 500，避免合成粗体 */
-      letter-spacing: -0.02em;
+      font-size: min(2.1em, 16vw); /* 花体更瘦，比原来放大一档 */
+      font-weight: 400; /* 与桌面一致：Norican 只有 400 */
+      letter-spacing: 0; /* 连笔字不加负字距 */
       line-height: 1.15;
-      margin-top: 0.59em;
-      transform: scaleY(1.7);
+      margin-top: 0.4em;
       background: var(--heading-gradient);
       -webkit-background-clip: text;
       background-clip: text;
@@ -1084,7 +1101,7 @@ const dateLabel = (d?: Date) =>
     /* 更窄的手机（≤359px）：padding 占比更高，vw 再收一档防止名字顶到边距 */
     @media (max-width: 359px) {
       .hero h1 .name {
-        font-size: min(1.8em, 12.3vw); /* 900 更宽，窄屏同步再收防溢出 */
+        font-size: min(2.05em, 15.5vw); /* 窄屏同步再收一档防溢出 */
       }
     }
     .hero .subtitle {

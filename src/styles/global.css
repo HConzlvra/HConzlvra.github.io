@@ -115,14 +115,14 @@ html[data-theme='dark'] {
 /* ============================================
    全局基础样式
    ============================================ */
-/* 花体字（仅首页大名字使用）：自托管 Dancing Script（可变字重 400–700），
-   比 Great Vibes 少很多连笔装饰，更干净；只含 latin 子集，
+/* 花体字（仅首页大名字使用）：自托管 Norican，字形接近 Unicode 数学粗花体
+   （𝓗𝓒𝓸𝓷𝔃𝓵𝓿𝓻𝓪）那种带天鹅绞的粗手写体；只含 latin 子集，
    名字用到的 HConzlvra_ 全部有字形 */
 @font-face {
-  font-family: 'Dancing Script';
-  src: url('/fonts/dancing-script-latin.woff2') format('woff2');
+  font-family: 'Norican';
+  src: url('/fonts/norican-latin.woff2') format('woff2');
   font-style: normal;
-  font-weight: 400 700;
+  font-weight: 400;
   font-display: swap;
 }
 
