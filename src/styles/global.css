@@ -126,6 +126,17 @@ html[data-theme='dark'] {
   font-display: swap;
 }
 
+/* 双线体（blackboard bold）标题字：Noto Sans Math 子集，只保留
+   𝔸–𝕫 与 ℂℍℕℙℚℝℤ（约 3.6KB）。首页 "ℍ𝕀, 𝕋ℍ𝕀𝕊 𝕀𝕊" 使用；
+   大多数系统字体并没有这些字形，不自托管会变成方框 */
+@font-face {
+  font-family: 'MathBlackboard';
+  src: url('/fonts/math-blackboard.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
 * {
   margin: 0;
   padding: 0;

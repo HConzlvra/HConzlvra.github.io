@@ -22,7 +22,7 @@ const dateLabel = (d?: Date) =>
          the cards start below the fold -->
     <div class="hero-screen">
       <section class="hero">
-        <h1 class="anim-up" style="--d: 0.05s"><span class="lines-hi" data-scramble>HI,<br class="br-mobile" /> THIS IS</span><br /><span class="name name-write">HConzlvra_</span></h1>
+        <h1 class="anim-up" style="--d: 0.05s"><span class="lines-hi" data-scramble>ℍ𝕀,<br class="br-mobile" /> 𝕋ℍ𝕀𝕊 𝕀𝕊</span><br /><span class="name name-write">HConzlvra_</span></h1>
         <p class="subtitle anim-up" style="--d: 0.18s">Welcome to my site.</p>
         <p class="tagline" data-type="300">There is a crack in everything. <br class="br-mobile" />That's how the light gets in.</p>
         <!-- 框体本身不做淡入上移：移动端的 L 形线要以"笔顺"自己画出来，
@@ -183,10 +183,15 @@ const dateLabel = (d?: Date) =>
 
   // ---------- Scramble text effect ----------
   // 字符解密效果：只作用于 hero 标题，与淡入动画同时开始，
-  // 随机字符（仅英文字母）逐位还原为正确字符。
+  // 随机字符（与原文同一字形集合）逐位还原为正确字符。
   // 递归处理文本节点，保留 <br> 等 DOM 结构；渐变文字用 background-clip:text 不受影响。
-  const SCRAMBLE_UPPER = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const SCRAMBLE_LOWER = 'abcdefghijklmnopqrstuvwxyz';
+  // 用展开成数组而不是直接字符串：双线体字符是代理对，按 UTF-16 下标取会切坏。
+  const SCRAMBLE_UPPER = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'];
+  const SCRAMBLE_LOWER = [...'abcdefghijklmnopqrstuvwxyz'];
+  // 双线体（blackboard bold）大写：hero 标题用的就是这套字符，
+  // 打乱时必须从同一集合取，否则会混进普通拉丁字母
+  const SCRAMBLE_DOUBLE = [...'𝔸𝔹ℂ𝔻𝔼𝔽𝔾ℍ𝕀𝕁𝕂𝕃𝕄ℕ𝕆ℙℚℝ𝕊𝕋𝕌𝕍𝕎𝕏𝕐ℤ'];
+  const SCRAMBLE_DOUBLE_SET = new Set(SCRAMBLE_DOUBLE);
   const FRAME_INTERVAL = 45; // ms/次：随机字符的切换节奏
   const LOCK_DURATION = 1000; // ms：还原过程的总时长
 
@@ -213,7 +218,7 @@ const dateLabel = (d?: Date) =>
     return nodes;
   };
 
-  const randChar = (set: string) => set.charAt(Math.floor(Math.random() * set.length));
+  const randChar = (set: string[]) => set[Math.floor(Math.random() * set.length)];
 
   const scrambleElement = (el: HTMLElement) => {
     if (playing.has(el)) return;
@@ -260,6 +265,8 @@ const dateLabel = (d?: Date) =>
           } else if (count < targetLock) {
             out += ch; // 已锁定：显示正确字符
             count++;
+          } else if (SCRAMBLE_DOUBLE_SET.has(ch)) {
+            out += randChar(SCRAMBLE_DOUBLE);
           } else if (/[A-Z]/.test(ch)) {
             out += randChar(SCRAMBLE_UPPER);
           } else if (/[a-z]/.test(ch)) {
@@ -661,6 +668,12 @@ const dateLabel = (d?: Date) =>
     margin-bottom: 0.5rem;
     letter-spacing: -0.02em;
     line-height: 1.15;
+  }
+  /* 首行双线体（ℍ𝕀, 𝕋ℍ𝕀𝕊 𝕀𝕊）：自托管字体只有 400，
+     禁止浏览器合成粗体，否则双线会被加粗糊成实心 */
+  .hero h1 .lines-hi {
+    font-family: 'MathBlackboard', ui-serif, Georgia, 'Times New Roman', serif;
+    font-weight: 400;
   }
   /* The name: bigger and heavier than line one, on its own line (break comes from <br>) */
   .hero h1 .name {
@@ -1082,7 +1095,7 @@ const dateLabel = (d?: Date) =>
     .hero h1 .lines-hi {
       display: inline-block;
       font-size: min(3.4rem, 12.8vw);
-      font-weight: 800;
+      font-weight: 400; /* 双线体只有 400，与桌面一致 */
       line-height: 1;
       transform: scaleY(1.5);
       background-image: var(--heading-gradient), var(--heading-gradient);
