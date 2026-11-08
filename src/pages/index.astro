@@ -520,15 +520,17 @@ const dateLabel = (d?: Date) =>
     margin: 0;
   }
 
-  /* Desktop: hero-screen 填满首屏（减去导航栏高度），hero 内容纵向居中，
-     三个卡片自然落到折线以下。Mobile: 靠上，见媒体查询。 */
+  /* Desktop: hero-screen 填满首屏（减去导航栏高度），hero 内容靠上排布
+     （之前是纵向居中，屏幕越高上方留白越大），三个卡片仍落在折线以下。
+     Mobile: 同样靠上，见媒体查询。 */
   .hero-screen {
     width: 100%;
     min-height: calc(100vh - 4.8rem);
     min-height: calc(100lvh - 4.8rem);
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
+    padding-top: clamp(0.5rem, 2.5vh, 2rem);
   }
 
   /* Hero */
@@ -644,7 +646,7 @@ const dateLabel = (d?: Date) =>
     }
   }
   .hero h1 {
-    font-size: clamp(2.8rem, 5.2vw, 5.5rem); /* first line (HI, HERE IS) */
+    font-size: clamp(3rem, 6.2vw, 7rem); /* first line (HI, THIS IS) */
     font-weight: 600;
     width: fit-content; /* shrink the gradient to text width so short titles still show all of it */
     background: var(--heading-gradient);
@@ -667,7 +669,7 @@ const dateLabel = (d?: Date) =>
     padding-bottom: 0.08em;
   }
   .hero .subtitle {
-    font-size: clamp(1.6rem, 2.4vw, 2.4rem);
+    font-size: clamp(1.7rem, 2.7vw, 2.7rem);
     font-weight: 500;
     color: var(--accent-text);
     margin-bottom: 0.75rem;
