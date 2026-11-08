@@ -1095,21 +1095,18 @@ const dateLabel = (d?: Date) =>
     }
     .hero h1 .name {
       display: block;
-      font-size: min(2.1em, 16vw); /* 花体更瘦，比原来放大一档 */
+      /* "HConzlvra_" 在 Norican 下总字宽约 4.613em（含尾部下划线）。
+         容器内宽 = 100vw - 左右各 1.25rem，除以 4.7 留出约 2% 余量，
+         让名字横向几乎顶满内容宽度，同时不会溢出到屏幕外 */
+      font-size: calc((100vw - 2.5rem) / 4.7);
       font-weight: 400; /* 与桌面一致：Norican 只有 400 */
       letter-spacing: 0; /* 连笔字不加负字距 */
       line-height: 1.15;
-      margin-top: 0.4em;
+      margin-top: 0.34em;
       background: var(--heading-gradient);
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
-    }
-    /* 更窄的手机（≤359px）：padding 占比更高，vw 再收一档防止名字顶到边距 */
-    @media (max-width: 359px) {
-      .hero h1 .name {
-        font-size: min(2.05em, 15.5vw); /* 窄屏同步再收一档防溢出 */
-      }
     }
     .hero .subtitle {
       font-size: min(2rem, 7.6vw); /* 名字为主，副标题退一档 */
