@@ -708,7 +708,8 @@ const dateLabel = (d?: Date) =>
     }
   }
   .hero .subtitle {
-    font-size: clamp(1.7rem, 2.7vw, 2.7rem);
+    /* 等宽字体的 x-height 比原无衬线大，同字号下显得更壮，故整体缩一档 */
+    font-size: clamp(1.4rem, 2.2vw, 2.2rem);
     font-weight: 500;
     color: var(--accent-text);
     margin-bottom: 0.75rem;
@@ -1123,7 +1124,7 @@ const dateLabel = (d?: Date) =>
       -webkit-text-fill-color: transparent;
     }
     .hero .subtitle {
-      font-size: min(2rem, 7.6vw); /* 名字为主，副标题退一档 */
+      font-size: min(1.64rem, 6.2vw); /* 名字为主，副标题退一档 */
       margin-bottom: 0.9rem;
     }
     .hero .tagline {
