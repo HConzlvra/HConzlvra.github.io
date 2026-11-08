@@ -11,6 +11,26 @@ const posts = (await getCollection('posts'))
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const dateLabel = (d?: Date) =>
   d ? `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` : '';
+
+// 首页大名字 "HConzlvra_" 的单线手写字形（Hershey "Script 1-stroke"）。
+// 每个条目 = 一笔（一个 M 子路径），数组顺序就是真实书写笔顺；
+// dur / delay 按笔画长度预计算：运笔速度恒定，笔与笔之间留出提笔间隙，
+// 播放时像真的在纸上从左到右一笔一笔写出来，而不是整行擦除。
+const nameStrokes = [
+  { d: 'M7,8 L5,7 L4,5 L4,4 L5,2 L7,1 L8,1 L10,2 L11,4 L11,6 L10,10 L8,16 L6,20 L4,22 L2,22 L1,21 L1,19', dur: 90, delay: 320 },
+  { d: 'M7,13 L16,10 L18,9 L21,7 L23,5 L24,3 L24,2 L23,1 L22,1 L20,3 L18,7 L16,13 L15,18 L15,21 L16,22 L17,22 L19,21 L20,20 L22,17', dur: 123, delay: 435 },
+  { d: 'M38.5,7 L38.5,8 L39.5,9 L41.5,9 L43.5,8 L44.5,6 L44.5,4 L43.5,2 L41.5,1 L38.5,1 L35.5,2 L33.5,4 L31.5,7 L30.5,9 L29.5,13 L29.5,17 L30.5,20 L31.5,21 L33.5,22 L35.5,22 L38.5,21 L40.5,19 L41.5,17', dur: 123, delay: 583 },
+  { d: 'M53,13 L51,13 L49,14 L48,15 L47,17 L47,19 L48,21 L50,22 L52,22 L54,21 L55,20 L56,18 L56,16 L55,14 L53,13 L52,14 L52,16 L53,18 L55,19 L58,19 L60,18 L61,17', dur: 96, delay: 731 },
+  { d: 'M63.5,17 L65.5,14 L67.5,13 L68.5,14 L68.5,15 L67.5,19 L66.5,22', dur: 60, delay: 852 },
+  { d: 'M67.5,19 L68.5,17 L70.5,14 L72.5,13 L74.5,13 L75.5,14 L75.5,16 L74.5,19 L74.5,21 L75.5,22 L76.5,22 L78.5,21 L79.5,20 L81.5,17', dur: 63, delay: 937 },
+  { d: 'M84,17 L86,14 L88,13 L90,13 L92,15 L92,17 L91,19 L89,21 L86,22 L88,23 L89,25 L89,28 L88,31 L87,33 L85,34 L84,33 L84,31 L85,28 L88,25 L91,23 L95,20 L98,17', dur: 133, delay: 1025 },
+  { d: 'M100.5,17 L102.5,14 L105.5,9 L106.5,7 L107.5,4 L107.5,2 L106.5,1 L104.5,2 L103.5,4 L102.5,8 L101.5,15 L101.5,21 L102.5,22 L103.5,22 L105.5,21 L106.5,20 L108.5,17', dur: 110, delay: 1183 },
+  { d: 'M111,17 L113,13 L112,18 L112,21 L113,22 L114,22 L117,21 L119,19 L120,16 L120,13', dur: 60, delay: 1318 },
+  { d: 'M120,13 L121,17 L122,18 L124,18 L126,17', dur: 60, delay: 1403 },
+  { d: 'M128.5,17 L130.5,14 L131.5,12 L131.5,14 L134.5,14 L135.5,15 L135.5,17 L134.5,20 L134.5,21 L135.5,22 L136.5,22 L138.5,21 L139.5,20 L141.5,17', dur: 62, delay: 1488 },
+  { d: 'M153,16 L152,14 L150,13 L148,13 L146,14 L145,15 L144,17 L144,19 L145,21 L147,22 L149,22 L151,21 L152,19 L154,13 L153,18 L153,21 L154,22 L155,22 L157,21 L158,20 L160,17', dur: 110, delay: 1575 },
+  { d: 'M162.5,24 L178.5,24', dur: 60, delay: 1710 },
+];
 ---
 
 <Layout title="HConzlvra_'s Site">
@@ -22,7 +42,7 @@ const dateLabel = (d?: Date) =>
          the cards start below the fold -->
     <div class="hero-screen">
       <section class="hero">
-        <h1 class="anim-up" style="--d: 0.05s"><span class="lines-hi" data-scramble>HI,<br class="br-mobile" /> THIS IS</span><br /><span class="name name-write">HConzlvra_</span></h1>
+        <h1 class="anim-up" style="--d: 0.05s"><span class="lines-hi" data-scramble>HI,<br class="br-mobile" /> THIS IS</span><br /><span class="name" role="img" aria-label="HConzlvra_"><svg class="name-svg" viewBox="-1.5 -1.5 181 38" aria-hidden="true" focusable="false"><defs><linearGradient id="name-ink" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="181" y2="32"><stop offset="0%" style="stop-color: var(--grad-a)" /><stop offset="100%" style="stop-color: var(--grad-b)" /></linearGradient></defs><g fill="none" stroke="url(#name-ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">{nameStrokes.map((s) => <path class="name-stroke" d={s.d} pathLength="1" style={`--dur:${s.dur}ms;--delay:${s.delay}ms`} />)}</g></svg></span></h1>
         <p class="subtitle anim-up" style="--d: 0.18s">Welcome to my site.</p>
         <p class="tagline" data-type="300">There is a crack in everything. <br class="br-mobile" />That's how the light gets in.</p>
         <!-- 框体本身不做淡入上移：移动端的 L 形线要以"笔顺"自己画出来，
@@ -640,10 +660,10 @@ const dateLabel = (d?: Date) =>
       opacity: 1;
       animation: none;
     }
-    /* 减少动态：名字直接整行显示，不做擦除书写 */
-    .hero h1 .name-write {
+    /* 减少动态：名字直接完整显示，不做逐笔书写 */
+    .hero h1 .name-stroke {
       animation: none;
-      clip-path: none;
+      stroke-dashoffset: 0;
     }
     .hero-pixels span {
       opacity: 1;
@@ -662,36 +682,31 @@ const dateLabel = (d?: Date) =>
     letter-spacing: -0.02em;
     line-height: 1.15;
   }
-  /* The name: bigger and heavier than line one, on its own line (break comes from <br>) */
+  /* The name: 单线手写 SVG（Hershey Script 1-stroke），按真实笔顺逐笔描边。
+     宽度跟着 h1 字号走，9.8em 时字母高度约 1.1em，和原来的大花体观感相当 */
   .hero h1 .name {
-    display: inline-block;
-    font-family: 'Norican', ui-serif, Georgia, 'Times New Roman', serif;
-    font-size: 1.78em; /* ≈ 大屏可达 12rem+：花体本身瘦，放大才舒展 */
-    font-weight: 400; /* Norican 只有 400，避免浏览器合成粗体把连笔糊掉 */
-    letter-spacing: 0; /* 连笔字不能加负字距，否则笔画会叠在一起 */
-    /* 桌面端也自己带一份渐变，不再依赖父级 h1 的 background-clip:text：
-       父级渐变 + 子元素 clip-path 的组合在部分浏览器里会被裁成空白 */
-    background: var(--heading-gradient);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    /* inline-block + large font: the h1 line box would clip the descending
-       underscore. Give the name its own roomy line box */
-    line-height: 1.25;
-    padding-bottom: 0.08em;
+    display: block;
+    width: 9.8em;
+    max-width: 100%;
+    margin-top: 0.08em;
+    line-height: 0; /* SVG 自带留白，避免行高再撑开一段 */
   }
-  /* 名字的"书写"动画：用 clip-path 从左往右擦出，像笔一路写过去；
-     上下各留 0.4em 余量避免天鹅绞/下伸部被裁，右侧收尾也留一点余量放过笔画外挑。
-     起止值都用百分比，避免 % 与 em 混插导致部分浏览器插值失败 */
-  .hero h1 .name-write {
-    animation: name-write 1.2s cubic-bezier(0.33, 0, 0.2, 1) 0.35s both;
+  .hero h1 .name-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible; /* 笔画末端圆头/外挑不被 viewBox 裁掉 */
   }
-  @keyframes name-write {
-    from {
-      clip-path: inset(-0.4em 100% -0.4em 0);
-    }
+  /* 每一笔拉成一条等长 dash：pathLength="1" 归一化后，
+     dashoffset 1→0 就是这一笔从落笔到收笔；delay 来自预计算的笔顺 */
+  .hero h1 .name-stroke {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: name-draw var(--dur, 120ms) linear var(--delay, 0ms) both;
+  }
+  @keyframes name-draw {
     to {
-      clip-path: inset(-0.4em -6% -0.4em 0);
+      stroke-dashoffset: 0;
     }
   }
   .hero .subtitle {
@@ -1066,6 +1081,7 @@ const dateLabel = (d?: Date) =>
     }
     .hero h1 {
       font-size: min(2.7rem, 10.5vw); /* 仅作 .name 的 em 基准，实际字号在下方两个 span 上 */
+      width: 100%; /* 解除 fit-content：名字用 width:100% 才能铺满内容宽度 */
       margin-inline: 0; /* 覆盖桌面的 fit-content 居中，左对齐 */
       max-width: 100%; /* 窄屏防御 */
       line-height: 1.18; /* 行距收紧，三行大字成为一个紧凑字块 */
@@ -1095,21 +1111,8 @@ const dateLabel = (d?: Date) =>
     }
     .hero h1 .name {
       display: block;
-      font-size: min(2.1em, 16vw); /* 花体更瘦，比原来放大一档 */
-      font-weight: 400; /* 与桌面一致：Norican 只有 400 */
-      letter-spacing: 0; /* 连笔字不加负字距 */
-      line-height: 1.15;
-      margin-top: 0.4em;
-      background: var(--heading-gradient);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    /* 更窄的手机（≤359px）：padding 占比更高，vw 再收一档防止名字顶到边距 */
-    @media (max-width: 359px) {
-      .hero h1 .name {
-        font-size: min(2.05em, 15.5vw); /* 窄屏同步再收一档防溢出 */
-      }
+      width: 100%;
+      margin-top: 0.5em;
     }
     .hero .subtitle {
       font-size: min(2rem, 7.6vw); /* 名字为主，副标题退一档 */
