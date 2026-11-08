@@ -115,6 +115,16 @@ html[data-theme='dark'] {
 /* ============================================
    全局基础样式
    ============================================ */
+/* 花体字（仅首页大名字使用）：自托管 Great Vibes，避免依赖 Google Fonts 域
+   的可用性；只含 latin 子集，名字用到的 HCONZLVRA_ 全部有字形 */
+@font-face {
+  font-family: 'Great Vibes';
+  src: url('/fonts/great-vibes-latin.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
 * {
   margin: 0;
   padding: 0;
