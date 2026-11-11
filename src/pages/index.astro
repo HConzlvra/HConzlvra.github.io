@@ -34,11 +34,16 @@ const dateLabel = (d?: Date) =>
                 </linearGradient>
                 <mask id="name-write" maskUnits="userSpaceOnUse" x="-200" y="0" width="3168" height="750">
                   {nameInkBins.map((bin) => (
-                    <path class="ink-bin" d={bin.d} data-delay={bin.delay}></path>
+                    <path class="ink-bin" d={bin.d} data-delay={bin.delay} data-x={bin.x} data-y={bin.y}></path>
                   ))}
+                  <!-- 收尾保险：最后一笔之后整片转白，保证镂空处也被补齐，
+                       末态与 Norican 原字形逐像素一致 -->
+                  <rect class="ink-seal" x="-200" y="-100" width="3168" height="950"></rect>
                 </mask>
               </defs>
               <text class="name-text" x="0" y="566" font-size="600" mask="url(#name-write)">HConzlvra_</text>
+              <!-- 笔尖游标：跟着运笔锋面走的小墨点，写完淡出 -->
+              <circle class="name-nib" cx="0" cy="0" r="17" fill="url(#name-ink)"></circle>
             </svg>
           </span></h1>
         <p class="subtitle anim-up" style="--d: 0.18s">Welcome to my site.</p>
@@ -332,12 +337,10 @@ const dateLabel = (d?: Date) =>
   tryScramble();
 
   // ---------- 名字的笔顺书写 ----------
-  // 字形保持 Norican 不变（SVG <text>），遮罩里按运笔顺序排好的墨滴
-  // 用灰度从黑推到白，字就被"写"出来。
-  // 遮罩子元素只对 fill 变化重绘（opacity/CSS 动画在 Chrome 里不生效），
-  // 所以这里用 rAF 逐帧改 fill。
-  const INK_FADE = 80; // ms：每个 bin 从黑到白的时间
-
+  // 字形保持 Norican 不变（SVG <text>），遮罩里是按"一支笔沿笔画行走"排好的
+  // 笔尖切片，黑直接切到白（不做灰度渐变，否则字会半透明地"泛"出来）。
+  // 遮罩子元素只对 fill 变化重绘，opacity/CSS 动画在 Chrome 里不生效，
+  // 所以用 rAF 逐帧改 fill；同时移动笔尖游标，让它跟着锋面走。
   const writeName = () => {
     const svg = document.querySelector<SVGSVGElement>('.name-svg');
     if (!svg || svg.dataset.writing) return;
@@ -345,28 +348,48 @@ const dateLabel = (d?: Date) =>
 
     const bins = [...svg.querySelectorAll<SVGPathElement>('.ink-bin')];
     if (!bins.length) return;
+    const seal = svg.querySelector<SVGRectElement>('.ink-seal');
+    const nib = svg.querySelector<SVGCircleElement>('.name-nib');
 
     const delays = bins.map((el) => Number(el.dataset.delay) || 0);
-    const setInk = (el: SVGElement, v: number) => {
-      const c = Math.round(255 * Math.min(1, Math.max(0, v)));
-      el.style.fill = `rgb(${c},${c},${c})`;
+    const setInk = (el: SVGElement | null, on: boolean) => {
+      if (el) el.style.fill = on ? '#fff' : '#000';
     };
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      bins.forEach((b) => setInk(b, 1));
+      bins.forEach((b) => setInk(b, true));
+      setInk(seal, true);
       return;
     }
 
-    bins.forEach((b) => setInk(b, 0));
+    bins.forEach((b) => setInk(b, false));
+    setInk(seal, false);
+    if (nib) {
+      nib.setAttribute('cx', bins[0].dataset.x || '0');
+      nib.setAttribute('cy', bins[0].dataset.y || '0');
+      nib.classList.add('is-writing');
+    }
 
-    const total = Math.max(...delays) + INK_FADE;
+    const total = Math.max(...delays) + 40;
     let start = 0;
+    let shown = 0;
     const tick = (now: number) => {
       if (!start) start = now;
       const t = now - start;
-      bins.forEach((b, i) => setInk(b, (t - delays[i]) / INK_FADE));
+      // 只推进到当前时刻该出现的那个 bin，避免每帧给两百个节点重写样式
+      while (shown < bins.length && t >= delays[shown]) {
+        setInk(bins[shown], true);
+        if (nib && shown + 1 < bins.length) {
+          nib.setAttribute('cx', bins[shown].dataset.x || '0');
+          nib.setAttribute('cy', bins[shown].dataset.y || '0');
+        }
+        shown++;
+      }
       if (t < total) requestAnimationFrame(tick);
-      else bins.forEach((b) => setInk(b, 1));
+      else {
+        setInk(seal, true);
+        nib?.classList.remove('is-writing'); // 写完抬笔：笔尖淡出
+      }
     };
     requestAnimationFrame(tick);
   };
@@ -708,7 +731,8 @@ const dateLabel = (d?: Date) =>
       animation: none;
     }
     /* 减少动态：名字直接整行显示，不做书写 */
-    .hero h1 .ink-bin {
+    .hero h1 .ink-bin,
+    .hero h1 .ink-seal {
       fill: #fff;
     }
     .hero-pixels span {
@@ -766,12 +790,22 @@ const dateLabel = (d?: Date) =>
   .hero h1 .name-text {
     fill: url(#name-ink);
   }
-  /* 每个 bin 是一批沿运笔骨架的墨滴圆，按笔顺依次点亮。
+  /* 每个 bin 是一批沿运笔骨架的笔尖切片，按笔顺依次点亮。
      遮罩按亮度取值：黑 = 还没写到，白 = 已经写到。
      注意：不能用 opacity 或 CSS 动画——Chrome 不会因遮罩子元素的
      opacity 变化而重绘遮罩，只有 fill 变化才会，所以进度由 JS 逐帧推进 */
-  .hero h1 .ink-bin {
-    fill: #000;
+  .hero h1 .ink-bin,
+  .hero h1 .ink-seal {
+    fill: #000; /* 遮罩亮度：黑=还没写到，白=已写到，由 JS 逐帧翻转 */
+  }
+  /* 笔尖游标：跟着运笔锋面走的小墨点，写完淡出 */
+  .hero h1 .name-nib {
+    opacity: 0;
+    transition: opacity 0.18s linear;
+    pointer-events: none;
+  }
+  .hero h1 .name-nib.is-writing {
+    opacity: 1;
   }
   .hero .subtitle {
     /* 等宽字体的 x-height 比原无衬线大，同字号下显得更壮，故整体缩一档 */
