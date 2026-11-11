@@ -30,6 +30,42 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
     <!-- 视图切换：页面间导航不再整页重新加载 -->
     <ClientRouter />
     <script is:inline>
+      // 入场前的隐藏态：直接写在 <head>，不经过 CSS 产物/模块注入，
+      // 保证第一帧就生效。否则浏览器有时会先画一帧"已完成"的内容，
+      // 刷新时看起来就是先闪出字、再把入场动画重播一遍。
+      document.documentElement.classList.add('js');
+      // 导航栏要等入场动画真正接管后才显形（见 Navbar 脚本）；
+      // 兜底：脚本出错时也不能把它永久藏住
+      document.documentElement.classList.add('booting');
+      setTimeout(function () {
+        document.documentElement.classList.remove('booting');
+      }, 2000);
+    </script>
+    <style is:inline>
+      html.js .anim-up,
+      html.js [data-scramble],
+      html.js [data-type],
+      html.js .name-text {
+        opacity: 0;
+      }
+      /* 导航栏首帧先藏住：它的入场动画由脚本挂类触发，
+         不藏的话刷新时会先看到静态导航栏，再掉回 0 重新弹一遍 */
+      html.booting .navbar {
+        opacity: 0;
+      }
+      /* 名字要等脚本把遮罩挂好、确认第一帧是"空白"之后再显形 */
+      html.js .name-svg.is-ready .name-text {
+        opacity: 1;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html.js .anim-up,
+        html.js [data-scramble],
+        html.js [data-type] {
+          opacity: 1;
+        }
+      }
+    </style>
+    <script is:inline>
       // 主题初始化：优先读取本地存储，否则跟随系统偏好（必须在渲染前执行，防止闪烁）
       (function () {
         const stored = localStorage.getItem('theme');

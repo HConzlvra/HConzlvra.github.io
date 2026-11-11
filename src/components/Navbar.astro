@@ -152,8 +152,13 @@ const isActive = (href: string) =>
     const nav = document.querySelector('.navbar');
     if (!nav) return;
     navEntered = true;
-    nav.classList.add('nav-enter');
-    nav.addEventListener('animationend', () => nav.classList.remove('nav-enter'), { once: true });
+    // 入场动画此刻接管透明度，撤掉首帧的隐藏兜底
+    document.documentElement.classList.remove('booting');
+    // 减少动态：直接显示，不播放动画
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      nav.classList.add('nav-enter');
+      nav.addEventListener('animationend', () => nav.classList.remove('nav-enter'), { once: true });
+    }
   };
   document.addEventListener('astro:page-load', playNavEnter);
   playNavEnter();

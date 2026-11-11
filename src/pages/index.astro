@@ -2,7 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import DotGrid from '../components/DotGrid.astro';
 import { getCollection } from 'astro:content';
-import { nameInkBins, nameInkViewBox } from '../data/name-ink';
+import { nameInkViewBox } from '../data/name-ink';
 
 // Latest posts: static top 3 at build time (merged with /admin posts at runtime)
 const posts = (await getCollection('posts'))
@@ -25,7 +25,10 @@ const dateLabel = (d?: Date) =>
       <section class="hero">
         <h1><span class="lines-hi anim-up" style="--d: 0.05s" data-scramble>ℍ𝕀,<br class="br-mobile" /> 𝕋ℍ𝕀𝕊 𝕀𝕊</span><br /><span class="name" role="img" aria-label="HConzlvra_">
             <!-- 字形仍是 Norican 本身（SVG <text> 渲染，字体完全不变）；
-                 书写动画由遮罩里沿运笔骨架推进的墨滴完成，按真实笔顺揭示 -->
+                 书写动画由遮罩里沿运笔骨架推进的墨迹完成，按真实笔顺揭示。
+                 注意：mask 由脚本在写好第一批切片后再挂上，且名字在此之前一直
+                 保持 opacity:0——否则遮罩还没生效的那一帧会先露出完整的名字，
+                 看起来就是"先闪出一个名字，再重写一遍" -->
             <svg class="name-svg" viewBox={nameInkViewBox} aria-hidden="true" focusable="false">
               <defs>
                 <linearGradient id="name-ink" gradientUnits="userSpaceOnUse" x1="0" y1="117" x2="1759" y2="1876">
@@ -33,17 +36,14 @@ const dateLabel = (d?: Date) =>
                   <stop offset="100%" style="stop-color: var(--grad-b)"></stop>
                 </linearGradient>
                 <mask id="name-write" maskUnits="userSpaceOnUse" x="-200" y="0" width="3168" height="750">
-                  {nameInkBins.map((bin) => (
-                    <path class="ink-bin" d={bin.d} data-delay={bin.delay} data-x={bin.x} data-y={bin.y}></path>
-                  ))}
-                  <!-- 收尾保险：最后一笔之后整片转白，保证镂空处也被补齐，
-                       末态与 Norican 原字形逐像素一致 -->
-                  <rect class="ink-seal" x="-200" y="-100" width="3168" height="950"></rect>
+                  <!-- 白色墨迹 = 已经写到的地方（亮度遮罩：白显示、黑/透明隐藏）。
+                       所有笔尖切片在脚本里拼成一条 path，进度 = 取 d 的前缀，
+                       所以画面是墨迹沿骨架往前长，而不是碎片各自点亮。
+                       写完后脚本直接摘掉遮罩，末态与 Norican 原字形逐像素一致 -->
+                  <path class="ink-write" d=""></path>
                 </mask>
               </defs>
-              <text class="name-text" x="0" y="566" font-size="600" mask="url(#name-write)">HConzlvra_</text>
-              <!-- 笔尖游标：跟着运笔锋面走的小墨点，写完淡出 -->
-              <circle class="name-nib" cx="0" cy="0" r="17" fill="url(#name-ink)"></circle>
+              <text class="name-text" x="0" y="566" font-size="600">HConzlvra_</text>
             </svg>
           </span></h1>
         <p class="subtitle anim-up" style="--d: 0.18s">Welcome to my site.</p>
@@ -142,6 +142,8 @@ const dateLabel = (d?: Date) =>
 
 <script>
   import { API_BASE } from '../lib/api';
+  // 运笔数据只在脚本里用：放到客户端包里，别塞进首屏 HTML
+  import { nameInkBins } from '../data/name-ink';
 
   // Latest posts merge: pull /admin-published posts and re-rank with the static list, top 3;
   // keep the static list as-is when the backend is down or has nothing new
@@ -337,61 +339,78 @@ const dateLabel = (d?: Date) =>
   tryScramble();
 
   // ---------- 名字的笔顺书写 ----------
-  // 字形保持 Norican 不变（SVG <text>），遮罩里是按"一支笔沿笔画行走"排好的
-  // 笔尖切片，黑直接切到白（不做灰度渐变，否则字会半透明地"泛"出来）。
-  // 遮罩子元素只对 fill 变化重绘，opacity/CSS 动画在 Chrome 里不生效，
-  // 所以用 rAF 逐帧改 fill；同时移动笔尖游标，让它跟着锋面走。
+  // 字形保持 Norican 不变（SVG <text>），遮罩里按"一支笔沿笔画行走"排好的
+  // 切片全部拼成一条 path，进度就是取 d 的前缀——每帧只改一个属性，
+  // 画面是"这条笔画继续往前长"，而不是一片碎片各自点亮（那看起来像几个墨点乱跳）。
+  // 另外：字形还没换成 Norican 时切片和字对不上，所以先等字体就位再写。
   const writeName = () => {
     const svg = document.querySelector<SVGSVGElement>('.name-svg');
     if (!svg || svg.dataset.writing) return;
     svg.dataset.writing = '1';
 
-    const bins = [...svg.querySelectorAll<SVGPathElement>('.ink-bin')];
-    if (!bins.length) return;
-    const seal = svg.querySelector<SVGRectElement>('.ink-seal');
-    const nib = svg.querySelector<SVGCircleElement>('.name-nib');
+    const text = svg.querySelector<SVGTextElement>('.name-text');
+    const ink = svg.querySelector<SVGPathElement>('.ink-write');
+    if (!text || !ink) return;
 
-    const delays = bins.map((el) => Number(el.dataset.delay) || 0);
-    const setInk = (el: SVGElement | null, on: boolean) => {
-      if (el) el.style.fill = on ? '#fff' : '#000';
+    let full = '';
+    const ends: number[] = [];
+    for (const bin of nameInkBins) {
+      full += bin.d;
+      ends.push(full.length);
+    }
+    const delays = nameInkBins.map((bin) => bin.delay);
+    const paint = (i: number) => ink.setAttribute('d', full.slice(0, ends[i]));
+    // 写完直接摘掉遮罩：末态就是 Norican 原字形，不靠补白，也不会有"最后一闪"
+    const finish = () => {
+      text.removeAttribute('mask');
+      svg.classList.add('is-ready');
     };
 
+    // 减少动态：不写，直接整行显示
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      bins.forEach((b) => setInk(b, true));
-      setInk(seal, true);
+      finish();
       return;
     }
 
-    bins.forEach((b) => setInk(b, false));
-    setInk(seal, false);
-    if (nib) {
-      nib.setAttribute('cx', bins[0].dataset.x || '0');
-      nib.setAttribute('cy', bins[0].dataset.y || '0');
-      nib.classList.add('is-writing');
-    }
+    const start = () => {
+      ink.setAttribute('d', '');
+      paint(0);
+      text.setAttribute('mask', 'url(#name-write)');
+      // 遮罩挂上的同一帧就显形：此刻墨迹只有第一小段，
+      // 名字其余部分是"没写到"的透明态，不会先闪出一整行再重写
+      svg.classList.add('is-ready');
 
-    const total = Math.max(...delays) + 40;
-    let start = 0;
-    let shown = 0;
-    const tick = (now: number) => {
-      if (!start) start = now;
-      const t = now - start;
-      // 只推进到当前时刻该出现的那个 bin，避免每帧给两百个节点重写样式
-      while (shown < bins.length && t >= delays[shown]) {
-        setInk(bins[shown], true);
-        if (nib && shown + 1 < bins.length) {
-          nib.setAttribute('cx', bins[shown].dataset.x || '0');
-          nib.setAttribute('cy', bins[shown].dataset.y || '0');
+      const total = delays[delays.length - 1] + 40;
+      let t0 = 0;
+      let shown = 0;
+      const tick = (now: number) => {
+        if (!t0) t0 = now;
+        const t = now - t0;
+        let target = shown;
+        while (target + 1 < delays.length && t >= delays[target + 1]) target++;
+        // 掉帧时最多一次推进 8 段：宁可稍微超时，也不让墨迹整段"瞬移"
+        if (target > shown + 8) target = shown + 8;
+        if (target !== shown) {
+          shown = target;
+          paint(shown);
         }
-        shown++;
-      }
-      if (t < total) requestAnimationFrame(tick);
-      else {
-        setInk(seal, true);
-        nib?.classList.remove('is-writing'); // 写完抬笔：笔尖淡出
-      }
+        if (t < total) requestAnimationFrame(tick);
+        else {
+          ink.setAttribute('d', full);
+          finish();
+        }
+      };
+      requestAnimationFrame(tick);
     };
-    requestAnimationFrame(tick);
+
+    // 等 Norican 生效（字重/字号要和 CSS 一致，否则 check 会当没加载）
+    if (document.fonts) {
+      document.fonts
+        .load('400 600px Norican')
+        .catch(() => {})
+        .then(() => document.fonts.ready)
+        .then(start, start);
+    } else start();
   };
   document.addEventListener('astro:page-load', writeName);
   writeName();
@@ -420,11 +439,18 @@ const dateLabel = (d?: Date) =>
         const span = document.createElement('span');
         span.className = 'tw-ch';
         span.textContent = ch;
+        // 初始隐藏直接写在元素上：不依赖样式表是否已就位，
+        // 否则样式来晚一步就会先闪出整句原文，再从头"打"一遍
+        span.style.opacity = '0';
         frag.append(span);
         chars.push(span);
       }
       node.replaceWith(frag);
     }
+
+    // 字符都包好、确认是"全隐"的状态之后，再让容器显形：
+    // 容器在 <head> 里被 opacity:0 兜着（防止动画开始前先闪出原文）
+    el.style.opacity = '1';
 
     // 按真实时间推进而不是链式 setTimeout：帧率与调度抖动不会把总时长拖长，
     // 60 字左右必定在 1s 内敲完，和其它入场动画一起到位
@@ -433,7 +459,7 @@ const dateLabel = (d?: Date) =>
     const step = (now: number) => {
       if (!start) start = now;
       const target = Math.min(chars.length, Math.ceil((now - start) / TYPE_INTERVAL));
-      while (i < target) chars[i++].classList.add('is-on');
+      while (i < target) chars[i++].style.opacity = '1';
       if (i < chars.length) requestAnimationFrame(step);
     };
     window.setTimeout(() => requestAnimationFrame(step), Number(el.dataset.type) || 0);
@@ -731,8 +757,7 @@ const dateLabel = (d?: Date) =>
       animation: none;
     }
     /* 减少动态：名字直接整行显示，不做书写 */
-    .hero h1 .ink-bin,
-    .hero h1 .ink-seal {
+    .hero h1 .ink-write {
       fill: #fff;
     }
     .hero-pixels span {
@@ -790,22 +815,11 @@ const dateLabel = (d?: Date) =>
   .hero h1 .name-text {
     fill: url(#name-ink);
   }
-  /* 每个 bin 是一批沿运笔骨架的笔尖切片，按笔顺依次点亮。
-     遮罩按亮度取值：黑 = 还没写到，白 = 已经写到。
-     注意：不能用 opacity 或 CSS 动画——Chrome 不会因遮罩子元素的
-     opacity 变化而重绘遮罩，只有 fill 变化才会，所以进度由 JS 逐帧推进 */
-  .hero h1 .ink-bin,
-  .hero h1 .ink-seal {
-    fill: #000; /* 遮罩亮度：黑=还没写到，白=已写到，由 JS 逐帧翻转 */
-  }
-  /* 笔尖游标：跟着运笔锋面走的小墨点，写完淡出 */
-  .hero h1 .name-nib {
-    opacity: 0;
-    transition: opacity 0.18s linear;
-    pointer-events: none;
-  }
-  .hero h1 .name-nib.is-writing {
-    opacity: 1;
+  /* 遮罩按亮度取值：白 = 已经写到，透明 = 还没写到。
+     进度靠改 ink-write 的 d（几何变化一定会重绘遮罩），
+     注意不能用 opacity / CSS 动画——遮罩子元素上它们不生效 */
+  .hero h1 .ink-write {
+    fill: #fff;
   }
   .hero .subtitle {
     /* 等宽字体的 x-height 比原无衬线大，同字号下显得更壮，故整体缩一档 */
