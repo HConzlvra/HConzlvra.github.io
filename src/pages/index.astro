@@ -15,6 +15,8 @@ const dateLabel = (d?: Date) =>
 ---
 
 <Layout title="HConzlvra_'s Site">
+  <!-- 花体名字要等 Norican 就位才开始写，提前把字体拉下来，别让书写干等网络 -->
+  <link slot="head" rel="preload" href="/fonts/norican-latin.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
   <DotGrid />
   <!-- First screen: gradient background + dot grid visible, centered in viewport -->
   <div class="container">
@@ -39,7 +41,8 @@ const dateLabel = (d?: Date) =>
                   <!-- 白色墨迹 = 已经写到的地方（亮度遮罩：白显示、黑/透明隐藏）。
                        所有笔尖切片在脚本里拼成一条 path，进度 = 取 d 的前缀，
                        所以画面是墨迹沿骨架往前长，而不是碎片各自点亮。
-                       写完后脚本直接摘掉遮罩，末态与 Norican 原字形逐像素一致 -->
+                       遮罩写完后一直保留——摘掉会让整行字的边缘在一帧内重新
+                       栅格化，看起来像"写完又闪一下" -->
                   <path class="ink-write" d=""></path>
                 </mask>
               </defs>
@@ -358,11 +361,13 @@ const dateLabel = (d?: Date) =>
       full += bin.d;
       ends.push(full.length);
     }
-    const delays = nameInkBins.map((bin) => bin.delay);
+    // 第一段的 delay 也去掉：页面一出来就开始落笔，不用干等 130ms
+    const base = nameInkBins[0]?.delay ?? 0;
+    const delays = nameInkBins.map((bin) => bin.delay - base);
     const paint = (i: number) => ink.setAttribute('d', full.slice(0, ends[i]));
-    // 写完直接摘掉遮罩：末态就是 Norican 原字形，不靠补白，也不会有"最后一闪"
+    // 收尾不摘遮罩：遮罩内容本来就是字形切片，末态肉眼看不出差别；
+    // 一旦摘掉，整行字的边缘会在同一帧重新栅格化，就是"写完闪一下"的来源
     const finish = () => {
-      text.removeAttribute('mask');
       svg.classList.add('is-ready');
     };
 
@@ -380,7 +385,6 @@ const dateLabel = (d?: Date) =>
       // 名字其余部分是"没写到"的透明态，不会先闪出一整行再重写
       svg.classList.add('is-ready');
 
-      const total = delays[delays.length - 1] + 40;
       let t0 = 0;
       let shown = 0;
       const tick = (now: number) => {
@@ -388,28 +392,23 @@ const dateLabel = (d?: Date) =>
         const t = now - t0;
         let target = shown;
         while (target + 1 < delays.length && t >= delays[target + 1]) target++;
-        // 掉帧时最多一次推进 8 段：宁可稍微超时，也不让墨迹整段"瞬移"
+        // 掉帧时最多一次推进 8 段：宁可整体稍慢一点，也不让墨迹"瞬移"
         if (target > shown + 8) target = shown + 8;
         if (target !== shown) {
           shown = target;
           paint(shown);
         }
-        if (t < total) requestAnimationFrame(tick);
-        else {
-          ink.setAttribute('d', full);
-          finish();
-        }
+        // 没写完就继续——哪怕已经超时也不一下子补到全满，
+        // 否则慢设备上最后一截会整块跳出来，看起来就是"写完后闪一下"
+        if (shown < delays.length - 1) requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);
     };
 
-    // 等 Norican 生效（字重/字号要和 CSS 一致，否则 check 会当没加载）
+    // 只等 Norican 自己就位（字重/字号要和 CSS 一致，否则 check 会当没加载）；
+    // 不等 document.fonts.ready——那会把标题用的另一套字体也算进来，白等一截
     if (document.fonts) {
-      document.fonts
-        .load('400 600px Norican')
-        .catch(() => {})
-        .then(() => document.fonts.ready)
-        .then(start, start);
+      document.fonts.load('400 600px Norican').catch(() => {}).then(start, start);
     } else start();
   };
   document.addEventListener('astro:page-load', writeName);
