@@ -355,15 +355,62 @@ const dateLabel = (d?: Date) =>
     const ink = svg.querySelector<SVGPathElement>('.ink-write');
     if (!text || !ink) return;
 
+    // 骨架 DFS 走到结尾会"回头"补写前面字母的零碎切片（原数据最后十几段里混着
+    // H、C 和 r/a 一带的切片），于是书写途中会看到局部缺口，要等动画末尾才补上
+    // ——就是断墨。这里把每个切片归到"笔尖第一次靠近它"的那一段：从它所属段往前
+    // 找，第一个中心距离 ≤ R 的段就是它真正该落笔的时刻。只改揭示顺序，切片几何
+    // 原封不动，字形仍是 Norican。
+    const R2 = 110 * 110;
+    const centers = nameInkBins.map((b) => [b.x, b.y] as const);
+    type Piece = { d: string; bin: number; ord: number };
+    const pieces: Piece[] = [];
+    nameInkBins.forEach((bin, bi) => {
+      for (const sub of bin.d.match(/M[^M]*/g) ?? []) {
+        // 切片要么是一块矩形（M 之后全是绝对坐标），要么是一个圆帽（M 之后全是
+        // 相对弧线）；只取第一个 'a' 之前的部分，圆帽就只剩圆心那一个点
+        const pts = [...sub.split('a')[0].matchAll(/(-?\d+(?:\.\d+)?),(-?[\d.]+)/g)].map(
+          (m) => [Number(m[1]), Number(m[2])] as const,
+        );
+        let to = bi;
+        for (let k = 0; k < bi && to === bi; k++) {
+          const [cx, cy] = centers[k];
+          for (const [px, py] of pts) {
+            const dx = cx - px;
+            const dy = cy - py;
+            if (dx * dx + dy * dy <= R2) {
+              to = k;
+              break;
+            }
+          }
+        }
+        pieces.push({ d: sub, bin: to, ord: pieces.length });
+      }
+    });
+    pieces.sort((a, b) => a.bin - b.bin || a.ord - b.ord);
+
     let full = '';
     const ends: number[] = [];
-    for (const bin of nameInkBins) {
-      full += bin.d;
+    const counts = nameInkBins.map(() => 0);
+    let pi = 0;
+    for (let b = 0; b < nameInkBins.length; b++) {
+      while (pi < pieces.length && pieces[pi].bin === b) {
+        full += pieces[pi++].d;
+        counts[b]++;
+      }
       ends.push(full.length);
     }
-    // 第一段的 delay 也去掉：页面一出来就开始落笔，不用干等 130ms
-    const base = nameInkBins[0]?.delay ?? 0;
-    const delays = nameInkBins.map((bin) => bin.delay - base);
+    // 归组后有些段一件切片都不剩（原段本身就是"回头补写"）。若还按原时间轴走，
+    // 书写会在末尾干等一百多毫秒再补最后一笔；按累计切片数重新分配时间后墨迹
+    // 匀速往前长，总时长不变。第一段的 delay 也去掉，页面一出来就落笔。
+    const span =
+      (nameInkBins[nameInkBins.length - 1]?.delay ?? 0) - (nameInkBins[0]?.delay ?? 0);
+    let acc = 0;
+    const delays = counts.map((c) => {
+      acc += c;
+      return (span * acc) / pieces.length;
+    });
+    const base = delays[0];
+    for (let i = 0; i < delays.length; i++) delays[i] -= base;
     const paint = (i: number) => ink.setAttribute('d', full.slice(0, ends[i]));
     // 收尾不摘遮罩：遮罩内容本来就是字形切片，末态肉眼看不出差别；
     // 一旦摘掉，整行字的边缘会在同一帧重新栅格化，就是"写完闪一下"的来源
@@ -819,6 +866,12 @@ const dateLabel = (d?: Date) =>
      注意不能用 opacity / CSS 动画——遮罩子元素上它们不生效 */
   .hero h1 .ink-write {
     fill: #fff;
+    /* 相邻笔尖切片之间可能有极细的缝，单靠填充会看到"断墨"。
+       给墨迹加一圈同色描边把缝隙糊住；超出字形的部分在遮罩里没有副作用 */
+    stroke: #fff;
+    stroke-width: 14;
+    stroke-linejoin: round;
+    stroke-linecap: round;
   }
   .hero .subtitle {
     /* 等宽字体的 x-height 比原无衬线大，同字号下显得更壮，故整体缩一档 */
