@@ -2,6 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import DotGrid from '../components/DotGrid.astro';
 import { getCollection } from 'astro:content';
+import { nameInkBins, nameInkViewBox } from '../data/name-ink';
 
 // Latest posts: static top 3 at build time (merged with /admin posts at runtime)
 const posts = (await getCollection('posts'))
@@ -22,7 +23,24 @@ const dateLabel = (d?: Date) =>
          the cards start below the fold -->
     <div class="hero-screen">
       <section class="hero">
-        <h1 class="anim-up" style="--d: 0.05s"><span class="lines-hi" data-scramble>ℍ𝕀,<br class="br-mobile" /> 𝕋ℍ𝕀𝕊 𝕀𝕊</span><br /><span class="name name-write">HConzlvra_</span></h1>
+        <h1><span class="lines-hi anim-up" style="--d: 0.05s" data-scramble>ℍ𝕀,<br class="br-mobile" /> 𝕋ℍ𝕀𝕊 𝕀𝕊</span><br /><span class="name" role="img" aria-label="HConzlvra_">
+            <!-- 字形仍是 Norican 本身（SVG <text> 渲染，字体完全不变）；
+                 书写动画由遮罩里沿运笔骨架推进的墨滴完成，按真实笔顺揭示 -->
+            <svg class="name-svg" viewBox={nameInkViewBox} aria-hidden="true" focusable="false">
+              <defs>
+                <linearGradient id="name-ink" gradientUnits="userSpaceOnUse" x1="0" y1="117" x2="1759" y2="1876">
+                  <stop offset="0%" style="stop-color: var(--grad-a)"></stop>
+                  <stop offset="100%" style="stop-color: var(--grad-b)"></stop>
+                </linearGradient>
+                <mask id="name-write" maskUnits="userSpaceOnUse" x="-200" y="0" width="3168" height="750">
+                  {nameInkBins.map((bin) => (
+                    <path class="ink-bin" d={bin.d} data-delay={bin.delay}></path>
+                  ))}
+                </mask>
+              </defs>
+              <text class="name-text" x="0" y="566" font-size="600" mask="url(#name-write)">HConzlvra_</text>
+            </svg>
+          </span></h1>
         <p class="subtitle anim-up" style="--d: 0.18s">Welcome to my site.</p>
         <p class="tagline" data-type="300">There is a crack in everything. <br class="br-mobile" />That's how the light gets in.</p>
         <!-- 框体本身不做淡入上移：移动端的 L 形线要以"笔顺"自己画出来，
@@ -312,6 +330,48 @@ const dateLabel = (d?: Date) =>
   };
   document.addEventListener('astro:page-load', tryScramble);
   tryScramble();
+
+  // ---------- 名字的笔顺书写 ----------
+  // 字形保持 Norican 不变（SVG <text>），遮罩里按运笔顺序排好的墨滴
+  // 用灰度从黑推到白，字就被"写"出来。
+  // 遮罩子元素只对 fill 变化重绘（opacity/CSS 动画在 Chrome 里不生效），
+  // 所以这里用 rAF 逐帧改 fill。
+  const INK_FADE = 80; // ms：每个 bin 从黑到白的时间
+
+  const writeName = () => {
+    const svg = document.querySelector<SVGSVGElement>('.name-svg');
+    if (!svg || svg.dataset.writing) return;
+    svg.dataset.writing = '1';
+
+    const bins = [...svg.querySelectorAll<SVGPathElement>('.ink-bin')];
+    if (!bins.length) return;
+
+    const delays = bins.map((el) => Number(el.dataset.delay) || 0);
+    const setInk = (el: SVGElement, v: number) => {
+      const c = Math.round(255 * Math.min(1, Math.max(0, v)));
+      el.style.fill = `rgb(${c},${c},${c})`;
+    };
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      bins.forEach((b) => setInk(b, 1));
+      return;
+    }
+
+    bins.forEach((b) => setInk(b, 0));
+
+    const total = Math.max(...delays) + INK_FADE;
+    let start = 0;
+    const tick = (now: number) => {
+      if (!start) start = now;
+      const t = now - start;
+      bins.forEach((b, i) => setInk(b, (t - delays[i]) / INK_FADE));
+      if (t < total) requestAnimationFrame(tick);
+      else bins.forEach((b) => setInk(b, 1));
+    };
+    requestAnimationFrame(tick);
+  };
+  document.addEventListener('astro:page-load', writeName);
+  writeName();
 
   // ---------- Typewriter effect ----------
   // 字母依序出现，像现场敲出来：整段文字一开始就占好位置（每个字符包一层
@@ -647,10 +707,9 @@ const dateLabel = (d?: Date) =>
       opacity: 1;
       animation: none;
     }
-    /* 减少动态：名字直接整行显示，不做擦除书写 */
-    .hero h1 .name-write {
-      animation: none;
-      clip-path: none;
+    /* 减少动态：名字直接整行显示，不做书写 */
+    .hero h1 .ink-bin {
+      fill: #fff;
     }
     .hero-pixels span {
       opacity: 1;
@@ -672,40 +731,47 @@ const dateLabel = (d?: Date) =>
   /* 首行双线体（ℍ𝕀, 𝕋ℍ𝕀𝕊 𝕀𝕊）：自托管字体只有 400，
      禁止浏览器合成粗体，否则双线会被加粗糊成实心 */
   .hero h1 .lines-hi {
+    display: inline-block; /* anim-up 用到 translateY，内联元素不生效 */
     font-family: 'MathBlackboard', ui-serif, Georgia, 'Times New Roman', serif;
     font-weight: 400;
-  }
-  /* The name: bigger and heavier than line one, on its own line (break comes from <br>) */
-  .hero h1 .name {
-    display: inline-block;
-    font-family: 'Norican', ui-serif, Georgia, 'Times New Roman', serif;
-    font-size: 1.78em; /* ≈ 大屏可达 12rem+：花体本身瘦，放大才舒展 */
-    font-weight: 400; /* Norican 只有 400，避免浏览器合成粗体把连笔糊掉 */
-    letter-spacing: 0; /* 连笔字不能加负字距，否则笔画会叠在一起 */
-    /* 桌面端也自己带一份渐变，不再依赖父级 h1 的 background-clip:text：
-       父级渐变 + 子元素 clip-path 的组合在部分浏览器里会被裁成空白 */
+    /* inline-block 会成为独立盒子，父级 h1 的 background-clip:text 管不到它，
+       文字会变成透明色看不见，所以这里自带一份渐变 */
     background: var(--heading-gradient);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    /* inline-block + large font: the h1 line box would clip the descending
-       underscore. Give the name its own roomy line box */
+  }
+  /* The name: bigger and heavier than line one, on its own line (break comes from <br>) */
+  .hero h1 .name {
+    display: inline-block;
+    font-size: 1.78em; /* ≈ 大屏可达 12rem+：花体本身瘦，放大才舒展 */
+    font-weight: 400; /* Norican 只有 400，避免浏览器合成粗体把连笔糊掉 */
+    letter-spacing: 0; /* 连笔字不能加负字距，否则笔画会叠在一起 */
     line-height: 1.25;
     padding-bottom: 0.08em;
   }
-  /* 名字的"书写"动画：用 clip-path 从左往右擦出，像笔一路写过去；
-     上下各留 0.4em 余量避免天鹅绞/下伸部被裁，右侧收尾也留一点余量放过笔画外挑。
-     起止值都用百分比，避免 % 与 em 混插导致部分浏览器插值失败 */
-  .hero h1 .name-write {
-    animation: name-write 1.2s cubic-bezier(0.33, 0, 0.2, 1) 0.35s both;
+  /* 名字用 SVG <text> 渲染 Norican：字形、字距、连笔与原来完全一致，
+     书写动画交给遮罩，不再用 clip-path 从整行左边擦出 */
+  .hero h1 .name-svg {
+    display: block;
+    width: 4.6133em; /* = 字宽 2768/600em，与原文本行宽一致 */
+    height: 1.25em; /* = 原 line-height，占位高度不变 */
+    overflow: visible;
   }
-  @keyframes name-write {
-    from {
-      clip-path: inset(-0.4em 100% -0.4em 0);
-    }
-    to {
-      clip-path: inset(-0.4em -6% -0.4em 0);
-    }
+  .hero h1 .name-svg text {
+    font-family: 'Norican', ui-serif, Georgia, 'Times New Roman', serif;
+    font-weight: 400;
+    letter-spacing: 0;
+  }
+  .hero h1 .name-text {
+    fill: url(#name-ink);
+  }
+  /* 每个 bin 是一批沿运笔骨架的墨滴圆，按笔顺依次点亮。
+     遮罩按亮度取值：黑 = 还没写到，白 = 已经写到。
+     注意：不能用 opacity 或 CSS 动画——Chrome 不会因遮罩子元素的
+     opacity 变化而重绘遮罩，只有 fill 变化才会，所以进度由 JS 逐帧推进 */
+  .hero h1 .ink-bin {
+    fill: #000;
   }
   .hero .subtitle {
     /* 等宽字体的 x-height 比原无衬线大，同字号下显得更壮，故整体缩一档 */
@@ -1116,12 +1182,8 @@ const dateLabel = (d?: Date) =>
       font-size: calc((100vw - 2.5rem) / 4.7);
       font-weight: 400; /* 与桌面一致：Norican 只有 400 */
       letter-spacing: 0; /* 连笔字不加负字距 */
-      line-height: 1.15;
-      margin-top: 0.34em;
-      background: var(--heading-gradient);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
+      line-height: 1.25;
+      margin-top: 0.29em;
     }
     .hero .subtitle {
       font-size: min(1.64rem, 6.2vw); /* 名字为主，副标题退一档 */
