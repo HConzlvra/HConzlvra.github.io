@@ -53,8 +53,8 @@ const { title = 'HConzlvra_', description = "HConzlvra_'s Site" } = Astro.props;
       html.booting .navbar {
         opacity: 0;
       }
-      /* 名字要等脚本把遮罩挂好、确认第一帧是"空白"之后再显形 */
-      html.js .name-svg.is-ready .name-text {
+      /* 名字要等 Norican 就位（脚本挂 is-ready）再显形，避免先出现系统字体 */
+      html.js .name.is-ready .name-text {
         opacity: 1;
       }
       @media (prefers-reduced-motion: reduce) {

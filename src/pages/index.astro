@@ -26,25 +26,16 @@ const dateLabel = (d?: Date) =>
     <div class="hero-screen">
       <section class="hero">
         <h1><span class="lines-hi anim-up" style="--d: 0.05s" data-scramble>ℍ𝕀,<br class="br-mobile" /> 𝕋ℍ𝕀𝕊 𝕀𝕊</span><br /><span class="name" role="img" aria-label="HConzlvra_">
-            <!-- 字形仍是 Norican 本身（SVG <text> 渲染，字体完全不变）；
-                 书写动画由遮罩里沿运笔骨架推进的墨迹完成，按真实笔顺揭示。
-                 注意：mask 由脚本在写好第一批切片后再挂上，且名字在此之前一直
-                 保持 opacity:0——否则遮罩还没生效的那一帧会先露出完整的名字，
-                 看起来就是"先闪出一个名字，再重写一遍" -->
+            <!-- 字形仍是 Norican 本身（SVG <text> 渲染，字体完全不变）。
+                 出场只做一条从左往右扫过的遮罩（CSS mask-position 动画），
+                 不再逐帧改字形/遮罩路径——那套每帧都要重新栅格化一条几万字符
+                 的遮罩路径，低配设备会直接卡死 -->
             <svg class="name-svg" viewBox={nameInkViewBox} aria-hidden="true" focusable="false">
               <defs>
                 <linearGradient id="name-ink" gradientUnits="userSpaceOnUse" x1="0" y1="117" x2="1759" y2="1876">
                   <stop offset="0%" style="stop-color: var(--grad-a)"></stop>
                   <stop offset="100%" style="stop-color: var(--grad-b)"></stop>
                 </linearGradient>
-                <mask id="name-write" maskUnits="userSpaceOnUse" x="-200" y="0" width="3168" height="750">
-                  <!-- 白色墨迹 = 已经写到的地方（亮度遮罩：白显示、黑/透明隐藏）。
-                       所有笔尖切片在脚本里拼成一条 path，进度 = 取 d 的前缀，
-                       所以画面是墨迹沿骨架往前长，而不是碎片各自点亮。
-                       遮罩写完后一直保留——摘掉会让整行字的边缘在一帧内重新
-                       栅格化，看起来像"写完又闪一下" -->
-                  <path class="ink-write" d=""></path>
-                </mask>
               </defs>
               <text class="name-text" x="0" y="566" font-size="600">HConzlvra_</text>
             </svg>
@@ -145,8 +136,6 @@ const dateLabel = (d?: Date) =>
 
 <script>
   import { API_BASE } from '../lib/api';
-  // 运笔数据只在脚本里用：放到客户端包里，别塞进首屏 HTML
-  import { nameInkBins } from '../data/name-ink';
 
   // Latest posts merge: pull /admin-published posts and re-rank with the static list, top 3;
   // keep the static list as-is when the backend is down or has nothing new
@@ -341,125 +330,29 @@ const dateLabel = (d?: Date) =>
   document.addEventListener('astro:page-load', tryScramble);
   tryScramble();
 
-  // ---------- 名字的笔顺书写 ----------
-  // 字形保持 Norican 不变（SVG <text>），遮罩里按"一支笔沿笔画行走"排好的
-  // 切片全部拼成一条 path，进度就是取 d 的前缀——每帧只改一个属性，
-  // 画面是"这条笔画继续往前长"，而不是一片碎片各自点亮（那看起来像几个墨点乱跳）。
-  // 另外：字形还没换成 Norican 时切片和字对不上，所以先等字体就位再写。
-  const writeName = () => {
-    const svg = document.querySelector<SVGSVGElement>('.name-svg');
-    if (!svg || svg.dataset.writing) return;
-    svg.dataset.writing = '1';
+  // ---------- 名字出场 ----------
+  // 从左往右扫过的遮罩动画完全交给 CSS（只动 mask-position），脚本只负责
+  // 等 Norican 就位后挂上 is-ready：字体没换好就开始扫，会先扫出一个系统
+  // 字体的名字再跳成花体。这里不再逐帧改任何属性，低配设备也不会卡。
+  const revealName = () => {
+    const name = document.querySelector<HTMLElement>('.hero h1 .name');
+    if (!name || name.dataset.ready) return;
+    name.dataset.ready = '1';
 
-    const text = svg.querySelector<SVGTextElement>('.name-text');
-    const ink = svg.querySelector<SVGPathElement>('.ink-write');
-    if (!text || !ink) return;
-
-    // 骨架 DFS 走到结尾会"回头"补写前面字母的零碎切片（原数据最后十几段里混着
-    // H、C 和 r/a 一带的切片），于是书写途中会看到局部缺口，要等动画末尾才补上
-    // ——就是断墨。这里把每个切片归到"笔尖第一次靠近它"的那一段：从它所属段往前
-    // 找，第一个中心距离 ≤ R 的段就是它真正该落笔的时刻。只改揭示顺序，切片几何
-    // 原封不动，字形仍是 Norican。
-    const R2 = 110 * 110;
-    const centers = nameInkBins.map((b) => [b.x, b.y] as const);
-    type Piece = { d: string; bin: number; ord: number };
-    const pieces: Piece[] = [];
-    nameInkBins.forEach((bin, bi) => {
-      for (const sub of bin.d.match(/M[^M]*/g) ?? []) {
-        // 切片要么是一块矩形（M 之后全是绝对坐标），要么是一个圆帽（M 之后全是
-        // 相对弧线）；只取第一个 'a' 之前的部分，圆帽就只剩圆心那一个点
-        const pts = [...sub.split('a')[0].matchAll(/(-?\d+(?:\.\d+)?),(-?[\d.]+)/g)].map(
-          (m) => [Number(m[1]), Number(m[2])] as const,
-        );
-        let to = bi;
-        for (let k = 0; k < bi && to === bi; k++) {
-          const [cx, cy] = centers[k];
-          for (const [px, py] of pts) {
-            const dx = cx - px;
-            const dy = cy - py;
-            if (dx * dx + dy * dy <= R2) {
-              to = k;
-              break;
-            }
-          }
-        }
-        pieces.push({ d: sub, bin: to, ord: pieces.length });
-      }
-    });
-    pieces.sort((a, b) => a.bin - b.bin || a.ord - b.ord);
-
-    let full = '';
-    const ends: number[] = [];
-    const counts = nameInkBins.map(() => 0);
-    let pi = 0;
-    for (let b = 0; b < nameInkBins.length; b++) {
-      while (pi < pieces.length && pieces[pi].bin === b) {
-        full += pieces[pi++].d;
-        counts[b]++;
-      }
-      ends.push(full.length);
-    }
-    // 归组后有些段一件切片都不剩（原段本身就是"回头补写"）。若还按原时间轴走，
-    // 书写会在末尾干等一百多毫秒再补最后一笔；按累计切片数重新分配时间后墨迹
-    // 匀速往前长，总时长不变。第一段的 delay 也去掉，页面一出来就落笔。
-    const span =
-      (nameInkBins[nameInkBins.length - 1]?.delay ?? 0) - (nameInkBins[0]?.delay ?? 0);
-    let acc = 0;
-    const delays = counts.map((c) => {
-      acc += c;
-      return (span * acc) / pieces.length;
-    });
-    const base = delays[0];
-    for (let i = 0; i < delays.length; i++) delays[i] -= base;
-    const paint = (i: number) => ink.setAttribute('d', full.slice(0, ends[i]));
-    // 收尾不摘遮罩：遮罩内容本来就是字形切片，末态肉眼看不出差别；
-    // 一旦摘掉，整行字的边缘会在同一帧重新栅格化，就是"写完闪一下"的来源
-    const finish = () => {
-      svg.classList.add('is-ready');
-    };
-
-    // 减少动态：不写，直接整行显示
+    const start = () => name.classList.add('is-ready');
+    // 减少动态：不做扫入，直接整行显示
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      finish();
+      start();
       return;
     }
-
-    const start = () => {
-      ink.setAttribute('d', '');
-      paint(0);
-      text.setAttribute('mask', 'url(#name-write)');
-      // 遮罩挂上的同一帧就显形：此刻墨迹只有第一小段，
-      // 名字其余部分是"没写到"的透明态，不会先闪出一整行再重写
-      svg.classList.add('is-ready');
-
-      let t0 = 0;
-      let shown = 0;
-      const tick = (now: number) => {
-        if (!t0) t0 = now;
-        const t = now - t0;
-        let target = shown;
-        while (target + 1 < delays.length && t >= delays[target + 1]) target++;
-        // 掉帧时最多一次推进 8 段：宁可整体稍慢一点，也不让墨迹"瞬移"
-        if (target > shown + 8) target = shown + 8;
-        if (target !== shown) {
-          shown = target;
-          paint(shown);
-        }
-        // 没写完就继续——哪怕已经超时也不一下子补到全满，
-        // 否则慢设备上最后一截会整块跳出来，看起来就是"写完后闪一下"
-        if (shown < delays.length - 1) requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    };
-
     // 只等 Norican 自己就位（字重/字号要和 CSS 一致，否则 check 会当没加载）；
     // 不等 document.fonts.ready——那会把标题用的另一套字体也算进来，白等一截
     if (document.fonts) {
       document.fonts.load('400 600px Norican').catch(() => {}).then(start, start);
     } else start();
   };
-  document.addEventListener('astro:page-load', writeName);
-  writeName();
+  document.addEventListener('astro:page-load', revealName);
+  revealName();
 
   // ---------- Typewriter effect ----------
   // 字母依序出现，像现场敲出来：整段文字一开始就占好位置（每个字符包一层
@@ -802,10 +695,7 @@ const dateLabel = (d?: Date) =>
       opacity: 1;
       animation: none;
     }
-    /* 减少动态：名字直接整行显示，不做书写 */
-    .hero h1 .ink-write {
-      fill: #fff;
-    }
+    /* 减少动态：像素方块直接显示 */
     .hero-pixels span {
       opacity: 1;
       animation: none;
@@ -861,17 +751,42 @@ const dateLabel = (d?: Date) =>
   .hero h1 .name-text {
     fill: url(#name-ink);
   }
-  /* 遮罩按亮度取值：白 = 已经写到，透明 = 还没写到。
-     进度靠改 ink-write 的 d（几何变化一定会重绘遮罩），
-     注意不能用 opacity / CSS 动画——遮罩子元素上它们不生效 */
-  .hero h1 .ink-write {
-    fill: #fff;
-    /* 相邻笔尖切片之间可能有极细的缝，单靠填充会看到"断墨"。
-       给墨迹加一圈同色描边把缝隙糊住；超出字形的部分在遮罩里没有副作用 */
-    stroke: #fff;
-    stroke-width: 14;
-    stroke-linejoin: round;
-    stroke-linecap: round;
+  /* 出场：一条带羽化的遮罩从左往右扫过。只动 mask-position，
+     字形和 DOM 一概不碰，开销基本等于一次合成——之前的笔顺动画
+     每帧都在重栅格化几万字符的遮罩路径，才会把浏览器卡住。
+     mask-size 300%：起点窗口完全落在右侧透明段（全隐藏），
+     终点窗口完全落在左侧不透明段（全显示）。纵向放到 140% 是为了
+     给字形留出溢出余量，避免边缘被裁掉。 */
+  .hero h1 .name {
+    -webkit-mask-image: linear-gradient(90deg, #000 0 47%, transparent 53%, transparent 100%);
+    mask-image: linear-gradient(90deg, #000 0 47%, transparent 53%, transparent 100%);
+    -webkit-mask-size: 300% 140%;
+    mask-size: 300% 140%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: 18% 50%;
+    mask-position: 18% 50%;
+  }
+  .hero h1 .name.is-ready {
+    animation: name-sweep 900ms cubic-bezier(0.25, 0.1, 0.25, 1) both;
+  }
+  /* 起止位置只覆盖"羽化边正好从字头扫到字尾"的那一段（约 82% → 18%），
+     写满 100%→0% 的话前后会各有一次肉眼看不见的空跑，看起来会忽快忽慢 */
+  @keyframes name-sweep {
+    from {
+      -webkit-mask-position: 82% 50%;
+      mask-position: 82% 50%;
+    }
+    to {
+      -webkit-mask-position: 18% 50%;
+      mask-position: 18% 50%;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    /* 减少动态：名字直接整行显示，不做扫入（放在动画规则之后才盖得住） */
+    .hero h1 .name.is-ready {
+      animation: none;
+    }
   }
   .hero .subtitle {
     /* 等宽字体的 x-height 比原无衬线大，同字号下显得更壮，故整体缩一档 */
