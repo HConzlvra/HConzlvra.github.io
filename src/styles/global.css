@@ -126,6 +126,16 @@ html[data-theme='dark'] {
   font-display: swap;
 }
 
+/* 正文金句用字：EB Garamond 斜体（latin 子集，约 24KB）。
+   比 Norican 克制得多，只用在首页 tagline 这类引文上 */
+@font-face {
+  font-family: 'EB Garamond';
+  src: url('/fonts/eb-garamond-italic.woff2') format('woff2');
+  font-style: italic;
+  font-weight: 500;
+  font-display: swap;
+}
+
 /* 双线体（blackboard bold）标题字：Noto Sans Math 子集，只保留
    𝔸–𝕫 与 ℂℍℕℙℚℝℤ（约 3.6KB）。首页 "ℍ𝕀, 𝕋ℍ𝕀𝕊 𝕀𝕊" 使用；
    大多数系统字体并没有这些字形，不自托管会变成方框 */

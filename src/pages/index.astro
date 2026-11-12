@@ -17,6 +17,8 @@ const dateLabel = (d?: Date) =>
 <Layout title="HConzlvra_'s Site">
   <!-- 花体名字要等 Norican 就位才开始写，提前把字体拉下来，别让书写干等网络 -->
   <link slot="head" rel="preload" href="/fonts/norican-latin.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+  <!-- 首屏引文用的斜体，同样提前拉，避免打字机打到一半字体才换 */
+  <link slot="head" rel="preload" href="/fonts/eb-garamond-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
   <DotGrid />
   <!-- First screen: gradient background + dot grid visible, centered in viewport -->
   <div class="container">
@@ -790,21 +792,25 @@ const dateLabel = (d?: Date) =>
   }
   .hero .subtitle {
     /* 等宽字体的 x-height 比原无衬线大，同字号下显得更壮，故整体缩一档 */
-    font-size: clamp(1.4rem, 2.2vw, 2.2rem);
+    font-size: clamp(0.95rem, 1.35vw, 1.35rem);
     font-weight: 500;
     color: var(--accent-text);
     margin-bottom: 0.75rem;
-    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; /* 与下方诗句同字体 */
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
   }
   .hero .tagline {
-    font-size: clamp(1rem, 1.3vw, 1.4rem);
+    /* 引文用 EB Garamond 斜体：有笔锋、但比 Norican 收敛，不做花体 */
+    font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
+    font-style: italic;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    font-size: clamp(1.1rem, 1.5vw, 1.6rem);
     color: var(--text-secondary);
-    line-height: 1.7;
+    line-height: 1.6;
     white-space: nowrap;
     border-left: 3px solid var(--btn-primary-bg);
     padding-left: 1rem;
     margin: 1.2rem 0 0;
-    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
   }
 
   /* 代码风角框装饰（竖排 NAV）：仅移动端可见 */
@@ -1201,11 +1207,11 @@ const dateLabel = (d?: Date) =>
       margin-top: 0.29em;
     }
     .hero .subtitle {
-      font-size: min(1.64rem, 6.2vw); /* 名字为主，副标题退一档 */
+      font-size: min(1.1rem, 4.3vw); /* 名字为主，副标题退一档 */
       margin-bottom: 0.9rem;
     }
     .hero .tagline {
-      font-size: min(1.1rem, 4vw);
+      font-size: min(1.2rem, 4.5vw);
       line-height: 1.45;
       padding-left: 0.7rem;
       margin-top: 0.85rem;
