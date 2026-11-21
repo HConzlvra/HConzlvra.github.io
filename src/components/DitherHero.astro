@@ -1,0 +1,435 @@
+---
+// 主页背景：WebGL2 实时光栅抖动（ordered dither）星芒。
+// 移植自 https://github.com/yashkotha/dither-hero（MIT），只保留 dither 模式：
+// 连续亮度场（八芒星 + 暗椭圆核心 + 流动地形/沙粒/噪点，跟随光标轻微排斥）
+// 经 Bayer 8×8 阈值化后，用主题紫色以 alpha 叠加在页面渐变之上——
+// 底色仍然透出 global.css 的渐变，亮处是抖动的紫色像素点。
+---
+
+<canvas id="dither-hero" class="dither-hero" aria-hidden="true"></canvas>
+
+<style>
+  .dither-hero {
+    position: fixed;
+    inset: 0;
+    z-index: -1; /* 位于渐变背景之上、页面内容之下 */
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+</style>
+
+<script>
+  // ---------- 可调参数（对应原仓库的 tuner 默认值，按本站配色微调）----------
+  const P = {
+    size: 2, // 每个抖动单元的 CSS 像素数
+    exposure: 1.15, // 亮度整体增益
+    contrast: 1.18, // 亮暗过渡的锐度
+    gamma: 1.1, // 中间调偏移
+    glow: 1.7, // 星芒衰减（越大越收紧）
+    scatter: 0.2, // 每个单元阈值抖动
+    motion: 0.4, // 动画速度
+    alpha: 0.55, // 整体不透明度（亮处）
+  };
+
+  const VERT = `#version 300 es
+  in vec2 aPos; void main(){ gl_Position = vec4(aPos,0.0,1.0); }`;
+
+  const FRAG = `#version 300 es
+  precision highp float;
+  out vec4 fragColor;
+  uniform vec2  uRes;
+  uniform float uTime;
+  uniform vec2  uMouseUV;  // 光标，0..1（y 向上）
+  uniform float uMouseOn;  // 0..1，首次移动光标后渐入
+  uniform float uSize;     // 每个效果单元的设备像素数
+  uniform float uExposure;
+  uniform float uContrast;
+  uniform float uGamma;
+  uniform float uGlow;
+  uniform vec3  uTint;     // 亮处颜色
+  uniform float uAlpha;    // 亮处不透明度
+  uniform float uScatter;
+
+  float hash21(vec2 p){ p = fract(p*vec2(123.34,456.21)); p += dot(p,p+45.32); return fract(p.x*p.y); }
+  vec3 mod289(vec3 x){ return x - floor(x*(1.0/289.0))*289.0; }
+  vec2 mod289(vec2 x){ return x - floor(x*(1.0/289.0))*289.0; }
+  vec3 permute(vec3 x){ return mod289(((x*34.0)+1.0)*x); }
+  float snoise(vec2 v){
+    const vec4 C = vec4(0.211324865405187,0.366025403784439,-0.577350269189626,0.024390243902439);
+    vec2 i=floor(v+dot(v,C.yy)); vec2 x0=v-i+dot(i,C.xx);
+    vec2 i1=(x0.x>x0.y)?vec2(1.0,0.0):vec2(0.0,1.0);
+    vec4 x12=x0.xyxy+C.xxzz; x12.xy-=i1; i=mod289(i);
+    vec3 p=permute(permute(i.y+vec3(0.0,i1.y,1.0))+i.x+vec3(0.0,i1.x,1.0));
+    vec3 m=max(0.5-vec3(dot(x0,x0),dot(x12.xy,x12.xy),dot(x12.zw,x12.zw)),0.0);
+    m=m*m; m=m*m;
+    vec3 x=2.0*fract(p*C.www)-1.0; vec3 h=abs(x)-0.5; vec3 ox=floor(x+0.5); vec3 a0=x-ox;
+    m*=1.79284291400159-0.85373472095314*(a0*a0+h*h);
+    vec3 g; g.x=a0.x*x0.x+h.x*x0.y; g.yz=a0.yz*x12.xz+h.yz*x12.yw;
+    return 130.0*dot(m,g);
+  }
+  float fbm(vec2 p){ float s=0.0,a=0.5; for(int i=0;i<4;i++){ s+=a*snoise(p); p*=2.03; a*=0.5; } return s; }
+
+  /* Bayer 8x8 有序抖动阈值，0..1 */
+  float bayer2(vec2 a){ a=floor(a); return fract(dot(a,vec2(0.5,a.y*0.75))); }
+  float bayer4(vec2 a){ return bayer2(0.5*a)*0.25 + bayer2(a); }
+  float bayer8(vec2 a){ return bayer4(0.5*a)*0.25 + bayer2(a); }
+
+  /* ---- 连续调亮度场 ---- */
+  float scene(vec2 fc, vec2 mSt, float t){
+    vec2 uv = fc/uRes;
+    vec2 st = (fc - 0.5*uRes)/uRes.y;
+
+    /* 缓慢翻滚的域扭曲：光标静止时整片场也在流动 */
+    vec2 fp = st*1.7;
+    vec2 warp = vec2(fbm(fp + vec2(0.0, t*0.10)),
+                     fbm(fp + vec2(5.2,-t*0.08)));
+
+    /* 光标排斥：把场从光标处推开（平方反比衰减） */
+    vec2 toP = st - mSt;
+    float pd = length(toP);
+    float push = uMouseOn * 0.04 / (pd*pd + 0.025);
+    push = min(push, 0.06);
+    vec2 disp = (toP/(pd+1e-4)) * push;
+
+    vec2 sts = st + warp*0.04 + disp*0.45;
+
+    /* 星芒中心：宽屏时靠右（避开左侧标题），窄屏时回到画面中央；
+       窄屏整体收紧、抬高一档，并把地形压淡，给文字留出干净底 */
+    float aspect = uRes.x/uRes.y;
+    float narrow = smoothstep(1.05, 0.6, aspect);
+    float cx = min(0.44, max(0.0, aspect*0.5 - 0.28));
+    vec2 center = vec2(cx, 0.05) + mSt*0.06;
+    vec2 p = sts - center;
+    float r = length(p) * mix(1.0, 1.22, narrow);
+    float ang = atan(p.y,p.x);
+    float rot = 0.12 + t*0.03;
+
+    /* 4 长 + 4 短锐利光线 */
+    float aL = abs(cos(2.0*(ang+rot)));
+    float aS = abs(cos(2.0*(ang+rot-0.78539816)));
+    float rays = (pow(aL,38.0) + pow(aS,55.0)*0.5) * exp(-r*3.3*uGlow);
+    float glow = exp(-r*6.6*uGlow)*0.5;
+
+    /* 暗椭圆核心 + 光晕环 */
+    vec2 ep = p*vec2(1.0,1.72); float er=length(ep);
+    float core = smoothstep(0.135,0.028,er);
+    float halo = exp(-abs(er-0.14)*8.5)*0.95;
+
+    float star = (rays*1.25 + glow + halo)*(1.0 - core*1.55);
+    star = max(star,0.0);
+    star *= 1.0 + 0.05*sin(t*0.6);
+
+    /* 流动地形：底部更密（像被风吹动的沙） */
+    vec2 np = vec2(uv.x*3.0, uv.y*3.0) + warp*0.5 + disp*2.4;
+    float flow = fbm(np*1.25 + vec2(t*0.08,-t*0.11));
+    float field = fbm(np*2.25 + flow*0.7 + vec2(t*0.05,t*0.05));
+    float bmask = smoothstep(0.55,0.0,uv.y);
+    float terrain = pow(field*0.5+0.5,1.4)*bmask*mix(0.45, 0.24, narrow);
+
+    /* 全局细沙：很淡，远离星芒后消失 */
+    float sand = fbm(np*1.7 + warp*1.1 + vec2(-t*0.10, t*0.07));
+    float sandField = (sand*0.5+0.5) * 0.09 * smoothstep(1.4,0.0,r);
+
+    /* 星芒周围的大尺度薄雾 */
+    float haze = (fbm(np*0.7 + t*0.02)*0.5+0.5)*0.05 * smoothstep(1.1,0.1,r);
+
+    /* 漂移闪烁的微尘 */
+    vec2 cell = floor((fc + vec2(t*5.0, t*2.5))/max(uSize*1.5,3.0));
+    float sh = hash21(cell);
+    float tw = 0.5+0.5*sin(t*3.0 + hash21(cell+7.0)*30.0);
+    float specks = smoothstep(0.9965,0.9990,sh)*tw*0.45;
+
+    float g = star + terrain + sandField + haze + specks + 0.02;
+
+    /* 光标附近：点亮 / 搅动抖动场 */
+    float md = distance(st, mSt);
+    float hv = smoothstep(0.32, 0.0, md);
+    float stir = fbm(np*3.0 + t*0.6)*0.5+0.5;
+    g += hv * (0.09 + 0.20*stir);
+    g += smoothstep(0.09, 0.0, md) * 0.10;
+
+    /* 亮区里刻一层很淡的"技术网格" */
+    vec2 gp = fract(st*38.0) - 0.5;
+    float grid = max(smoothstep(0.055,0.0,abs(gp.x)), smoothstep(0.055,0.0,abs(gp.y)));
+    g -= grid * smoothstep(0.16,0.6,g) * 0.10;
+
+    return g;
+  }
+
+  void main(){
+    vec2 fc = gl_FragCoord.xy;
+    float t = uTime;
+    vec2 mSt = vec2((uMouseUV.x-0.5)*uRes.x/uRes.y, uMouseUV.y-0.5);
+
+    float g = scene(fc, mSt, t);
+    float tone = clamp(g, 0.0, 1.0);
+
+    /* 色调曲线：先塑形，再抖动 */
+    tone = pow(tone, uGamma);
+    tone = (tone - 0.5)*uContrast + 0.5;
+    tone *= uExposure;
+    tone = clamp(tone, 0.0, 1.0);
+
+    /* Bayer 8×8 阈值抖动 + 每单元轻微阈值随机 + 颗粒 */
+    vec2 gcell = floor(fc/uSize);
+    float threshJ = (hash21(gcell + vec2(13.1, 71.7)) - 0.5) * uScatter;
+    float tt = t*3.5;
+    float ti = floor(tt), tf = fract(tt);
+    tf = tf*tf*(3.0-2.0*tf);
+    float grain = (mix(hash21(gcell+ti), hash21(gcell+ti+1.0), tf) - 0.5)*0.02;
+    float thr = bayer8(gcell);
+    float d = step(thr + threshJ, tone + grain);
+    /* 场本身很暗的地方不出点：否则阈值抖动/颗粒会让整页铺满
+       稀疏但实心的脏点（原仓库是深色底，这些点看不出来；浅色底会很明显） */
+    d *= smoothstep(0.01, 0.08, tone);
+    float lum = mix(d, tone, 0.10);
+
+    /* 轻微暗角 */
+    vec2 st = (fc - 0.5*uRes)/uRes.y;
+    float vig = smoothstep(1.5,0.15,length(st));
+    lum *= mix(0.78,1.0,vig);
+
+    /* 预乘 alpha：底色（页面渐变）透出来，亮处是主题紫色抖动的点。
+       窄屏再降一档，避免星芒压在标题上影响阅读 */
+    float narrow = smoothstep(1.05, 0.6, uRes.x/uRes.y);
+    float a = clamp(lum,0.0,1.0) * uAlpha * mix(1.0, 0.55, narrow);
+    fragColor = vec4(uTint * a, a);
+  }`;
+
+  // ---------- 运行时状态 ----------
+  let canvas: HTMLCanvasElement | null = null;
+  let gl: WebGL2RenderingContext | null = null;
+  let loc: Record<string, WebGLUniformLocation | null> = {};
+  let running = false;
+  let animT = 0;
+  let last = 0;
+  let dpr = 1;
+
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const dprCap = window.matchMedia('(pointer: coarse)').matches ? 1.5 : 2;
+
+  // 光标（平滑跟随）
+  const tUV = { x: 0.62, y: 0.6 };
+  const mUV = { x: 0.62, y: 0.6 };
+  let mouseOn = 0;
+  let mouseOnTarget = 0;
+
+  // 主题色：亮处用 --grad-b（已注册为 <color>，切换主题时会插值）
+  const FALLBACK: [number, number, number] = [0.545, 0.247, 0.82];
+  let tint: [number, number, number] = FALLBACK;
+
+  const parseColor = (raw: string): [number, number, number] => {
+    const s = raw.trim();
+    if (!s) return FALLBACK;
+    if (s.startsWith('#')) {
+      let h = s.slice(1);
+      if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+      const n = parseInt(h, 16);
+      if (Number.isNaN(n)) return FALLBACK;
+      return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+    }
+    const nums = s.match(/[\d.]+/g);
+    if (nums && nums.length >= 3) {
+      return [Number(nums[0]) / 255, Number(nums[1]) / 255, Number(nums[2]) / 255];
+    }
+    return FALLBACK;
+  };
+
+  const readTheme = () => {
+    const v = getComputedStyle(document.documentElement).getPropertyValue('--grad-b');
+    tint = parseColor(v);
+  };
+
+  // ---------- 着色器 ----------
+  const compile = (type: number, src: string) => {
+    if (!gl) return null;
+    const s = gl.createShader(type);
+    if (!s) return null;
+    gl.shaderSource(s, src.replace(/^\s+/, ''));
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      console.error(gl.getShaderInfoLog(s));
+      return null;
+    }
+    return s;
+  };
+
+  const resize = () => {
+    if (!canvas || !gl) return;
+    dpr = Math.min(window.devicePixelRatio || 1, dprCap);
+    const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
+    const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+      gl.viewport(0, 0, w, h);
+    }
+  };
+
+  const draw = () => {
+    if (!canvas || !gl) return;
+    resize();
+    gl.uniform2f(loc.uRes, canvas.width, canvas.height);
+    gl.uniform1f(loc.uTime, animT);
+    gl.uniform2f(loc.uMouseUV, mUV.x, mUV.y);
+    gl.uniform1f(loc.uMouseOn, mouseOn);
+    gl.uniform1f(loc.uSize, P.size * dpr);
+    gl.uniform1f(loc.uExposure, P.exposure);
+    gl.uniform1f(loc.uContrast, P.contrast);
+    gl.uniform1f(loc.uGamma, P.gamma);
+    gl.uniform1f(loc.uGlow, P.glow);
+    gl.uniform3f(loc.uTint, tint[0], tint[1], tint[2]);
+    gl.uniform1f(loc.uAlpha, P.alpha);
+    gl.uniform1f(loc.uScatter, P.scatter);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  };
+
+  const frame = (now: number) => {
+    if (!canvas || !canvas.isConnected) {
+      running = false;
+      return;
+    }
+    const dt = last ? Math.min((now - last) / 1000, 0.05) : 0.016;
+    last = now;
+    animT += dt * P.motion;
+    // 与帧率无关的缓动系数（60/120/240Hz 手感一致）
+    const k = 1 - Math.exp(-3.7 * dt);
+    const kOn = 1 - Math.exp(-3.1 * dt);
+    mUV.x += (tUV.x - mUV.x) * k;
+    mUV.y += (tUV.y - mUV.y) * k;
+    mouseOn += (mouseOnTarget - mouseOn) * kOn;
+    draw();
+    requestAnimationFrame(frame);
+  };
+
+  const start = () => {
+    if (!canvas || !gl || !canvas.isConnected) return;
+    if (reduced.matches) {
+      // 减少动态：只画一帧静态画面，不常驻 rAF
+      animT = 6;
+      running = false;
+      draw();
+      return;
+    }
+    if (!running) {
+      running = true;
+      last = 0;
+      requestAnimationFrame(frame);
+    }
+  };
+
+  // ---------- 初始化（软导航回来时画布是全新元素）----------
+  const init = () => {
+    const el = document.getElementById('dither-hero');
+    if (!(el instanceof HTMLCanvasElement)) return; // 非主页
+    if (el === canvas && el.dataset.ready) {
+      start();
+      return;
+    }
+    canvas = el;
+    gl = el.getContext('webgl2', {
+      antialias: false,
+      alpha: true,
+      premultipliedAlpha: true,
+      powerPreference: 'high-performance',
+    });
+    if (!gl) {
+      // 没有 WebGL2：直接不显示，页面渐变仍在
+      el.style.display = 'none';
+      return;
+    }
+
+    const vs = compile(gl.VERTEX_SHADER, VERT);
+    const fs = compile(gl.FRAGMENT_SHADER, FRAG);
+    if (!vs || !fs) {
+      el.style.display = 'none';
+      return;
+    }
+
+    const prog = gl.createProgram();
+    gl.attachShader(prog, vs);
+    gl.attachShader(prog, fs);
+    gl.bindAttribLocation(prog, 0, 'aPos');
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      console.error(gl.getProgramInfoLog(prog));
+      el.style.display = 'none';
+      return;
+    }
+    gl.useProgram(prog);
+
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+    loc = {};
+    for (const name of [
+      'uRes', 'uTime', 'uMouseUV', 'uMouseOn', 'uSize',
+      'uExposure', 'uContrast', 'uGamma', 'uGlow', 'uTint', 'uAlpha', 'uScatter',
+    ]) {
+      loc[name] = gl.getUniformLocation(prog, name);
+    }
+
+    el.dataset.ready = '1';
+    el.style.display = '';
+    readTheme();
+
+    // 每次（重新）进入主页重置动画与光标状态
+    animT = 0;
+    last = 0;
+    mUV.x = tUV.x;
+    mUV.y = tUV.y;
+    mouseOn = 0;
+    mouseOnTarget = 0;
+
+    start();
+  };
+
+  // ---------- 全局监听（模块只执行一次）----------
+  window.addEventListener(
+    'pointermove',
+    (e) => {
+      tUV.x = e.clientX / window.innerWidth;
+      tUV.y = 1 - e.clientY / window.innerHeight;
+      mouseOnTarget = 1;
+    },
+    { passive: true }
+  );
+  window.addEventListener(
+    'pointerleave',
+    () => {
+      mouseOnTarget = 0;
+    },
+    { passive: true }
+  );
+
+  window.addEventListener('resize', () => {
+    if (canvas?.isConnected) start();
+  });
+
+  // 主题切换：颜色已注册为 <color>，过渡期间逐帧重读，抖动点与页面同步变色
+  let followId = 0;
+  const followTheme = (until: number) => {
+    if (followId) cancelAnimationFrame(followId);
+    const step = () => {
+      readTheme();
+      if (!running && canvas?.isConnected) draw();
+      if (performance.now() < until) followId = requestAnimationFrame(step);
+      else followId = 0;
+    };
+    followId = requestAnimationFrame(step);
+  };
+  new MutationObserver(() => {
+    readTheme();
+    start();
+    followTheme(performance.now() + 600);
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  reduced.addEventListener('change', start);
+
+  document.addEventListener('astro:page-load', init);
+  init();
+</script>
