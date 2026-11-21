@@ -69,6 +69,8 @@ const { variant = 'sand' } = Astro.props;
   uniform float uAlpha;
   uniform float uVeil;     // 整幅黑色薄雾：浅色主题下把背景整体压暗
   uniform float uScatter;
+  uniform vec2  uMouseVel; // 光标速度（场景坐标/秒），用于刮擦拖拽
+  uniform float uInk;      // 局部墨量限制：密度越高，点越暗，避免整屏发亮
 
   float hash21(vec2 p){ p = fract(p*vec2(123.34,456.21)); p += dot(p,p+45.32); return fract(p.x*p.y); }
   vec3 mod289(vec3 x){ return x - floor(x*(1.0/289.0))*289.0; }
@@ -104,7 +106,10 @@ const { variant = 'sand' } = Astro.props;
 
     vec2 st = (fc - 0.5*uRes)/uRes.y;
     float vig = smoothstep(1.55, 0.2, length(st));
-    float a = d * mix(0.8, 1.0, vig);
+    /* 墨量限制（印刷里的 ink limit）：越密的区域点越淡。
+       这样沙脊再厚也不会烧成一片白，整屏亮度有上界，不会"偶尔特别亮" */
+    float ink = 1.0 - uInk * smoothstep(0.30, 0.92, lum);
+    float a = d * mix(0.8, 1.0, vig) * ink;
     float narrow = smoothstep(1.05, 0.62, uRes.x/uRes.y);
     a *= uAlpha * mix(1.0, 0.6, narrow);
     // 黑色薄雾是"无点"的底色：预乘后 rgb 仍为 0，alpha 叠加即可压暗底色
@@ -131,15 +136,24 @@ const { variant = 'sand' } = Astro.props;
                       fbm(q*1.35 + vec2(-4.4, -t*0.026)));
     vec2 w = q + warpA*0.75 + warpB*0.18;
 
-    /* 手指/光标：只做 dotgrid 那种"局部扰动"——光标周围一小片沙粒被轻轻拨开，
-       不搬动整条沙脊。作用半径小、强度低，加上 JS 端很慢的缓动，
-       所以是缓慢渐进地跟手，而不是一整块图案黏着光标走 */
+    /* 局部扰动：不用 sin 环（会出现同心圆），改为
+       ① 反平方衰减的径向推挤（参考 dither-hero / neuform 的指针排斥）
+       ② 低频噪声决定方向的切向涡旋 → 有机翻卷
+       ③ 沿光标速度方向的拖拽 → 像手指拨过沙面
+       三者的作用域都只有一小片，且 JS 端缓动很慢，所以是渐进跟手 */
     vec2 toM = st - mSt;
     float md = length(toM);
     vec2 dirM = toM/(md + 1e-4);
-    float infl = smoothstep(0.32, 0.0, md) * uMouseOn;
-    float f = infl*infl;
-    w += dirM*f*0.060 + vec2(-dirM.y, dirM.x)*f*0.040;
+    float on = uMouseOn;
+    float push = on * 0.030 / (md*md + 0.020);
+    push = min(push, 0.055);
+    float nearF = smoothstep(mix(0.34, 0.26, narrow), 0.0, md);
+    float swirl = snoise(st*3.4 + vec2(t*0.05, -t*0.04));
+    vec2 tang = vec2(-dirM.y, dirM.x);
+    vec2 mVel = clamp(uMouseVel, vec2(-1.6), vec2(1.6));
+    w += dirM * push * 0.9
+       + tang * (swirl * nearF * on * 0.085)
+       + mVel * (nearF * on * 0.28);
 
     /* 大沙垄：宽、慢、方向略斜。窄屏提高空间频率，否则整屏只容得下一道沙脊 */
     float kf = mix(1.0, 1.7, narrow);
@@ -167,14 +181,16 @@ const { variant = 'sand' } = Astro.props;
     field *= mix(0.55, 0.45, narrow) + mix(0.75, 0.95, narrow)*focus;
     /* 中心再托一层底：即使落在两道沙脊之间，也留下柔和的密度，不会空成一片 */
     field += smoothstep(0.8, 0.0, length(p)) * 0.10;
-    /* 光标附近激起一圈很浅的涟漪：手拨过沙面留下的波痕，随手指缓慢移动 */
-    field = max(field + sin(md*80.0 - t*2.2)*f*0.085, 0.0);
+    /* 光标附近沙粒被搅动的疏密：用 fbm 而不是同心环，形状不规则 */
+    float stirred = fbm(w*4.5 + vec2(t*0.10, -t*0.08));
+    field = max(field + stirred * nearF * on * 0.20, 0.0);
 
     /* 拉开垄顶与垄间的差距：沙脊处密到成片，低处只剩稀疏松散的颗粒，
        dither 的层次才看得出来，而不是一整屏均匀噪点 */
     field = pow(clamp(field, 0.0, 1.0), 1.3) * 1.35;
-    field *= 1.0 + 0.05*sin(t*0.11);
-    return min(field, 1.0) * mix(1.0, 0.9, narrow);
+    field *= 1.0 + 0.04*sin(t*0.11);
+    /* 封顶留出空档：再密的沙脊也保留 12% 的空格，不会糊成整块实心 */
+    return min(field, 0.88) * mix(1.0, 0.9, narrow);
   }
 
   void main(){
@@ -284,6 +300,7 @@ const { variant = 'sand' } = Astro.props;
     last: number;
     animT: number;
     mUV: { x: number; y: number };
+    vel: { x: number; y: number };
     mouseOn: number;
     mouseOnTarget: number;
     tint: [number, number, number];
@@ -375,6 +392,8 @@ const { variant = 'sand' } = Astro.props;
     gl.uniform1f(u.uAlpha, P.alpha * it.alphaScale);
     gl.uniform1f(u.uVeil, it.veil);
     gl.uniform1f(u.uScatter, P.scatter);
+    gl.uniform2f(u.uMouseVel, Math.max(-1.5, Math.min(1.5, it.vel.x)), Math.max(-1.5, Math.min(1.5, it.vel.y)));
+    gl.uniform1f(u.uInk, it.variant === 'sand' ? 0.45 : 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   };
 
@@ -397,9 +416,16 @@ const { variant = 'sand' } = Astro.props;
       // 很慢地跟随：手感是"渐进、笨拙的滞后"，不是贴着手走
       const k = 1 - Math.exp(-1.1 * dt);
       const kOn = 1 - Math.exp(-1.0 * dt);
+      const px = it.mUV.x;
+      const py = it.mUV.y;
       it.mUV.x += (tUV.x - it.mUV.x) * k;
       it.mUV.y += (tUV.y - it.mUV.y) * k;
       it.mouseOn += (mouseOnTarget - it.mouseOn) * kOn;
+      // 平滑后的位移速度：只用于刮擦拖拽，停下后很快归零
+      const kv = 1 - Math.exp(-2.6 * dt);
+      const aspect = it.el.width / Math.max(1, it.el.height);
+      it.vel.x += (((it.mUV.x - px) / Math.max(dt, 1e-3)) * aspect - it.vel.x) * kv;
+      it.vel.y += (((it.mUV.y - py) / Math.max(dt, 1e-3)) - it.vel.y) * kv;
       draw(it);
     }
     raf = live.length ? requestAnimationFrame(tick) : 0;
@@ -459,6 +485,7 @@ const { variant = 'sand' } = Astro.props;
     for (const name of [
       'uRes', 'uTime', 'uMouseUV', 'uMouseOn', 'uSize',
       'uExposure', 'uGamma', 'uGlow', 'uContrast', 'uTint', 'uAlpha', 'uVeil', 'uScatter',
+      'uMouseVel', 'uInk',
     ]) {
       u[name] = gl.getUniformLocation(prog, name);
     }
@@ -473,6 +500,7 @@ const { variant = 'sand' } = Astro.props;
       last: 0,
       animT: 0,
       mUV: { x: tUV.x, y: tUV.y },
+      vel: { x: 0, y: 0 },
       mouseOn: 0,
       mouseOnTarget: 0,
       ...readTheme(variant),
