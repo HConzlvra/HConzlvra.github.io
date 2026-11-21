@@ -62,6 +62,7 @@ const { variant = 'sand' } = Astro.props;
   uniform float uGamma;
   uniform vec3  uTint;
   uniform float uAlpha;
+  uniform float uVeil;     // 整幅黑色薄雾：浅色主题下把背景整体压暗
   uniform float uScatter;
 
   float hash21(vec2 p){ p = fract(p*vec2(123.34,456.21)); p += dot(p,p+45.32); return fract(p.x*p.y); }
@@ -101,7 +102,9 @@ const { variant = 'sand' } = Astro.props;
     float a = d * mix(0.8, 1.0, vig);
     float narrow = smoothstep(1.05, 0.62, uRes.x/uRes.y);
     a *= uAlpha * mix(1.0, 0.6, narrow);
-    return vec4(uTint * a, a);
+    // 黑色薄雾是"无点"的底色：预乘后 rgb 仍为 0，alpha 叠加即可压暗底色
+    float va = uVeil * mix(1.0, 0.75, narrow);
+    return vec4(uTint * a, clamp(a + va, 0.0, 1.0));
   }`;
 
   /* ---------- 变体 1：整幅流沙（黑白） ---------- */
@@ -157,7 +160,7 @@ const { variant = 'sand' } = Astro.props;
     float focus = smoothstep(1.05, 0.06, length(p));
     field *= mix(0.55, 0.45, narrow) + mix(0.75, 0.95, narrow)*focus;
     /* 中心再托一层底：即使落在两道沙脊之间，也留下柔和的密度，不会空成一片 */
-    field += smoothstep(0.8, 0.0, length(p)) * 0.14;
+    field += smoothstep(0.8, 0.0, length(p)) * 0.10;
 
     /* 拉开垄顶与垄间的差距：沙脊处密到成片，低处只剩稀疏松散的颗粒，
        dither 的层次才看得出来，而不是一整屏均匀噪点 */
@@ -276,6 +279,8 @@ const { variant = 'sand' } = Astro.props;
     mouseOn: number;
     mouseOnTarget: number;
     tint: [number, number, number];
+    veil: number;
+    alphaScale: number;
   }
 
   const live: Inst[] = [];
@@ -305,12 +310,19 @@ const { variant = 'sand' } = Astro.props;
     return FALLBACK;
   };
 
-  // sand 是黑白：浅色主题黑点、深色主题白点；star 沿用主题紫
-  const readTint = (variant: 'sand' | 'star'): [number, number, number] => {
+  // sand 是黑白：浅色主题用更实的黑点 + 一层黑色薄雾压暗整体；
+  // 深色主题把白点调暗（略灰、降透明度），避免整屏发亮。star 沿用主题紫
+  const readTheme = (variant: 'sand' | 'star') => {
     if (variant === 'star') {
-      return parseColor(getComputedStyle(document.documentElement).getPropertyValue('--grad-b'));
+      return {
+        tint: parseColor(getComputedStyle(document.documentElement).getPropertyValue('--grad-b')),
+        veil: 0,
+        alphaScale: 1,
+      };
     }
-    return document.documentElement.dataset.theme === 'dark' ? [1, 1, 1] : [0, 0, 0];
+    return document.documentElement.dataset.theme === 'dark'
+      ? { tint: [0.86, 0.86, 0.86] as [number, number, number], veil: 0, alphaScale: 0.78 }
+      : { tint: [0, 0, 0] as [number, number, number], veil: 0.09, alphaScale: 1.18 };
   };
 
   const compile = (gl: WebGL2RenderingContext, type: number, src: string) => {
@@ -352,7 +364,8 @@ const { variant = 'sand' } = Astro.props;
     gl.uniform1f(u.uGlow, P.glow);
     gl.uniform1f(u.uContrast, P.contrast);
     gl.uniform3f(u.uTint, it.tint[0], it.tint[1], it.tint[2]);
-    gl.uniform1f(u.uAlpha, P.alpha);
+    gl.uniform1f(u.uAlpha, P.alpha * it.alphaScale);
+    gl.uniform1f(u.uVeil, it.veil);
     gl.uniform1f(u.uScatter, P.scatter);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   };
@@ -437,7 +450,7 @@ const { variant = 'sand' } = Astro.props;
     const u: Record<string, WebGLUniformLocation | null> = {};
     for (const name of [
       'uRes', 'uTime', 'uMouseUV', 'uMouseOn', 'uSize',
-      'uExposure', 'uGamma', 'uGlow', 'uContrast', 'uTint', 'uAlpha', 'uScatter',
+      'uExposure', 'uGamma', 'uGlow', 'uContrast', 'uTint', 'uAlpha', 'uVeil', 'uScatter',
     ]) {
       u[name] = gl.getUniformLocation(prog, name);
     }
@@ -454,7 +467,7 @@ const { variant = 'sand' } = Astro.props;
       mUV: { x: tUV.x, y: tUV.y },
       mouseOn: 0,
       mouseOnTarget: 0,
-      tint: readTint(variant),
+      ...readTheme(variant),
     });
   };
 
@@ -492,12 +505,15 @@ const { variant = 'sand' } = Astro.props;
   window.addEventListener('resize', start);
 
   // 主题切换：颜色已注册为 <color>，过渡期间逐帧重读（star 的紫色与页面同步渐变）
+  const applyTheme = (it: Inst) => {
+    Object.assign(it, readTheme(it.variant));
+  };
   let followId = 0;
   const followTheme = (until: number) => {
     if (followId) cancelAnimationFrame(followId);
     const step = () => {
       for (const it of live) {
-        it.tint = readTint(it.variant);
+        applyTheme(it);
         if (reduced.matches && it.el.isConnected) draw(it);
       }
       if (performance.now() < until) followId = requestAnimationFrame(step);
@@ -506,7 +522,7 @@ const { variant = 'sand' } = Astro.props;
     followId = requestAnimationFrame(step);
   };
   new MutationObserver(() => {
-    for (const it of live) it.tint = readTint(it.variant);
+    for (const it of live) applyTheme(it);
     start();
     followTheme(performance.now() + 600);
   }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
