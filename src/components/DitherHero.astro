@@ -1,9 +1,9 @@
 ---
-// 主页背景：WebGL2 实时光栅抖动（ordered dither）星芒。
-// 移植自 https://github.com/yashkotha/dither-hero（MIT），只保留 dither 模式：
-// 连续亮度场（八芒星 + 暗椭圆核心 + 流动地形/沙粒/噪点，跟随光标轻微排斥）
-// 经 Bayer 8×8 阈值化后，用主题紫色以 alpha 叠加在页面渐变之上——
-// 底色仍然透出 global.css 的渐变，亮处是抖动的紫色像素点。
+// 背景：WebGL2 实时光栅抖动（ordered dither）——缓慢流动的沙丘。
+// 抖动 / Bayer 8×8 来自 https://github.com/yashkotha/dither-hero（MIT），
+// 图案换成非具象的风吹沙丘：宽而缓的明暗带 + 沿风向拉长的沙纹 + 细颗粒，
+// 全部随时间缓慢漂移、变形。阈值化后用主题紫色以 alpha 叠加在页面渐变之上，
+// 底色仍然透出 global.css 的渐变，亮处是严格等宽的紫色抖动方格。
 ---
 
 <canvas id="dither-hero" class="dither-hero" aria-hidden="true"></canvas>
@@ -20,16 +20,14 @@
 </style>
 
 <script>
-  // ---------- 可调参数（对应原仓库的 tuner 默认值，按本站配色微调）----------
+  // ---------- 可调参数 ----------
   const P = {
-    size: 2, // 每个抖动单元的 CSS 像素数
-    exposure: 1.15, // 亮度整体增益
-    contrast: 1.18, // 亮暗过渡的锐度
-    gamma: 1.1, // 中间调偏移
-    glow: 1.7, // 星芒衰减（越大越收紧）
-    scatter: 0.2, // 每个单元阈值抖动
-    motion: 0.4, // 动画速度
-    alpha: 0.55, // 整体不透明度（亮处）
+    size: 2, // 抖动单元边长（CSS px），实际会取整成整数设备像素 → 每格严格等大
+    exposure: 1.05, // 亮度整体增益
+    gamma: 0.95, // 中间调偏移（<1 让稀疏处也有一点沙粒）
+    scatter: 0.16, // 每个单元阈值抖动（打散 Bayer 的规则网格感）
+    motion: 0.65, // 流动速度（很慢，但能看出沙纹在走）
+    alpha: 0.6, // 整体不透明度（亮处）
   };
 
   const VERT = `#version 300 es
@@ -42,11 +40,9 @@
   uniform float uTime;
   uniform vec2  uMouseUV;  // 光标，0..1（y 向上）
   uniform float uMouseOn;  // 0..1，首次移动光标后渐入
-  uniform float uSize;     // 每个效果单元的设备像素数
+  uniform float uSize;     // 每个效果单元的边长（整数设备像素）
   uniform float uExposure;
-  uniform float uContrast;
   uniform float uGamma;
-  uniform float uGlow;
   uniform vec3  uTint;     // 亮处颜色
   uniform float uAlpha;    // 亮处不透明度
   uniform float uScatter;
@@ -75,124 +71,79 @@
   float bayer4(vec2 a){ return bayer2(0.5*a)*0.25 + bayer2(a); }
   float bayer8(vec2 a){ return bayer4(0.5*a)*0.25 + bayer2(a); }
 
-  /* ---- 连续调亮度场 ---- */
+  /* ---- 连续调亮度场：缓慢流动的沙纹 ---- */
   float scene(vec2 fc, vec2 mSt, float t){
-    vec2 uv = fc/uRes;
     vec2 st = (fc - 0.5*uRes)/uRes.y;
 
-    /* 缓慢翻滚的域扭曲：光标静止时整片场也在流动 */
-    vec2 fp = st*1.7;
-    vec2 warp = vec2(fbm(fp + vec2(0.0, t*0.10)),
-                     fbm(fp + vec2(5.2,-t*0.08)));
+    /* 极慢的整体漂移 + 低频域扭曲：沙纹的走向、间距一直在慢慢变形 */
+    vec2 q = st + vec2(t*0.012, -t*0.009);
+    vec2 warp = vec2(fbm(q*0.75 + vec2(0.0, t*0.03)),
+                     fbm(q*0.75 + vec2(6.3, -t*0.022)));
+    vec2 w = q + warp*0.45;
 
-    /* 光标排斥：把场从光标处推开（平方反比衰减） */
-    vec2 toP = st - mSt;
-    float pd = length(toP);
-    float push = uMouseOn * 0.04 / (pd*pd + 0.025);
-    push = min(push, 0.06);
-    vec2 disp = (toP/(pd+1e-4)) * push;
+    /* 沙纹：斜向排布的条带。cos 的幂让脊线收窄、谷底留宽，
+       这样点阵读起来是一道道被风吹出的沙垄，而不是均匀噪点 */
+    float phase = w.y*7.2 + w.x*2.4 + fbm(w*1.1 + vec2(t*0.012,-t*0.010))*2.4 + t*0.03;
+    float crest = pow(0.5 + 0.5*cos(phase), 3.5);
 
-    vec2 sts = st + warp*0.04 + disp*0.45;
+    /* 大尺度疏密：沙垄有的地方聚、有的地方断；
+       细颗粒给沙面一点粗糙感 */
+    float density = fbm(w*0.62 + vec2(t*0.015))*0.5 + 0.5;
+    float grain = fbm(w*6.0 + vec2(-t*0.04, t*0.035))*0.5 + 0.5;
 
-    /* 星芒中心：宽屏时靠右（避开左侧标题），窄屏时回到画面中央；
-       窄屏整体收紧、抬高一档，并把地形压淡，给文字留出干净底 */
+    /* 沙丘主体偏右：左侧给标题留干净底；底部更密（沙往低处积） */
     float aspect = uRes.x/uRes.y;
-    float narrow = smoothstep(1.05, 0.6, aspect);
-    float cx = min(0.44, max(0.0, aspect*0.5 - 0.28));
-    vec2 center = vec2(cx, 0.05) + mSt*0.06;
-    vec2 p = sts - center;
-    float r = length(p) * mix(1.0, 1.22, narrow);
-    float ang = atan(p.y,p.x);
-    float rot = 0.12 + t*0.03;
+    float narrow = smoothstep(1.05, 0.62, aspect);
+    float side = smoothstep(-0.72, 0.22, st.x + warp.x*0.16);
+    side = mix(side, 0.55, narrow);
+    float low = mix(0.5, 1.0, smoothstep(0.45, -0.3, st.y));
 
-    /* 4 长 + 4 短锐利光线 */
-    float aL = abs(cos(2.0*(ang+rot)));
-    float aS = abs(cos(2.0*(ang+rot-0.78539816)));
-    float rays = (pow(aL,38.0) + pow(aS,55.0)*0.5) * exp(-r*3.3*uGlow);
-    float glow = exp(-r*6.6*uGlow)*0.5;
+    float field = crest * (0.30 + 0.70*density);
+    field += grain*0.07;
+    field *= side * low;
 
-    /* 暗椭圆核心 + 光晕环 */
-    vec2 ep = p*vec2(1.0,1.72); float er=length(ep);
-    float core = smoothstep(0.135,0.028,er);
-    float halo = exp(-abs(er-0.14)*8.5)*0.95;
-
-    float star = (rays*1.25 + glow + halo)*(1.0 - core*1.55);
-    star = max(star,0.0);
-    star *= 1.0 + 0.05*sin(t*0.6);
-
-    /* 流动地形：底部更密（像被风吹动的沙） */
-    vec2 np = vec2(uv.x*3.0, uv.y*3.0) + warp*0.5 + disp*2.4;
-    float flow = fbm(np*1.25 + vec2(t*0.08,-t*0.11));
-    float field = fbm(np*2.25 + flow*0.7 + vec2(t*0.05,t*0.05));
-    float bmask = smoothstep(0.55,0.0,uv.y);
-    float terrain = pow(field*0.5+0.5,1.4)*bmask*mix(0.45, 0.24, narrow);
-
-    /* 全局细沙：很淡，远离星芒后消失 */
-    float sand = fbm(np*1.7 + warp*1.1 + vec2(-t*0.10, t*0.07));
-    float sandField = (sand*0.5+0.5) * 0.09 * smoothstep(1.4,0.0,r);
-
-    /* 星芒周围的大尺度薄雾 */
-    float haze = (fbm(np*0.7 + t*0.02)*0.5+0.5)*0.05 * smoothstep(1.1,0.1,r);
-
-    /* 漂移闪烁的微尘 */
-    vec2 cell = floor((fc + vec2(t*5.0, t*2.5))/max(uSize*1.5,3.0));
-    float sh = hash21(cell);
-    float tw = 0.5+0.5*sin(t*3.0 + hash21(cell+7.0)*30.0);
-    float specks = smoothstep(0.9965,0.9990,sh)*tw*0.45;
-
-    float g = star + terrain + sandField + haze + specks + 0.02;
-
-    /* 光标附近：点亮 / 搅动抖动场 */
+    /* 光标：附近沙面微微亮起，不移动格子（格子始终保持严格正方） */
     float md = distance(st, mSt);
-    float hv = smoothstep(0.32, 0.0, md);
-    float stir = fbm(np*3.0 + t*0.6)*0.5+0.5;
-    g += hv * (0.09 + 0.20*stir);
-    g += smoothstep(0.09, 0.0, md) * 0.10;
+    field += smoothstep(0.4, 0.0, md) * uMouseOn * 0.06 * (0.4 + 0.6*density);
 
-    /* 亮区里刻一层很淡的"技术网格" */
-    vec2 gp = fract(st*38.0) - 0.5;
-    float grid = max(smoothstep(0.055,0.0,abs(gp.x)), smoothstep(0.055,0.0,abs(gp.y)));
-    g -= grid * smoothstep(0.16,0.6,g) * 0.10;
+    /* 整片沙丘极缓慢地明暗呼吸 */
+    field *= 1.0 + 0.06*sin(t*0.13);
 
-    return g;
+    field *= mix(0.68, 0.4, narrow);
+    return field;
   }
 
   void main(){
     vec2 fc = gl_FragCoord.xy;
+    /* 整个格子共用"格心"的亮度值：如果直接用逐像素的 tone 做阈值，
+       恰好压在阈值边上的格子会被撕成半格，边缘参差、看起来像不规则矩形。
+       取格心后每格非黑即白，边界严格是正方形的直角 */
+    vec2 gcell = floor(fc/uSize);
+    vec2 cellCenter = (gcell + 0.5) * uSize;
     float t = uTime;
     vec2 mSt = vec2((uMouseUV.x-0.5)*uRes.x/uRes.y, uMouseUV.y-0.5);
 
-    float g = scene(fc, mSt, t);
-    float tone = clamp(g, 0.0, 1.0);
-
-    /* 色调曲线：先塑形，再抖动 */
-    tone = pow(tone, uGamma);
-    tone = (tone - 0.5)*uContrast + 0.5;
-    tone *= uExposure;
+    /* 亮度曲线：沙纹本身已经是 0..1 的场，gamma 只微调稀疏处的沙粒 */
+    float tone = clamp(scene(cellCenter, mSt, t), 0.0, 1.0);
+    tone = pow(tone, uGamma) * uExposure;
     tone = clamp(tone, 0.0, 1.0);
 
-    /* Bayer 8×8 阈值抖动 + 每单元轻微阈值随机 + 颗粒 */
-    vec2 gcell = floor(fc/uSize);
+    /* Bayer 8×8 阈值抖动。gcell 用整数 uSize 切分 → 每个格子等宽等高、
+       严格对齐，不会在非整数 DPR 下变成宽窄不一的矩形 */
     float threshJ = (hash21(gcell + vec2(13.1, 71.7)) - 0.5) * uScatter;
-    float tt = t*3.5;
-    float ti = floor(tt), tf = fract(tt);
-    tf = tf*tf*(3.0-2.0*tf);
-    float grain = (mix(hash21(gcell+ti), hash21(gcell+ti+1.0), tf) - 0.5)*0.02;
     float thr = bayer8(gcell);
-    float d = step(thr + threshJ, tone + grain);
-    /* 场本身很暗的地方不出点：否则阈值抖动/颗粒会让整页铺满
-       稀疏但实心的脏点（原仓库是深色底，这些点看不出来；浅色底会很明显） */
-    d *= smoothstep(0.01, 0.08, tone);
-    float lum = mix(d, tone, 0.10);
+    float d = step(thr + threshJ, tone);
+    /* 场本身很暗的地方不出点：否则阈值抖动会让整页铺满脏点 */
+    d *= smoothstep(0.015, 0.09, tone);
 
     /* 轻微暗角 */
     vec2 st = (fc - 0.5*uRes)/uRes.y;
-    float vig = smoothstep(1.5,0.15,length(st));
-    lum *= mix(0.78,1.0,vig);
+    float vig = smoothstep(1.55, 0.2, length(st));
+    float lum = d * mix(0.8, 1.0, vig);
 
-    /* 预乘 alpha：底色（页面渐变）透出来，亮处是主题紫色抖动的点。
-       窄屏再降一档，避免星芒压在标题上影响阅读 */
-    float narrow = smoothstep(1.05, 0.6, uRes.x/uRes.y);
+    /* 预乘 alpha：底色（页面渐变）透出来，亮处是主题紫色抖动的方格。
+       窄屏再降一档，避免沙纹压在标题上影响阅读 */
+    float narrow = smoothstep(1.05, 0.62, uRes.x/uRes.y);
     float a = clamp(lum,0.0,1.0) * uAlpha * mix(1.0, 0.55, narrow);
     fragColor = vec4(uTint * a, a);
   }`;
@@ -257,6 +208,9 @@
 
   const resize = () => {
     if (!canvas || !gl) return;
+    // 切换效果时画布会被 display:none 收起，clientWidth 为 0：
+    // 保持原有像素缓冲，等它重新显示时再同步
+    if (!canvas.clientWidth || !canvas.clientHeight) return;
     dpr = Math.min(window.devicePixelRatio || 1, dprCap);
     const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
     const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
@@ -274,11 +228,10 @@
     gl.uniform1f(loc.uTime, animT);
     gl.uniform2f(loc.uMouseUV, mUV.x, mUV.y);
     gl.uniform1f(loc.uMouseOn, mouseOn);
-    gl.uniform1f(loc.uSize, P.size * dpr);
+    // 取整成整数设备像素：格子才是严格等宽等高、彼此对齐的正方形
+    gl.uniform1f(loc.uSize, Math.max(2, Math.round(P.size * dpr)));
     gl.uniform1f(loc.uExposure, P.exposure);
-    gl.uniform1f(loc.uContrast, P.contrast);
     gl.uniform1f(loc.uGamma, P.gamma);
-    gl.uniform1f(loc.uGlow, P.glow);
     gl.uniform3f(loc.uTint, tint[0], tint[1], tint[2]);
     gl.uniform1f(loc.uAlpha, P.alpha);
     gl.uniform1f(loc.uScatter, P.scatter);
@@ -288,6 +241,12 @@
   const frame = (now: number) => {
     if (!canvas || !canvas.isConnected) {
       running = false;
+      return;
+    }
+    // 被别的背景效果盖住（display:none）时不渲染，但仍保留 rAF 以便切回来立刻继续
+    if (!canvas.clientWidth) {
+      last = now;
+      requestAnimationFrame(frame);
       return;
     }
     const dt = last ? Math.min((now - last) / 1000, 0.05) : 0.016;
@@ -368,7 +327,7 @@
     loc = {};
     for (const name of [
       'uRes', 'uTime', 'uMouseUV', 'uMouseOn', 'uSize',
-      'uExposure', 'uContrast', 'uGamma', 'uGlow', 'uTint', 'uAlpha', 'uScatter',
+      'uExposure', 'uGamma', 'uTint', 'uAlpha', 'uScatter',
     ]) {
       loc[name] = gl.getUniformLocation(prog, name);
     }

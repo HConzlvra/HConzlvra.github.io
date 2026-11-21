@@ -1,0 +1,169 @@
+---
+// Visions：背景效果陈列页。只放背景，不放首页内容；
+// 底部按钮在几套效果之间切换（每套效果组件自己控制渲染，切走的会跳帧省电）
+import Layout from '../layouts/Layout.astro';
+import DotGrid from '../components/DotGrid.astro';
+import DitherHero from '../components/DitherHero.astro';
+---
+
+<Layout title="Visions">
+  <!-- 两套背景都挂在页面上，用 display 切换 -->
+  <div class="fx-layer" data-fx-layer="dunes"><DitherHero /></div>
+  <div class="fx-layer is-off" data-fx-layer="dots"><DotGrid /></div>
+
+  <section class="visions">
+    <div class="visions-head">
+      <p class="eyebrow">// background studies</p>
+      <h1>Visions</h1>
+      <p class="lede">
+        A small shelf of background effects, collected here. Nothing else on the page — just the
+        light and the grain. Pick one below.
+      </p>
+    </div>
+  </section>
+
+  <div class="fx-switch" role="group" aria-label="Background effect">
+    <button type="button" class="fx-btn is-active" data-fx="dunes" aria-pressed="true">Dunes</button>
+    <button type="button" class="fx-btn" data-fx="dots" aria-pressed="false">Dot grid</button>
+  </div>
+</Layout>
+
+<style>
+  .fx-layer.is-off {
+    display: none;
+  }
+  /* 切回来时轻微淡入，避免生硬闪现（display 从 none 变回可见会重新触发） */
+  .fx-layer:not(.is-off) {
+    animation: fx-in 480ms ease both;
+  }
+  @keyframes fx-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .visions {
+    min-height: 100vh;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 7.5rem 1.5rem 8rem;
+  }
+  /* 标题放在毛玻璃卡上：沙纹会缓慢流过整页，不能让文字直接被点阵穿过 */
+  .visions-head {
+    width: fit-content;
+    max-width: 460px;
+    padding: 1.7rem 1.8rem 1.6rem;
+    border-radius: 18px;
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 12px 40px rgba(42, 36, 64, 0.08);
+  }
+  .eyebrow {
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-text);
+  }
+  .visions h1 {
+    width: fit-content;
+    background: var(--heading-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: clamp(2.4rem, 6vw, 3.6rem);
+    letter-spacing: -0.01em;
+    margin: 0.65rem 0 1rem;
+  }
+  .lede {
+    max-width: 36ch;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    font-size: 1rem;
+  }
+
+  /* 底部悬浮切换器：毛玻璃胶囊，浮在背景效果之上 */
+  .fx-switch {
+    position: fixed;
+    left: 50%;
+    bottom: 1.9rem;
+    transform: translateX(-50%);
+    z-index: 5;
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.3rem;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 10px 32px rgba(42, 36, 64, 0.12);
+  }
+  .fx-btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    padding: 0.66rem 1.1rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition:
+      background-color 0.25s ease,
+      color 0.25s ease;
+  }
+  .fx-btn:hover {
+    color: var(--text);
+  }
+  .fx-btn.is-active {
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+  }
+  .fx-btn:focus-visible {
+    outline: 2px solid var(--btn-primary-bg);
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 640px) {
+    .visions {
+      padding: 6rem 1.2rem 7rem;
+    }
+    .lede {
+      font-size: 0.95rem;
+    }
+    .fx-switch {
+      bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px));
+    }
+    .fx-btn {
+      padding: 0.62rem 0.95rem;
+      font-size: 0.78rem;
+    }
+  }
+</style>
+
+<script>
+  // 切换背景效果。事件委托挂在 document 上，软导航进出页面都不用重新绑定
+  document.addEventListener('click', (e) => {
+    const btn = (e.target as Element | null)?.closest<HTMLButtonElement>('[data-fx]');
+    if (!btn) return;
+    const key = btn.dataset.fx;
+    if (!key) return;
+    for (const layer of document.querySelectorAll<HTMLElement>('[data-fx-layer]')) {
+      layer.classList.toggle('is-off', layer.dataset.fxLayer !== key);
+    }
+    for (const b of document.querySelectorAll<HTMLButtonElement>('[data-fx]')) {
+      const on = b.dataset.fx === key;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-pressed', String(on));
+    }
+  });
+</script>

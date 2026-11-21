@@ -1,16 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import DotGrid from '../components/DotGrid.astro';
 import DitherHero from '../components/DitherHero.astro';
 import { getCollection } from 'astro:content';
 import { nameInkViewBox } from '../data/name-ink';
-
-// 同一个首页内容，两套背景：
-// dither = 现在的主页（DitherHero），dot = 旧版格点背景，保留在 /dotgrid
-interface Props {
-  bg?: 'dither' | 'dot';
-}
-const { bg = 'dither' } = Astro.props;
 
 // Latest posts: static top 3 at build time (merged with /admin posts at runtime)
 const posts = (await getCollection('posts'))
@@ -27,7 +19,7 @@ const dateLabel = (d?: Date) =>
   <link slot="head" rel="preload" href="/fonts/norican-latin.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
   <!-- 首屏引文用的斜体，同样提前拉，避免打字机打到一半字体才换 -->
   <link slot="head" rel="preload" href="/fonts/eb-garamond-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
-  {bg === 'dot' ? <DotGrid /> : <DitherHero />}
+  <DitherHero />
   <!-- First screen: gradient background + background effect visible, centered in viewport -->
   <div class="container">
     <!-- Desktop: hero + cards centered as one group (container handles it).

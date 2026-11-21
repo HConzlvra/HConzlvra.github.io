@@ -416,6 +416,13 @@
       running = false;
       return;
     }
+    // 在 /visions 里被切到别的背景时画布是 display:none：
+    // 跳过绘制（否则会按旧尺寸空转），保留 rAF，切回来下一帧自动恢复
+    if (!canvas.clientWidth || !canvas.clientHeight) {
+      lastTime = 0;
+      requestAnimationFrame(loop);
+      return;
+    }
     // 地址栏伸缩（iOS Safari 不触发 resize）等场景：每帧对比实际渲染
     // 尺寸与像素缓冲，不一致就重同步——画布永远满屏，底部不露空隙
     if (canvas.clientWidth * dpr !== canvas.width || canvas.clientHeight * dpr !== canvas.height) {
