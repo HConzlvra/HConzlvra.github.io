@@ -168,20 +168,11 @@ const { variant = 'sand' } = Astro.props;
     float grain = fbm(w*7.0 + vec2(-t*0.030, t*0.025))*0.5 + 0.5;
     float density = fbm(q*0.5 + vec2(t*0.008, -t*0.006))*0.5 + 0.5;
 
-    /* 区域遮罩：用一层很慢的大尺度噪声把画布分成"有沙"和"完全留白"的地带。
-       窄屏改用屏幕尺度采样，否则手机只截到噪声的一小块，可能整屏都落在空白里 */
-    float regionW = fbm(q*0.68 + vec2(t*0.008, -t*0.006));
-    float regionS = fbm(uv*2.2 + vec2(t*0.012, -t*0.009));
-    float region = mix(regionW, regionS, narrow);
-    float mask = smoothstep(-0.30, 0.16, region);
-    /* 二次打碎：把有沙的地带再啃出一些缺口，避免连成一大块浓云 */
-    float breakup = smoothstep(-0.25, 0.35, fbm(q*1.5 + vec2(-t*0.02, t*0.015)));
-    mask *= mix(0.45, 1.0, breakup);
-
-    float field = duneA * (0.52 + 0.48*density)
-                + duneB * 0.12 * duneA
-                + grain * 0.05 * duneA * duneA;
-    field *= mask;
+    /* 沙脊贯穿整幅画布：不做区域遮罩/打碎，避免出现孤立的脏块，
+       保持流动的连续性；靠阈值让坡底自然留白，形成整体感 */
+    float field = duneA * (0.42 + 0.38*density)
+                + duneB * 0.08 * duneA
+                + grain * 0.04 * duneA * duneA;
 
     /* 沙只落在沙脊上，中部偏右更实，形成柔和的视觉落点（不是具象图形）。
        窄屏改用屏幕比例感更强的距离度量，保证落点确实落在画布中间 */
@@ -189,16 +180,16 @@ const { variant = 'sand' } = Astro.props;
     vec2 p = (uv - c) * mix(vec2(uRes.x/uRes.y, 1.0), vec2(1.35, 0.95), narrow);
     float focus = smoothstep(1.05, 0.06, length(p));
     /* 落点附近的沙脊更实，边缘渐隐到零：画面两端留大片空白 */
-    field *= mix(0.34, 0.30, narrow) + mix(0.66, 0.70, narrow)*focus;
+    field *= mix(0.62, 0.58, narrow) + mix(0.38, 0.42, narrow)*focus;
     /* 局部扰动：少量疏密变化 */
     float stirred = fbm(w*4.5 + vec2(t*0.10, -t*0.08));
     field = max(field + stirred * nearF * on * 0.10, 0.0);
 
-    /* 抬高门槛：只有沙脊顶部过阈值，坡底与垄间直接留白（大量不打点的区域） */
-    field = pow(clamp(field, 0.0, 1.0), 1.5) * 1.5;
+    /* 抬高门槛：只有沙脊顶部过阈值，坡底与垄间留白，但沙脊仍贯穿整幅 */
+    field = pow(clamp(field, 0.0, 1.0), 1.9) * 1.35;
     field *= 1.0 + 0.04*sin(t*0.11);
-    /* 封顶：最密处也只覆盖约六成格子，不会糊成整块实心 */
-    return min(field, 0.55) * mix(1.0, 1.16, narrow);
+    /* 封顶：最密处也只覆盖约一半多格子，不会糊成整块实心 */
+    return min(field, 0.55) * mix(1.0, 1.06, narrow);
   }
 
   void main(){
