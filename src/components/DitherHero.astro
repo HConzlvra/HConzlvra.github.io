@@ -382,7 +382,9 @@ const { variant = 'sand' } = Astro.props;
     gl.uniform1f(u.uTime, it.animT);
     gl.uniform2f(u.uMouseUV, it.mUV.x, it.mUV.y);
     gl.uniform1f(u.uMouseOn, it.mouseOn);
-    gl.uniform1f(u.uSize, Math.max(2, Math.round(P.size * it.dpr)));
+    // 手机（竖屏）上格子放大一点，保住像素颗粒感；仍取整设备像素，保持严格方格
+    const portrait = el.clientWidth / Math.max(1, el.clientHeight) < 0.8;
+    gl.uniform1f(u.uSize, Math.max(2, Math.round(P.size * it.dpr * (portrait ? 1.3 : 1))));
     gl.uniform1f(u.uExposure, P.exposure);
     gl.uniform1f(u.uGamma, P.gamma);
     gl.uniform1f(u.uGlow, P.glow);
