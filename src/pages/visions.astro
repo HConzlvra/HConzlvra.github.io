@@ -8,7 +8,7 @@ import DitherHero from '../components/DitherHero.astro';
 
 <Layout title="Visions">
   <!-- 两套背景都挂在页面上，用 display 切换 -->
-  <div class="fx-layer" data-fx-layer="dunes"><DitherHero /></div>
+  <div class="fx-layer" data-fx-layer="star"><DitherHero variant="star" /></div>
   <div class="fx-layer is-off" data-fx-layer="dots"><DotGrid /></div>
 
   <section class="visions">
@@ -23,7 +23,7 @@ import DitherHero from '../components/DitherHero.astro';
   </section>
 
   <div class="fx-switch" role="group" aria-label="Background effect">
-    <button type="button" class="fx-btn is-active" data-fx="dunes" aria-pressed="true">Dunes</button>
+    <button type="button" class="fx-btn is-active" data-fx="star" aria-pressed="true">Starburst</button>
     <button type="button" class="fx-btn" data-fx="dots" aria-pressed="false">Dot grid</button>
   </div>
 </Layout>
