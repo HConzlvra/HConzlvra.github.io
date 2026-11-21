@@ -156,7 +156,7 @@ const { variant = 'sand' } = Astro.props;
        + mVel * (nearF * on * 0.28);
 
     /* 大沙垄：宽、慢、方向略斜。窄屏提高空间频率，否则整屏只容得下一道沙脊 */
-    float kf = mix(1.0, 1.7, narrow);
+    float kf = mix(1.0, 1.4, narrow);
     float phaseA = (w.y*5.2 + w.x*1.7)*kf + fbm(w*0.72 + vec2(t*0.012, -t*0.008))*3.0 + t*0.02;
     float duneA = pow(0.5 + 0.5*cos(phaseA), 2.2);
 
@@ -168,10 +168,15 @@ const { variant = 'sand' } = Astro.props;
     float grain = fbm(w*7.0 + vec2(-t*0.030, t*0.025))*0.5 + 0.5;
     float density = fbm(q*0.5 + vec2(t*0.008, -t*0.006))*0.5 + 0.5;
 
-    /* 区域遮罩：用一层很慢的大尺度噪声把画布分成"有沙"和"完全留白"的地带，
-       保证总有成片的空白，而不是整屏被 dither 铺满 */
-    float region = fbm(q*0.42 + vec2(t*0.006, -t*0.005));
-    float mask = smoothstep(-0.08, 0.34, region);
+    /* 区域遮罩：用一层很慢的大尺度噪声把画布分成"有沙"和"完全留白"的地带。
+       窄屏改用屏幕尺度采样，否则手机只截到噪声的一小块，可能整屏都落在空白里 */
+    float regionW = fbm(q*0.68 + vec2(t*0.008, -t*0.006));
+    float regionS = fbm(uv*2.2 + vec2(t*0.012, -t*0.009));
+    float region = mix(regionW, regionS, narrow);
+    float mask = smoothstep(-0.30, 0.16, region);
+    /* 二次打碎：把有沙的地带再啃出一些缺口，避免连成一大块浓云 */
+    float breakup = smoothstep(-0.25, 0.35, fbm(q*1.5 + vec2(-t*0.02, t*0.015)));
+    mask *= mix(0.45, 1.0, breakup);
 
     float field = duneA * (0.52 + 0.48*density)
                 + duneB * 0.12 * duneA
@@ -184,16 +189,16 @@ const { variant = 'sand' } = Astro.props;
     vec2 p = (uv - c) * mix(vec2(uRes.x/uRes.y, 1.0), vec2(1.35, 0.95), narrow);
     float focus = smoothstep(1.05, 0.06, length(p));
     /* 落点附近的沙脊更实，边缘渐隐到零：画面两端留大片空白 */
-    field *= mix(0.30, 0.15, narrow) + mix(0.70, 0.85, narrow)*focus;
+    field *= mix(0.34, 0.30, narrow) + mix(0.66, 0.70, narrow)*focus;
     /* 局部扰动：少量疏密变化 */
     float stirred = fbm(w*4.5 + vec2(t*0.10, -t*0.08));
     field = max(field + stirred * nearF * on * 0.10, 0.0);
 
     /* 抬高门槛：只有沙脊顶部过阈值，坡底与垄间直接留白（大量不打点的区域） */
-    field = pow(clamp(field, 0.0, 1.0), 1.8) * 1.4;
+    field = pow(clamp(field, 0.0, 1.0), 1.5) * 1.5;
     field *= 1.0 + 0.04*sin(t*0.11);
-    /* 封顶：最密处也只覆盖约一半格子，不会糊成整块实心 */
-    return min(field, 0.5) * mix(1.0, 0.92, narrow);
+    /* 封顶：最密处也只覆盖约六成格子，不会糊成整块实心 */
+    return min(field, 0.55) * mix(1.0, 1.16, narrow);
   }
 
   void main(){
@@ -349,7 +354,7 @@ const { variant = 'sand' } = Astro.props;
       };
     }
     return document.documentElement.dataset.theme === 'dark'
-      ? { tint: [0.86, 0.86, 0.86] as [number, number, number], veil: 0, alphaScale: 0.64 }
+      ? { tint: [0.86, 0.86, 0.86] as [number, number, number], veil: 0, alphaScale: 0.7 }
       : { tint: [0, 0, 0] as [number, number, number], veil: 0.04, alphaScale: 1.02 };
   };
 
